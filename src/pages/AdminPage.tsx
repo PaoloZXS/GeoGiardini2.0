@@ -239,7 +239,7 @@ function ClientiModal({ onClose }: { onClose: () => void }) {
             groups
           </span>
           <h3 className="text-xl font-semibold text-[#2563eb]">
-            {editingClienteId ? "Modifica Cliente" : "Nuovo Cliente"}
+            {editingClienteId ? "Modifica Contatto" : "Nuovo Contatto"}
           </h3>
         </div>
         <form
@@ -337,7 +337,7 @@ function ClientiModal({ onClose }: { onClose: () => void }) {
           <div className="min-h-0">
             <div className="flex justify-end pr-2">
               <p className="text-right text-sm italic font-bold text-black">
-                Clienti registrati:{" "}
+                Contatti registrati:{" "}
                 <span className="font-bold">{clientiList.length}</span>
               </p>
             </div>
@@ -706,11 +706,11 @@ function LocalitaModal({ onClose }: { onClose: () => void }) {
           </div>
           <div>
             <label className="pl-2 text-sm font-bold text-black block">
-              Descrizione
+              Azione
             </label>
             <textarea
               className="w-full min-h-[60px] px-4 py-2 rounded-lg border border-[#c2c9bb] bg-[#f8faf8] focus:ring-2 focus:ring-[#154212] focus:border-[#154212] outline-none text-sm text-black font-bold resize-none"
-              placeholder="Descrizione..."
+              placeholder="Azione..."
               value={descrizione}
               onChange={(e) => setDescrizione(e.target.value)}
             />
@@ -728,14 +728,14 @@ function LocalitaModal({ onClose }: { onClose: () => void }) {
           </div>
           <div>
             <label className="pl-2 text-sm font-bold text-black block">
-              Cliente
+              Contatto
             </label>
             <select
               className="w-full h-10 px-4 rounded-lg border border-[#c2c9bb] bg-[#f8faf8] focus:ring-2 focus:ring-[#154212] focus:border-[#154212] outline-none text-sm text-black font-bold"
               value={clienteId}
               onChange={(e) => setClienteId(e.target.value)}
             >
-              <option value="">Nessun cliente</option>
+              <option value="">Nessun contatto</option>
               {clienti.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.nome}
@@ -1130,11 +1130,11 @@ function AttivitaModal({ onClose }: { onClose: () => void }) {
           {/* Categoria - combobox */}
           <div className="relative">
             <label className="pl-2 text-sm font-bold text-black block">
-              Categoria *
+              Soggetto
             </label>
             <input
               className="w-full h-10 px-4 rounded-lg border border-[#c2c9bb] bg-[#f8faf8] focus:ring-2 focus:ring-[#154212] focus:border-[#154212] outline-none text-sm text-black font-bold"
-              placeholder="Digita o seleziona categoria..."
+              placeholder="Digita o seleziona un soggetto..."
               type="text"
               value={categoriaNome}
               onChange={(e) => {
@@ -1164,14 +1164,14 @@ function AttivitaModal({ onClose }: { onClose: () => void }) {
             )}
           </div>
 
-          {/* Descrizione - combobox */}
+          {/* Azione - combobox */}
           <div className="relative">
             <label className="pl-2 text-sm font-bold text-black block">
-              Descrizione *
+              Azione
             </label>
             <input
               className="w-full h-10 px-4 rounded-lg border border-[#c2c9bb] bg-[#f8faf8] focus:ring-2 focus:ring-[#154212] focus:border-[#154212] outline-none text-sm text-black font-bold"
-              placeholder="Digita o seleziona descrizione..."
+              placeholder="Digita o seleziona azione..."
               type="text"
               value={descrizione}
               onChange={(e) => {
@@ -1216,7 +1216,7 @@ function AttivitaModal({ onClose }: { onClose: () => void }) {
 
           {/* Lista TUTTE le attività da Supabase - stile tabella */}
           <div className="min-h-0">
-            <p className="text-left text-sm italic font-bold text-black mb-2">
+            <p className="text-right text-sm italic font-bold text-black mb-2 pr-5">
               Attività presenti:{" "}
               <span className="font-bold">{list.length}</span>
             </p>
@@ -1226,17 +1226,18 @@ function AttivitaModal({ onClose }: { onClose: () => void }) {
                   className="w-full text-sm"
                   style={{ borderCollapse: "collapse" }}
                 >
-                  <thead className="sticky top-0 bg-white z-10">
+                  <thead className="sticky top-0 z-10 bg-gradient-to-r from-[#166534] to-[#22c55e]">
                     <tr className="border-b border-[#e2e8f0]">
-                      <th className="text-left font-bold text-[#334155] py-2 px-3 w-[25%] border-r border-[#e2e8f0]">
-                        CATEGORIA
+                      <th className="text-left font-bold text-black py-2 px-3 w-[25%] border-r border-[#e2e8f0] bg-transparent">
+                        Soggetto
                       </th>
-                      <th className="text-left font-bold text-[#334155] py-2 px-3 w-[35%] border-r border-[#e2e8f0]">
-                        DESCRIZIONE
+                      <th className="text-left font-bold text-black py-2 px-3 w-[35%] border-r border-[#e2e8f0] bg-transparent">
+                        Azione
                       </th>
-                      <th className="text-left font-bold text-[#334155] py-2 px-3 w-[40%]">
+                      <th className="text-left font-bold text-black py-2 px-3 w-[30%] bg-transparent">
                         NOTA
                       </th>
+                      <th className="w-10 bg-transparent"></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1253,7 +1254,7 @@ function AttivitaModal({ onClose }: { onClose: () => void }) {
                       list.map((item: any, idx: number) => (
                         <tr
                           key={item.id}
-                          className={`border-b border-[#e2e8f0] hover:bg-[#f1f5f9] transition cursor-pointer ${idx % 2 === 1 ? "bg-[#f8fafc]" : "bg-white"}`}
+                          className={`border-b border-[#e2e8f0] hover:bg-[#bbf7d0] transition cursor-pointer ${idx % 2 === 1 ? "bg-[#dcfce7]" : "bg-[#bbf7d0]"}`}
                           onClick={() => handleSelectItem(item)}
                         >
                           <td className="py-2 px-3 font-bold text-[#1e293b] border-r border-[#e2e8f0]">
@@ -1893,7 +1894,7 @@ function InserisciModal({
                 checked={visibile}
                 onChange={(e) => setVisibile(e.target.checked)}
               />
-              Foto visibile al cliente
+              Foto visibile al Contatto
             </label>
             <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer">
               <input
@@ -2266,7 +2267,7 @@ function ReportModal({ onClose }: { onClose: () => void }) {
             style={{ color: filtroCategoria ? "black" : "#9ca3af" }}
           >
             <option value="" className="text-[#9ca3af]">
-              Categoria
+              Soggetto
             </option>
             {categorieList.map((c) => (
               <option key={c.id} value={c.id} className="text-black">
@@ -2296,7 +2297,7 @@ function ReportModal({ onClose }: { onClose: () => void }) {
             style={{ color: filtroCliente ? "black" : "#9ca3af" }}
           >
             <option value="" className="text-[#9ca3af]">
-              Cliente
+              Contatto
             </option>
             {clientiList.map((c) => (
               <option key={c.id} value={c.id} className="text-black">
@@ -2388,12 +2389,12 @@ function ReportModal({ onClose }: { onClose: () => void }) {
               className="w-full text-sm"
               style={{ borderCollapse: "collapse" }}
             >
-              <thead className="sticky top-0 bg-white z-10">
+              <thead className="sticky top-0 z-10 bg-gradient-to-r from-[#166534] to-[#22c55e]">
                 <tr className="border-b border-[#e2e8f0]">
                   {columns.map((col) => (
                     <th
                       key={col}
-                      className="text-left font-bold text-[#334155] py-2 px-3 border-r border-[#e2e8f0] last:border-r-0"
+                      className="text-left font-bold text-black py-2 px-3 border-r border-[#e2e8f0] last:border-r-0 bg-transparent"
                     >
                       {col}
                     </th>
@@ -2404,7 +2405,7 @@ function ReportModal({ onClose }: { onClose: () => void }) {
                 {results.map((r: any, idx: number) => (
                   <tr
                     key={r.id}
-                    className={`border-b border-[#e2e8f0] hover:bg-[#f1f5f9] transition cursor-pointer ${idx % 2 === 1 ? "bg-[#f8fafc]" : "bg-white"}`}
+                    className={`border-b border-[#e2e8f0] hover:bg-[#bbf7d0] transition cursor-pointer ${idx % 2 === 1 ? "bg-[#dcfce7]" : "bg-[#bbf7d0]"}`}
                     onClick={() => openDetail(r)}
                   >
                     <td className="py-2 px-3 text-[#1e293b] border-r border-[#e2e8f0] whitespace-nowrap">
@@ -2507,20 +2508,20 @@ function ReportModal({ onClose }: { onClose: () => void }) {
                 </span>
               </div>
               <div>
-                <span className="font-bold text-[#334155]">Categoria:</span>{" "}
+                <span className="font-bold text-[#334155]">Soggetto:</span>{" "}
                 <span className="text-[#1e293b]">
                   {selectedItem.attivita?.categorie?.nome || "—"}
                 </span>
               </div>
               <div>
-                <span className="font-bold text-[#334155]">Descrizione:</span>{" "}
+                <span className="font-bold text-[#334155]">Azione:</span>{" "}
                 <span className="text-[#1e293b]">
                   {selectedItem.attivita?.descrizione || "—"}
                 </span>
               </div>
               {selectedItem.clienti && (
                 <div>
-                  <span className="font-bold text-[#334155]">Cliente:</span>{" "}
+                  <span className="font-bold text-[#334155]">Contatto:</span>{" "}
                   <span className="text-[#1e293b]">
                     {selectedItem.clienti.nome}
                   </span>
@@ -2534,7 +2535,7 @@ function ReportModal({ onClose }: { onClose: () => void }) {
               </div>
               <div>
                 <span className="font-bold text-[#334155]">
-                  Visibile al cliente:
+                  Visibile al Contatto:
                 </span>{" "}
                 <span
                   className={
@@ -2723,7 +2724,7 @@ function ListaAttivitaModal({ onClose }: { onClose: () => void }) {
           <input
             type="text"
             className="w-full h-10 px-4 rounded-lg border border-[#c2c9bb] bg-white focus:ring-2 focus:ring-[#154212] outline-none text-sm font-bold"
-            placeholder="Cerca per località, descrizione o note..."
+            placeholder="Cerca per Località, Azione o note..."
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
           />
@@ -2750,10 +2751,10 @@ function ListaAttivitaModal({ onClose }: { onClose: () => void }) {
                     Località
                   </th>
                   <th className="py-2 px-2 font-bold text-black text-xs uppercase">
-                    Attività
+                    Azione
                   </th>
                   <th className="py-2 px-2 font-bold text-black text-xs uppercase text-center">
-                    Azioni
+                    Modifiche
                   </th>
                 </tr>
               </thead>
