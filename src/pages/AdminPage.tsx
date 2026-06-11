@@ -2362,7 +2362,7 @@ function ReportModal({ onClose }: { onClose: () => void }) {
             <textarea
               className="w-full mt-2 p-3 rounded-lg border border-[#c2c9bb] bg-white text-xs font-bold resize-none placeholder:text-[#9ca3af]"
               rows={3}
-              placeholder='Scrivi una frase: es. "ROSE, Villa Cristina, maggio 2026" - il sistema analizza automaticamente categoria, località, cliente e date.'
+              placeholder='Scrivi una frase: es. "ROSE, Villa Cristina, maggio 2026" - il sistema analizza automaticamente Soggetto, Località, Contatto e Date.'
               value={ricercaAvanzata}
               onChange={(e) => setRicercaAvanzata(e.target.value)}
             />
@@ -2707,16 +2707,21 @@ function ListaAttivitaModal({ onClose }: { onClose: () => void }) {
               Gestione Attività
             </h3>
           </div>
-          <button
-            type="button"
-            onClick={() => setShowNewForm(true)}
-            className="inline-flex items-center gap-2 h-10 px-4 rounded-lg bg-[#154212] text-white text-sm font-bold hover:bg-[#154212]/90 transition"
-          >
-            <span className="material-symbols-outlined text-lg" data-icon="add">
-              add
-            </span>
-            Nuova Attività
-          </button>
+          <div className="flex flex-col items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setShowNewForm(true)}
+              className="h-11 w-11 rounded-full bg-[#154212] text-white flex items-center justify-center hover:bg-[#154212]/90 transition active:scale-95"
+            >
+              <span
+                className="material-symbols-outlined text-lg"
+                data-icon="add"
+              >
+                add
+              </span>
+            </button>
+            <span className="text-black text-xs">Nuova Attività</span>
+          </div>
         </div>
 
         {/* Search bar */}
@@ -2733,9 +2738,27 @@ function ListaAttivitaModal({ onClose }: { onClose: () => void }) {
         {/* Tabella */}
         <div className="flex-1 overflow-y-auto min-h-0">
           {loading ? (
-            <p className="text-center text-sm text-gray-500 py-8">
-              Caricamento...
-            </p>
+            <div className="flex justify-center py-8">
+              <svg
+                className="animate-spin h-6 w-6 text-[#154212]"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                  fill="none"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                />
+              </svg>
+            </div>
           ) : filtered.length === 0 ? (
             <p className="text-center text-sm text-gray-500 py-8">
               Nessuna attività trovata.
