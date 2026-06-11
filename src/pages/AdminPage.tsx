@@ -248,7 +248,7 @@ function ClientiModal({ onClose }: { onClose: () => void }) {
         >
           <div>
             <label className="pl-2 text-sm font-bold text-black block">
-              Nome contatto
+              Nome Contatto
             </label>
             <input
               ref={nomeClienteRef}
@@ -1044,13 +1044,11 @@ function AttivitaModal({ onClose }: { onClose: () => void }) {
           setStatusMessage("Attività già esistente, nessuna modifica.");
         }
       } else {
-        const { error } = await supabase
-          .from("attivita")
-          .insert({
-            categoria_id: catId,
-            descrizione: descTrim,
-            nota: notaTrim
-          });
+        const { error } = await supabase.from("attivita").insert({
+          categoria_id: catId,
+          descrizione: descTrim,
+          nota: notaTrim
+        });
         if (error) throw error;
         setStatusType("success");
         setStatusMessage("Attività salvata.");
