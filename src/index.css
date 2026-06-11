@@ -38,6 +38,7 @@ body {
   background-color: var(--surface);
   color: var(--on-surface);
   min-height: 100vh;
+  overscroll-behavior-y: contain;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -130,7 +131,11 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
-  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+  font-variation-settings:
+    "FILL" 0,
+    "wght" 400,
+    "GRAD" 0,
+    "opsz" 24;
 }
 
 /* Stili per pulsanti */
@@ -272,9 +277,15 @@ body {
 }
 
 @keyframes admin-garden-button-bg {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
 }
 
 .admin-page-root {
@@ -286,35 +297,109 @@ body {
 }
 
 /* Classi utility vecchio design system */
-.bg-background { background-color: var(--surface); }
-.bg-surface { background-color: var(--surface); }
-.bg-surface-container-low { background-color: var(--surface-container-low); }
-.bg-surface-container-high { background-color: var(--surface-container-high); }
-.text-on-surface { color: var(--on-surface); }
-.text-on-surface-variant { color: var(--on-surface-variant); }
-.text-primary { color: var(--primary); }
-.border-surface-tint { border-color: var(--surface-tint); }
-.border-outline-variant { border-color: var(--outline-variant); }
-.hover\\:bg-surface-container-high:hover { background-color: var(--surface-container-high); }
-.gap-sm { gap: 8px; }
-.gap-md { gap: 16px; }
-.p-sm { padding: 8px; }
-.p-md { padding: 16px; }
-.py-md { padding-top: 16px; padding-bottom: 16px; }
-.mb-md { margin-bottom: 16px; }
-.mb-lg { margin-bottom: 24px; }
-.px-edge-margin { padding-left: 20px; padding-right: 20px; }
-.h-touch-target-min { min-height: 48px; }
+.bg-background {
+  background-color: var(--surface);
+}
+.bg-surface {
+  background-color: var(--surface);
+}
+.bg-surface-container-low {
+  background-color: var(--surface-container-low);
+}
+.bg-surface-container-high {
+  background-color: var(--surface-container-high);
+}
+.text-on-surface {
+  color: var(--on-surface);
+}
+.text-on-surface-variant {
+  color: var(--on-surface-variant);
+}
+.text-primary {
+  color: var(--primary);
+}
+.border-surface-tint {
+  border-color: var(--surface-tint);
+}
+.border-outline-variant {
+  border-color: var(--outline-variant);
+}
+.hover\\:bg-surface-container-high:hover {
+  background-color: var(--surface-container-high);
+}
+.gap-sm {
+  gap: 8px;
+}
+.gap-md {
+  gap: 16px;
+}
+.p-sm {
+  padding: 8px;
+}
+.p-md {
+  padding: 16px;
+}
+.py-md {
+  padding-top: 16px;
+  padding-bottom: 16px;
+}
+.mb-md {
+  margin-bottom: 16px;
+}
+.mb-lg {
+  margin-bottom: 24px;
+}
+.px-edge-margin {
+  padding-left: 20px;
+  padding-right: 20px;
+}
+.h-touch-target-min {
+  min-height: 48px;
+}
 
 /* Vecchie classi tipografiche */
-.font-label-lg { font-size: 14px; font-weight: 600; line-height: 20px; letter-spacing: 0.01em; }
-.text-label-lg { font-size: 14px; font-weight: 600; line-height: 20px; letter-spacing: 0.01em; }
-.font-body-md { font-size: 16px; font-weight: 400; line-height: 24px; }
-.text-body-md { font-size: 16px; font-weight: 400; line-height: 24px; }
-.font-headline-md { font-size: 22px; font-weight: 600; line-height: 28px; }
-.text-headline-md { font-size: 22px; font-weight: 600; line-height: 28px; }
-.font-label-sm { font-size: 12px; font-weight: 500; line-height: 16px; }
-.text-label-sm { font-size: 12px; font-weight: 500; line-height: 16px; }
+.font-label-lg {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+  letter-spacing: 0.01em;
+}
+.text-label-lg {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+  letter-spacing: 0.01em;
+}
+.font-body-md {
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 24px;
+}
+.text-body-md {
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 24px;
+}
+.font-headline-md {
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 28px;
+}
+.text-headline-md {
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 28px;
+}
+.font-label-sm {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+}
+.text-label-sm {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+}
 
 .admin-page__divider {
   width: calc(100% - 3rem);
