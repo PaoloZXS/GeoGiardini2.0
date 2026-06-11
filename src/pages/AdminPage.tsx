@@ -164,7 +164,7 @@ function ClientiModal({ onClose }: { onClose: () => void }) {
         </div>
         <form className="flex flex-col h-full min-h-0 gap-4" onSubmit={handleSaveCliente}>
           <div>
-            <label className="pl-2 text-sm font-bold text-black block">Nome Cliente</label>
+            <label className="pl-2 text-sm font-bold text-black block">Nome contatto</label>
             <input
               ref={nomeClienteRef}
               className="w-full h-10 px-4 rounded-lg border border-[#c2c9bb] bg-[#f8faf8] focus:ring-2 focus:ring-[#154212] focus:border-[#154212] outline-none text-sm text-black font-bold"
