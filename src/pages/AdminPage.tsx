@@ -2841,20 +2841,20 @@ function ListaAttivitaModal({ onClose }: { onClose: () => void }) {
         </div>
 
         {/* Footer con pulsante Chiudi */}
-        <div className="mt-4 flex justify-end">
-          <button
-            type="button"
-            onClick={onClose}
-            className="inline-flex items-center gap-2 h-10 px-6 rounded-lg bg-red-600 text-white text-sm font-bold hover:bg-red-700 transition"
-          >
-            <span
-              className="material-symbols-outlined text-lg"
-              data-icon="close"
+        <div className="flex justify-end mt-4 pr-2">
+          <div className="flex flex-col items-center">
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-red-600 text-white transition hover:bg-red-700"
+              title="Chiudi"
             >
-              close
+              <span className="material-symbols-outlined text-xl">close</span>
+            </button>
+            <span className="mt-1 text-[0.65rem] font-semibold text-[#154212]">
+              Chiudi
             </span>
-            Chiudi
-          </button>
+          </div>
         </div>
       </section>
 
