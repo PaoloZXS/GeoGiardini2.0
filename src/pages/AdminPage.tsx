@@ -677,6 +677,19 @@ function LocalitaModal({ onClose }: { onClose: () => void }) {
           backgroundRepeat: "no-repeat"
         }}
       >
+        {statusMessage && (
+          <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30">
+            <div
+              className={`text-center text-base font-bold py-4 px-8 rounded-2xl shadow-2xl ${
+                statusType === "success"
+                  ? "bg-emerald-100 text-emerald-950 border-2 border-emerald-400"
+                  : "bg-red-100 text-red-700 border-2 border-red-400"
+              }`}
+            >
+              {statusMessage}
+            </div>
+          </div>
+        )}
         <div className="flex items-center justify-center gap-3 mb-3">
           <span
             className="material-symbols-outlined text-3xl text-[#2563eb]"
@@ -685,7 +698,7 @@ function LocalitaModal({ onClose }: { onClose: () => void }) {
             location_on
           </span>
           <h3 className="text-xl font-semibold text-[#2563eb]">
-            {editingId ? "Modifica Località" : "Nuova Località"}
+            Anagrafica Località
           </h3>
         </div>
         <form
@@ -787,19 +800,6 @@ function LocalitaModal({ onClose }: { onClose: () => void }) {
                           )}
                         </p>
                       </div>
-                      <button
-                        type="button"
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-red-100 text-red-600 hover:bg-red-200 transition-colors"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openDeleteConfirm(item.id, item.localita);
-                        }}
-                        aria-label={`Elimina ${item.localita}`}
-                      >
-                        <span className="material-symbols-outlined text-lg">
-                          delete
-                        </span>
-                      </button>
                     </div>
                   </div>
                 ))
@@ -807,19 +807,29 @@ function LocalitaModal({ onClose }: { onClose: () => void }) {
             </div>
           </div>
 
-          {statusMessage && (
-            <div
-              className={`text-center text-sm font-bold py-2 px-4 rounded-xl ${statusType === "success" ? "bg-emerald-100 text-emerald-950 border border-emerald-300" : "bg-red-100 text-red-600 border border-red-300"}`}
-            >
-              {statusMessage}
-            </div>
-          )}
-
           <div className="mt-auto bg-transparent pt-3 pb-3">
             <div
               className="flex items-center justify-end gap-12"
               style={{ marginRight: "20px" }}
             >
+              {editingId && (
+                <div className="flex flex-col items-center">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const item = list.find((x: any) => x.id === editingId);
+                      if (item) openDeleteConfirm(item.id, item.localita);
+                    }}
+                    className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-violet-600 text-white transition hover:bg-violet-700"
+                    title="Elimina"
+                  >
+                    <span className="material-symbols-outlined text-xl">delete</span>
+                  </button>
+                  <span className="mt-1 text-[0.65rem] font-semibold text-white">
+                    Elimina
+                  </span>
+                </div>
+              )}
               <div className="flex flex-col items-center">
                 <button
                   type="button"
@@ -941,6 +951,7 @@ function AttivitaModal({ onClose }: { onClose: () => void }) {
   const [statusType, setStatusType] = useState<"success" | "error" | null>(
     null
   );
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState<{
     type: "attivita";
     id: string;
@@ -981,6 +992,7 @@ function AttivitaModal({ onClose }: { onClose: () => void }) {
   }, []);
 
   const resetForm = () => {
+    setSelectedId(null);
     setCategoriaNome("");
     setDescrizione("");
     setNota("");
@@ -1096,6 +1108,7 @@ function AttivitaModal({ onClose }: { onClose: () => void }) {
   };
 
   const handleSelectItem = (item: any) => {
+    setSelectedId(item.id?.toString() || null);
     setCategoriaNome(item.categorie?.nome || "");
     setDescrizione(item.descrizione || "");
     setNota(item.nota || "");
@@ -1112,6 +1125,19 @@ function AttivitaModal({ onClose }: { onClose: () => void }) {
           backgroundRepeat: "no-repeat"
         }}
       >
+        {statusMessage && (
+          <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30">
+            <div
+              className={`text-center text-base font-bold py-4 px-8 rounded-2xl shadow-2xl ${
+                statusType === "success"
+                  ? "bg-emerald-100 text-emerald-950 border-2 border-emerald-400"
+                  : "bg-red-100 text-red-700 border-2 border-red-400"
+              }`}
+            >
+              {statusMessage}
+            </div>
+          </div>
+        )}
         <div className="flex items-center justify-center gap-3 mb-3">
           <span
             className="material-symbols-outlined text-3xl text-[#2563eb]"
@@ -1274,19 +1300,32 @@ function AttivitaModal({ onClose }: { onClose: () => void }) {
             </div>
           </div>
 
-          {statusMessage && (
-            <div
-              className={`text-center text-sm font-bold py-2 px-4 rounded-xl ${statusType === "success" ? "bg-emerald-100 text-emerald-950 border border-emerald-300" : "bg-red-100 text-red-600 border border-red-300"}`}
-            >
-              {statusMessage}
-            </div>
-          )}
-
           <div className="mt-auto bg-transparent pt-3 pb-3">
             <div
               className="flex items-center justify-end gap-12"
               style={{ marginRight: "20px" }}
             >
+              {selectedId && (
+                <div className="flex flex-col items-center">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const item = list.find((x: any) => x.id?.toString() === selectedId);
+                      if (item) {
+                        const label = `${item.categorie?.nome || ""} - ${item.descrizione || ""}`;
+                        setDeleteConfirmation({ type: "attivita", id: selectedId, label });
+                      }
+                    }}
+                    className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-violet-600 text-white transition hover:bg-violet-700"
+                    title="Elimina"
+                  >
+                    <span className="material-symbols-outlined text-xl">delete</span>
+                  </button>
+                  <span className="mt-1 text-[0.65rem] font-semibold text-white">
+                    Elimina
+                  </span>
+                </div>
+              )}
               <div className="flex flex-col items-center">
                 <button
                   type="button"
@@ -1921,21 +1960,19 @@ function InserisciModal({
               className="flex items-center justify-end gap-12"
               style={{ marginRight: "20px" }}
             >
-              {editData && (
-                <div className="flex flex-col items-center">
-                  <button
-                    type="button"
-                    onClick={() => setShowDeleteConfirm(true)}
-                    className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-violet-600 text-white transition hover:bg-violet-700"
-                    title="Elimina"
-                  >
-                    <span className="material-symbols-outlined text-xl">delete</span>
-                  </button>
-                  <span className="mt-1 text-[0.65rem] font-semibold text-white">
-                    Elimina
-                  </span>
-                </div>
-              )}
+              <div className="flex flex-col items-center">
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-violet-600 text-white transition hover:bg-violet-700"
+                  title="Elimina"
+                >
+                  <span className="material-symbols-outlined text-xl">delete</span>
+                </button>
+                <span className="mt-1 text-[0.65rem] font-semibold text-white">
+                  Elimina
+                </span>
+              </div>
               <div className="flex flex-col items-center">
                 <button
                   type="button"
