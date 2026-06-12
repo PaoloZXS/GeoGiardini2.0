@@ -429,6 +429,7 @@ function FullCalendarPage() {
   >([]);
   const [localitaList, setLocalitaList] = useState<any[]>([]);
   const [categorieList, setCategorieList] = useState<any[]>([]);
+  const [inserimentiAttivita, setInserimentiAttivita] = useState<any[]>([]);
   // Stato form "Inserimento Attività"
   const [showAttivitaForm, setShowAttivitaForm] = useState(false);
   const [attivitaEditId, setAttivitaEditId] = useState<string | null>(null);
@@ -624,7 +625,7 @@ function FullCalendarPage() {
     setError(null);
     setDragWarning(null);
     try {
-      const [giardinieriData, appuntamentiData, clientiData, attivitaData, localitaData, categorieData] =
+      const [giardinieriData, appuntamentiData, clientiData, attivitaData, localitaData, categorieData, inserimentiData] =
         await Promise.all([
           supabase
             .from("giardinieri")
@@ -651,7 +652,12 @@ function FullCalendarPage() {
           supabase
             .from("categorie")
             .select("*")
-            .order("nome", { ascending: true })
+            .order("nome", { ascending: true }),
+          supabase
+            .from("inserimenti_attivita")
+            .select("*, attivita(*, categorie(*)), localita(*)")
+            .eq("aggiungi_al_planning", true)
+            .order("data_inizio", { ascending: false })
         ]);
 
       if (giardinieriData.error) throw new Error(giardinieriData.error.message);
@@ -693,6 +699,7 @@ function FullCalendarPage() {
       );
       setLocalitaList(localitaData.data || []);
       setCategorieList(categorieData.data || []);
+      setInserimentiAttivita(inserimentiData.data || []);
     } catch (err) {
       console.error("Errore caricamento dati calendario", err);
       setError(
@@ -1090,47 +1097,6 @@ function FullCalendarPage() {
           .eq("id", attivitaEditId);
         if (error) throw new Error(error.message);
         recordId = attivitaEditId;
-
-        // Trova e aggiorna l'appuntamento collegato
-        const { data: oldData } = await supabase
-          .from("inserimenti_attivita")
-          .select("*, attivita(*), localita(*)")
-          .eq("id", attivitaEditId)
-          .single();
-
-        if (oldData) {
-          const oldDate = oldData.data_inizio?.toString?.()?.trim?.() || "";
-          const oldLocName = oldData.localita?.localita?.toString?.()?.trim?.() || "";
-          const oldAttDescr = oldData.attivita?.descrizione?.toString?.()?.trim?.() || "";
-          // Cerca l'appuntamento collegato per data e località
-          const { data: linkedApp } = await supabase
-            .from("appuntamenti")
-            .select("id")
-            .eq("location", oldLocName || null)
-            .eq("attivita", oldAttDescr || null)
-            .order("data", { ascending: false })
-            .limit(1)
-            .maybeSingle();
-
-          const att = attivitaList.find((a: any) => a.id === attivitaAttivitaId);
-          const loc = localitaList.find((l: any) => l.id === attivitaLocalitaId);
-          const appPayload = {
-            data: attivitaDataInizio || formatLocalDate(new Date()),
-            end_date: attivitaDataFine || null,
-            start_time: "08:00",
-            end_time: "17:00",
-            cliente_id: attivitaClienteId || null,
-            note: attivitaNote.trim() || null,
-            location: loc?.localita || null,
-            attivita: att?.descrizione || null
-          };
-
-          if (linkedApp?.id) {
-            await supabase.from("appuntamenti").update(appPayload).eq("id", linkedApp.id);
-          } else {
-            await supabase.from("appuntamenti").insert(appPayload);
-          }
-        }
       } else {
         // NUOVO
         const { data: inserted, error } = await supabase
@@ -1140,25 +1106,6 @@ function FullCalendarPage() {
           .single();
         if (error) throw new Error(error.message);
         recordId = inserted.id;
-
-        // Nuovo appuntamento (o aggiorna se arrivato da click su evento)
-        const att = attivitaList.find((a: any) => a.id === attivitaAttivitaId);
-        const loc = localitaList.find((l: any) => l.id === attivitaLocalitaId);
-        const appPayload = {
-          data: attivitaDataInizio || formatLocalDate(new Date()),
-          end_date: attivitaDataFine || null,
-          start_time: "08:00",
-          end_time: "17:00",
-          cliente_id: attivitaClienteId || null,
-          note: attivitaNote.trim() || null,
-          location: loc?.localita || null,
-          attivita: att?.descrizione || null
-        };
-        if (linkedAppuntamentoId) {
-          await supabase.from("appuntamenti").update(appPayload).eq("id", linkedAppuntamentoId);
-        } else {
-          await supabase.from("appuntamenti").insert(appPayload);
-        }
       }
 
       // Upload nuove foto
@@ -1166,6 +1113,7 @@ function FullCalendarPage() {
         const fotoUrl = await uploadFoto(file, recordId);
         await supabase.from("foto_attivita").insert({ attivita_id: recordId, foto_url: fotoUrl });
       }
+      setAttivitaNuoveFoto([]);
 
       setAttivitaStatus({
         type: "success",
@@ -1176,6 +1124,8 @@ function FullCalendarPage() {
       resetAttivitaForm();
       await loadData();
       clearAttivitaStatus();
+      // Chiudi il modal dopo 2 secondi per far vedere il messaggio
+      setTimeout(() => resetAndClose(), 2000);
     } catch (err: any) {
       setAttivitaStatus({ type: "error", message: err.message || "Errore durante il salvataggio." });
       clearAttivitaStatus();
@@ -1185,27 +1135,22 @@ function FullCalendarPage() {
   };
 
   const handleDeleteAttivita = async () => {
-    if (!attivitaEditId) return;
+    if (!attivitaEditId && !linkedAppuntamentoId) return;
     setAttivitaSaving(true);
     try {
-      // Elimina foto collegate
-      const { data: fotoList } = await supabase
-        .from("foto_attivita")
-        .select("*")
-        .eq("attivita_id", attivitaEditId);
-      for (const foto of fotoList || []) {
-        const path = foto.foto_url?.split("/foto/").pop();
-        if (path) await supabase.storage.from("foto").remove([path]).catch(() => {});
+      if (attivitaEditId) {
+        // Elimina foto collegate
+        const { data: fotoList } = await supabase
+          .from("foto_attivita")
+          .select("*")
+          .eq("attivita_id", attivitaEditId);
+        for (const foto of fotoList || []) {
+          const path = foto.foto_url?.split("/foto/").pop();
+          if (path) await supabase.storage.from("foto").remove([path]).catch(() => {});
+        }
+        await supabase.from("foto_attivita").delete().eq("attivita_id", attivitaEditId);
+        await supabase.from("inserimenti_attivita").delete().eq("id", attivitaEditId);
       }
-      await supabase.from("foto_attivita").delete().eq("attivita_id", attivitaEditId);
-
-      // Elimina appuntamento collegato
-      if (linkedAppuntamentoId) {
-        await supabase.from("appuntamenti").delete().eq("id", linkedAppuntamentoId);
-      }
-
-      // Elimina attività
-      await supabase.from("inserimenti_attivita").delete().eq("id", attivitaEditId);
 
       setShowDeleteConfirm(false);
       resetAndClose();
@@ -1469,12 +1414,46 @@ function FullCalendarPage() {
         }
       }
 
+      // Eventi da inserimenti_attivita (aggiungi_al_planning = true)
+      for (const item of inserimentiAttivita) {
+        const startDate = item.data_inizio || "";
+        const endDate = item.data_fine || item.data_inizio || "";
+        if (!startDate) continue;
+
+        const attDescr = item.attivita?.descrizione || "Attività";
+        const locName = item.localita?.localita || "";
+
+        // Cerca il cliente nella lista
+        const clienteItem = clientiList.find(
+          (c: any) => c.id === item.cliente_id?.toString()
+        );
+        const clientName = clienteItem?.nome || "";
+
+        const eventTitle = `${attDescr}${clientName ? ` - ${clientName}` : ""}`;
+
+        rawEvents.push({
+          id: `ins_${item.id}`,
+          title: eventTitle,
+          start: buildIsoDateTime(startDate, "08:00"),
+          end: buildIsoDateTime(endDate, "17:00"),
+          backgroundColor: "#2c3e50",
+          borderColor: "#2c3e50",
+          textColor: "#ffffff",
+          extendedProps: {
+            originalStart: startDate,
+            originalEnd: endDate,
+            activity: attDescr,
+            location: locName
+          }
+        });
+      }
+
       return rawEvents;
     } catch (error) {
       console.error("Errore costruzione eventi planning:", error);
       return [];
     }
-  }, [appuntamenti, resourceColorById]);
+  }, [appuntamenti, resourceColorById, inserimentiAttivita, clientiList]);
 
   return (
     <div
@@ -1722,22 +1701,55 @@ function FullCalendarPage() {
               }}
               events={events}
               eventClick={async (info) => {
-                const appId = getAppointmentIdFromEvent(
-                  String(info.event.id || "").trim()
-                );
+                const rawId = String(info.event.id || "").trim();
+                const appId = getAppointmentIdFromEvent(rawId);
                 if (!appId) return;
 
-                // Salva l'ID dell'appuntamento cliccato
+                // Resetta tutti gli stati prima di caricare i nuovi dati
+                resetAttivitaForm();
+                setAttivitaEditId(null);
+
+                // Evento da inserimenti_attivita (id prefissato con "ins_")
+                if (appId.startsWith("ins_")) {
+                  const insId = appId.replace("ins_", "");
+                  const item = inserimentiAttivita.find(
+                    (i: any) => i.id?.toString() === insId
+                  );
+                  if (!item) return;
+
+                  setLinkedAppuntamentoId(null);
+                  setAttivitaEditId(insId);
+                  setAttivitaDataInizio(item.data_inizio || "");
+                  setAttivitaDataFine(item.data_fine || "");
+                  setAttivitaLocalitaId(item.localita_id?.toString() || "");
+                  setAttivitaCategoriaId(
+                    item.attivita?.categorie?.id?.toString() ||
+                    item.attivita?.categoria_id?.toString() ||
+                    ""
+                  );
+                  setAttivitaAttivitaId(item.attivita_id?.toString() || "");
+                  setAttivitaNote(item.note || "");
+                  setAttivitaClienteId(item.cliente_id?.toString() || "");
+                  setAttivitaVisibile(!!item.visibile);
+                  // Carica foto esistenti
+                  const { data: foto } = await supabase
+                    .from("foto_attivita")
+                    .select("*")
+                    .eq("attivita_id", insId);
+                  setAttivitaFotoEsistenti(foto || []);
+                  setShowAttivitaForm(true);
+                  return;
+                }
+
+                // Evento da appuntamenti
                 setLinkedAppuntamentoId(appId);
 
-                // Trova l'appuntamento nella lista
+                // Cerca un inserimenti_attivita collegato per data + località/attività
                 const appt = appuntamenti.find(
                   (a) => a.id?.toString?.()?.trim?.() === appId
                 );
                 if (!appt) return;
 
-                // Cerca un inserimenti_attivita collegato
-                // Normalizza le date per confronto
                 const apptDataNorm = appt.data?.toString?.()?.trim?.() || "";
                 const apptLoc = appt.location?.toString?.()?.trim?.() || "";
                 const apptAtt = appt.attivita?.toString?.()?.trim?.() || "";
@@ -1748,7 +1760,6 @@ function FullCalendarPage() {
                   .order("data_inizio", { ascending: false })
                   .limit(20);
 
-                // Cerca corrispondenza esatta per data + località o data + attività
                 const match = (linked || []).find((ins: any) => {
                   const insDate = ins.data_inizio?.toString?.()?.trim?.() || "";
                   const insLoc =
@@ -1759,13 +1770,12 @@ function FullCalendarPage() {
                   const sameDate = insDate === apptDataNorm;
                   const sameLoc = insLoc === apptLoc && !!apptLoc;
                   const sameAtt = insAtt === apptAtt && !!apptAtt;
-                  // Priorità: data+loc o data+att
                   return (sameDate && sameLoc) || (sameDate && sameAtt);
                 });
 
                 if (match) {
-                  // Apri in modifica con i dati trovati
-                  setAttivitaEditId(match.id?.toString() || null);
+                  const matchId = match.id?.toString() || null;
+                  setAttivitaEditId(matchId);
                   setAttivitaDataInizio(match.data_inizio || "");
                   setAttivitaDataFine(match.data_fine || "");
                   setAttivitaLocalitaId(match.localita_id || "");
@@ -1778,17 +1788,14 @@ function FullCalendarPage() {
                   setAttivitaNote(match.note || "");
                   setAttivitaClienteId(match.cliente_id?.toString() || "");
                   setAttivitaVisibile(!!match.visibile);
-                  setAttivitaNuoveFoto([]);
-                  // Carica foto esistenti
                   const { data: foto } = await supabase
                     .from("foto_attivita")
                     .select("*")
-                    .eq("attivita_id", match.id);
+                    .eq("attivita_id", matchId);
                   setAttivitaFotoEsistenti(foto || []);
                   setShowAttivitaForm(true);
                 } else {
                   // Nessun collegamento: apri con dati precompilati
-                  setAttivitaEditId(null);
                   const loc = localitaList.find(
                     (l: any) => l.localita === appt.location
                   );
@@ -1803,8 +1810,6 @@ function FullCalendarPage() {
                   setAttivitaNote(appt.note || "");
                   setAttivitaClienteId(appt.cliente_id?.toString() || "");
                   setAttivitaVisibile(false);
-                  setAttivitaNuoveFoto([]);
-                  setAttivitaFotoEsistenti([]);
                   setShowAttivitaForm(true);
                 }
               }}
@@ -2127,6 +2132,19 @@ function FullCalendarPage() {
                   backgroundRepeat: "no-repeat"
                 }}
               >
+                {attivitaStatus && (
+                  <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30">
+                    <div
+                      className={`text-center text-base font-bold py-4 px-8 rounded-2xl shadow-2xl ${
+                        attivitaStatus.type === "success"
+                          ? "bg-emerald-100 text-emerald-950 border-2 border-emerald-400"
+                          : "bg-red-100 text-red-700 border-2 border-red-400"
+                      }`}
+                    >
+                      {attivitaStatus.message}
+                    </div>
+                  </div>
+                )}
                 <div className="flex items-center justify-center gap-3 mb-3">
                   <span className="material-symbols-outlined text-3xl text-[#2563eb]">
                     playlist_add
@@ -2366,21 +2384,9 @@ function FullCalendarPage() {
                     </label>
                   </div>
 
-                  {attivitaStatus && (
-                    <div
-                      className={`text-center text-sm font-bold py-2 px-4 rounded-xl ${
-                        attivitaStatus.type === "success"
-                          ? "bg-emerald-100 text-emerald-950 border border-emerald-300"
-                          : "bg-red-100 text-red-600 border border-red-300"
-                      }`}
-                    >
-                      {attivitaStatus.message}
-                    </div>
-                  )}
-
                   <div className="mt-auto bg-transparent pt-3 pb-3">
                     <div className="flex items-center justify-end gap-12" style={{ marginRight: "20px" }}>
-                      {attivitaEditId && (
+                      {attivitaEditId || (linkedAppuntamentoId && !attivitaEditId) ? (
                         <div className="flex flex-col items-center">
                           <button
                             type="button"
@@ -2394,7 +2400,7 @@ function FullCalendarPage() {
                             Elimina
                           </span>
                         </div>
-                      )}
+                      ) : null}
                       <div className="flex flex-col items-center">
                         <button
                           type="button"

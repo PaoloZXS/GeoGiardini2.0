@@ -1574,60 +1574,6 @@ function InserisciModal({
           .insert({ attivita_id: recordId, foto_url: fotoUrl });
       }
 
-      if (!editData && aggiungiPlanning) {
-        const att = attivitaList.find((a: any) => a.id === attivitaId);
-        const loc = localitaList.find((l: any) => l.id === localitaId);
-        await supabase.from("appuntamenti").insert({
-          data: dataInizio || today,
-          end_date: dataFine || null,
-          start_time: "08:00",
-          end_time: "17:00",
-          cliente_id: clienteId || null,
-          note: note.trim() || null,
-          location: loc?.localita || null,
-          attivita: att?.descrizione || null
-        });
-      } else if (editData) {
-        // In modifica: cerca un appuntamento collegato
-        const oldAtt = attivitaList.find((a: any) => a.id === editData.attivita_id);
-        const oldLoc = localitaList.find((l: any) => l.id === editData.localita_id);
-        const oldClienteId = editData.cliente_id?.toString() || "";
-        const { data: existingApp } = await supabase
-          .from("appuntamenti")
-          .select("id")
-          .eq("note", editData.note || "")
-          .eq("cliente_id", oldClienteId)
-          .eq("location", oldLoc?.localita || null)
-          .eq("attivita", oldAtt?.descrizione || null)
-          .order("data", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (aggiungiPlanning) {
-          // Aggiungi o aggiorna appuntamento
-          const att = attivitaList.find((a: any) => a.id === attivitaId);
-          const loc = localitaList.find((l: any) => l.id === localitaId);
-          const payload = {
-            data: dataInizio || today,
-            end_date: dataFine || null,
-            start_time: "08:00",
-            end_time: "17:00",
-            cliente_id: clienteId || null,
-            note: note.trim() || null,
-            location: loc?.localita || null,
-            attivita: att?.descrizione || null
-          };
-          if (existingApp?.id) {
-            await supabase.from("appuntamenti").update(payload).eq("id", existingApp.id);
-          } else {
-            await supabase.from("appuntamenti").insert(payload);
-          }
-        } else if (existingApp?.id) {
-          // Planning deselezionato: elimina appuntamento collegato
-          await supabase.from("appuntamenti").delete().eq("id", existingApp.id);
-        }
-      }
-
       setStatusType("success");
       setStatusMessage(
         editData?.id
@@ -1636,6 +1582,8 @@ function InserisciModal({
       );
       resetForm();
       clearStatus();
+      // Chiudi il modal dopo 2 secondi per far vedere il messaggio
+      setTimeout(() => onClose(), 2000);
     } catch (err: any) {
       setStatusType("error");
       setStatusMessage(err.message || "Errore durante il salvataggio.");
@@ -1701,6 +1649,19 @@ function InserisciModal({
             {editData?.id ? "Modifica Attività" : "Inserimento Attività"}
           </h3>
         </div>
+        {statusMessage && (
+          <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30">
+            <div
+              className={`text-center text-base font-bold py-4 px-8 rounded-2xl shadow-2xl ${
+                statusType === "success"
+                  ? "bg-emerald-100 text-emerald-950 border-2 border-emerald-400"
+                  : "bg-red-100 text-red-700 border-2 border-red-400"
+              }`}
+            >
+              {statusMessage}
+            </div>
+          </div>
+        )}
         <form
           className="flex flex-col h-full min-h-0 gap-4"
           onSubmit={handleSave}
@@ -1954,14 +1915,6 @@ function InserisciModal({
               Aggiungi al planning
             </label>
           </div>
-
-          {statusMessage && (
-            <div
-              className={`text-center text-sm font-bold py-2 px-4 rounded-xl ${statusType === "success" ? "bg-emerald-100 text-emerald-950 border border-emerald-300" : "bg-red-100 text-red-600 border border-red-300"}`}
-            >
-              {statusMessage}
-            </div>
-          )}
 
           <div className="mt-auto bg-transparent pt-3 pb-3">
             <div
