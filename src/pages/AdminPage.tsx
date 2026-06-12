@@ -1226,25 +1226,24 @@ function AttivitaModal({ onClose }: { onClose: () => void }) {
                   className="w-full text-sm"
                   style={{ borderCollapse: "collapse" }}
                 >
-                  <thead className="sticky top-0 z-10 bg-gradient-to-r from-[#166534] to-[#22c55e]">
-                    <tr className="border-b border-[#e2e8f0]">
-                      <th className="text-left font-bold text-black py-2 px-3 w-[25%] border-r border-[#e2e8f0] bg-transparent">
+                  <thead className="sticky top-0 z-10 bg-white border-b border-[#c2c9bb]">
+                    <tr className="text-left">
+                      <th className="py-2 px-2 font-bold text-black text-xs uppercase w-[25%] border-r border-[#c2c9bb] bg-transparent">
                         Soggetto
                       </th>
-                      <th className="text-left font-bold text-black py-2 px-3 w-[35%] border-r border-[#e2e8f0] bg-transparent">
+                      <th className="py-2 px-2 font-bold text-black text-xs uppercase w-[35%] border-r border-[#c2c9bb] bg-transparent">
                         Azione
                       </th>
-                      <th className="text-left font-bold text-black py-2 px-3 w-[30%] bg-transparent">
+                      <th className="py-2 px-2 font-bold text-black text-xs uppercase w-[30%] bg-transparent">
                         NOTA
                       </th>
-                      <th className="w-10 bg-transparent"></th>
                     </tr>
                   </thead>
                   <tbody>
                     {list.length === 0 ? (
                       <tr>
                         <td
-                          colSpan={4}
+                          colSpan={3}
                           className="text-center text-[#475569] py-6"
                         >
                           Nessuna attività presente.
@@ -1265,21 +1264,6 @@ function AttivitaModal({ onClose }: { onClose: () => void }) {
                           </td>
                           <td className="py-2 px-3 text-[#475569]">
                             {item.nota || ""}
-                          </td>
-                          <td className="py-2 px-1 w-10 border-l border-[#e2e8f0]">
-                            <button
-                              type="button"
-                              className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[#334155] hover:bg-[#e2e8f0] transition-colors"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleSelectItem(item);
-                              }}
-                              title="Modifica"
-                            >
-                              <span className="material-symbols-outlined text-lg">
-                                edit
-                              </span>
-                            </button>
                           </td>
                         </tr>
                       ))
@@ -1430,6 +1414,8 @@ function InserisciModal({
   const [fotoEsistenti, setFotoEsistenti] = useState<any[]>([]);
   const [visibile, setVisibile] = useState(false);
   const [aggiungiPlanning, setAggiungiPlanning] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [localitaList, setLocalitaList] = useState<any[]>([]);
   const [categorieList, setCategorieList] = useState<any[]>([]);
   const [attivitaList, setAttivitaList] = useState<any[]>([]);
@@ -1601,6 +1587,45 @@ function InserisciModal({
           location: loc?.localita || null,
           attivita: att?.descrizione || null
         });
+      } else if (editData) {
+        // In modifica: cerca un appuntamento collegato
+        const oldAtt = attivitaList.find((a: any) => a.id === editData.attivita_id);
+        const oldLoc = localitaList.find((l: any) => l.id === editData.localita_id);
+        const oldClienteId = editData.cliente_id?.toString() || "";
+        const { data: existingApp } = await supabase
+          .from("appuntamenti")
+          .select("id")
+          .eq("note", editData.note || "")
+          .eq("cliente_id", oldClienteId)
+          .eq("location", oldLoc?.localita || null)
+          .eq("attivita", oldAtt?.descrizione || null)
+          .order("data", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (aggiungiPlanning) {
+          // Aggiungi o aggiorna appuntamento
+          const att = attivitaList.find((a: any) => a.id === attivitaId);
+          const loc = localitaList.find((l: any) => l.id === localitaId);
+          const payload = {
+            data: dataInizio || today,
+            end_date: dataFine || null,
+            start_time: "08:00",
+            end_time: "17:00",
+            cliente_id: clienteId || null,
+            note: note.trim() || null,
+            location: loc?.localita || null,
+            attivita: att?.descrizione || null
+          };
+          if (existingApp?.id) {
+            await supabase.from("appuntamenti").update(payload).eq("id", existingApp.id);
+          } else {
+            await supabase.from("appuntamenti").insert(payload);
+          }
+        } else if (existingApp?.id) {
+          // Planning deselezionato: elimina appuntamento collegato
+          await supabase.from("appuntamenti").delete().eq("id", existingApp.id);
+        }
       }
 
       setStatusType("success");
@@ -1628,6 +1653,29 @@ function InserisciModal({
       setFotoEsistenti((prev) => prev.filter((f) => f.id !== fotoId));
     } catch (err) {
       console.error("Errore eliminazione foto", err);
+    }
+  };
+
+  const handleDeleteAttivita = async () => {
+    if (!editData?.id) return;
+    setDeleting(true);
+    try {
+      const { data: foto } = await supabase
+        .from("foto_attivita")
+        .select("*")
+        .eq("attivita_id", editData.id);
+      for (const f of foto || []) {
+        const path = f.foto_url?.split("/foto/").pop();
+        if (path) await supabase.storage.from("foto").remove([path]).catch(() => {});
+      }
+      await supabase.from("foto_attivita").delete().eq("attivita_id", editData.id);
+      await supabase.from("inserimenti_attivita").delete().eq("id", editData.id);
+      setShowDeleteConfirm(false);
+      onClose();
+    } catch (err) {
+      console.error("Errore eliminazione", err);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -1665,11 +1713,11 @@ function InserisciModal({
               </label>
               <input
                 type="date"
-                className="w-full h-10 px-4 rounded-lg border border-[#c2c9bb] bg-[#f8faf8] focus:ring-2 focus:ring-[#154212] outline-none text-xs font-bold"
+                className="w-full h-10 px-4 rounded-lg border border-[#c2c9bb] bg-[#f8faf8] focus:ring-2 focus:ring-[#154212] outline-none text-xs font-bold text-black"
                 value={dataInizio}
                 onFocus={() => setDataInizioEdited(true)}
                 onChange={(e) => setDataInizio(e.target.value)}
-                style={{ color: dataInizioEdited ? "black" : "#9ca3af" }}
+                onClick={(e) => (e.target as HTMLInputElement).showPicker()}
               />
             </div>
             <div>
@@ -1678,11 +1726,11 @@ function InserisciModal({
               </label>
               <input
                 type="date"
-                className="w-full h-10 px-4 rounded-lg border border-[#c2c9bb] bg-[#f8faf8] focus:ring-2 focus:ring-[#154212] outline-none text-xs font-bold"
+                className="w-full h-10 px-4 rounded-lg border border-[#c2c9bb] bg-[#f8faf8] focus:ring-2 focus:ring-[#154212] outline-none text-xs font-bold text-black"
                 value={dataFine}
                 onFocus={() => setDataFineEdited(true)}
                 onChange={(e) => setDataFine(e.target.value)}
-                style={{ color: dataFineEdited ? "black" : "#9ca3af" }}
+                onClick={(e) => (e.target as HTMLInputElement).showPicker()}
               />
             </div>
           </div>
@@ -1920,6 +1968,21 @@ function InserisciModal({
               className="flex items-center justify-end gap-12"
               style={{ marginRight: "20px" }}
             >
+              {editData && (
+                <div className="flex flex-col items-center">
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-violet-600 text-white transition hover:bg-violet-700"
+                    title="Elimina"
+                  >
+                    <span className="material-symbols-outlined text-xl">delete</span>
+                  </button>
+                  <span className="mt-1 text-[0.65rem] font-semibold text-white">
+                    Elimina
+                  </span>
+                </div>
+              )}
               <div className="flex flex-col items-center">
                 <button
                   type="button"
@@ -1990,6 +2053,35 @@ function InserisciModal({
             </div>
           </div>
         </form>
+        {showDeleteConfirm && (
+          <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/60 p-4">
+            <div className="w-full max-w-lg rounded-3xl border border-red-400/40 bg-white p-6 shadow-2xl">
+              <p className="text-lg font-semibold text-black mb-2">
+                Confermi eliminazione?
+              </p>
+              <p className="mb-4 text-sm text-gray-600">
+                Questa azione eliminerà definitivamente l'attività e tutte le foto associate.
+              </p>
+              <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  className="w-full sm:w-auto h-10 rounded-full border border-gray-300 bg-white text-black transition-colors hover:bg-gray-100 px-6 text-sm font-semibold"
+                  onClick={() => setShowDeleteConfirm(false)}
+                >
+                  Annulla
+                </button>
+                <button
+                  type="button"
+                  className="w-full sm:w-auto h-10 rounded-full bg-red-600 text-white shadow-lg px-6 text-sm font-semibold hover:bg-red-700 disabled:opacity-60"
+                  onClick={handleDeleteAttivita}
+                  disabled={deleting}
+                >
+                  {deleting ? "Eliminazione..." : "Elimina"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </section>
     </div>
   );
@@ -2389,12 +2481,12 @@ function ReportModal({ onClose }: { onClose: () => void }) {
               className="w-full text-sm"
               style={{ borderCollapse: "collapse" }}
             >
-              <thead className="sticky top-0 z-10 bg-gradient-to-r from-[#166534] to-[#22c55e]">
-                <tr className="border-b border-[#e2e8f0]">
+              <thead className="sticky top-0 z-10 bg-white border-b border-[#c2c9bb]">
+                <tr>
                   {columns.map((col) => (
                     <th
                       key={col}
-                      className="text-left font-bold text-black py-2 px-3 border-r border-[#e2e8f0] last:border-r-0 bg-transparent"
+                      className="py-2 px-2 font-bold text-black text-xs uppercase border-r border-[#c2c9bb] last:border-r-0 bg-transparent"
                     >
                       {col}
                     </th>
@@ -2578,8 +2670,6 @@ function ListaAttivitaModal({ onClose }: { onClose: () => void }) {
   const [loading, setLoading] = useState(true);
   const [searchText, setSearchText] = useState("");
   const [editItem, setEditItem] = useState<any | null>(null);
-  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
-  const [deleting, setDeleting] = useState(false);
   const [showNewForm, setShowNewForm] = useState(false);
 
   const fetchList = async () => {
@@ -2624,40 +2714,6 @@ function ListaAttivitaModal({ onClose }: { onClose: () => void }) {
 
   const handleEdit = (item: any) => {
     setEditItem(item);
-  };
-
-  const handleDelete = async () => {
-    if (!deleteConfirm) return;
-    setDeleting(true);
-    try {
-      // Elimina foto dallo storage
-      const { data: foto } = await supabase
-        .from("foto_attivita")
-        .select("*")
-        .eq("attivita_id", deleteConfirm);
-      if (foto) {
-        for (const f of foto) {
-          const path = f.foto_url?.split("/foto/").pop();
-          if (path) await supabase.storage.from("foto").remove([path]);
-        }
-      }
-      // Elimina record foto
-      await supabase
-        .from("foto_attivita")
-        .delete()
-        .eq("attivita_id", deleteConfirm);
-      // Elimina record attività
-      await supabase
-        .from("inserimenti_attivita")
-        .delete()
-        .eq("id", deleteConfirm);
-      setDeleteConfirm(null);
-      await fetchList();
-    } catch (err) {
-      console.error("Errore eliminazione", err);
-    } finally {
-      setDeleting(false);
-    }
   };
 
   // Sub-modal per nuova attività o modifica
@@ -2736,7 +2792,7 @@ function ListaAttivitaModal({ onClose }: { onClose: () => void }) {
         </div>
 
         {/* Tabella */}
-        <div className="flex-1 overflow-y-auto min-h-0">
+        <div className="border border-black rounded-lg overflow-y-auto" style={{ maxHeight: "400px" }}>
           {loading ? (
             <div className="flex justify-center py-8">
               <svg
@@ -2776,22 +2832,20 @@ function ListaAttivitaModal({ onClose }: { onClose: () => void }) {
                   <th className="py-2 px-2 font-bold text-black text-xs uppercase">
                     Azione
                   </th>
-                  <th className="py-2 px-2 font-bold text-black text-xs uppercase text-center">
-                    Modifiche
-                  </th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.map((item: any) => (
                   <tr
                     key={item.id}
-                    className="border-b border-[#c2c9bb]/50 hover:bg-white/40"
+                    className="border-b border-[#c2c9bb]/50 hover:bg-white/40 cursor-pointer"
+                    onClick={() => handleEdit(item)}
                   >
                     <td className="py-2 px-2 text-xs font-semibold text-black whitespace-nowrap">
                       {formatDate(item.data_inizio)}
                       {item.data_fine &&
                         item.data_fine !== item.data_inizio && (
-                          <span className="text-gray-500">
+                          <span className="text-black font-semibold">
                             {" "}
                             → {formatDate(item.data_fine)}
                           </span>
@@ -2802,36 +2856,6 @@ function ListaAttivitaModal({ onClose }: { onClose: () => void }) {
                     </td>
                     <td className="py-2 px-2 text-xs text-black">
                       {item.attivita?.descrizione || "-"}
-                    </td>
-                    <td className="py-2 px-2 text-center">
-                      <div className="inline-flex items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() => handleEdit(item)}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-blue-600 hover:bg-blue-200 transition"
-                          title="Modifica"
-                        >
-                          <span
-                            className="material-symbols-outlined text-lg"
-                            data-icon="edit"
-                          >
-                            edit
-                          </span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setDeleteConfirm(item.id)}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-red-100 text-red-600 hover:bg-red-200 transition"
-                          title="Elimina"
-                        >
-                          <span
-                            className="material-symbols-outlined text-lg"
-                            data-icon="delete"
-                          >
-                            delete
-                          </span>
-                        </button>
-                      </div>
                     </td>
                   </tr>
                 ))}
@@ -2851,78 +2875,12 @@ function ListaAttivitaModal({ onClose }: { onClose: () => void }) {
             >
               <span className="material-symbols-outlined text-xl">close</span>
             </button>
-            <span className="mt-1 text-[0.65rem] font-semibold text-[#154212]">
+            <span className="mt-1 text-[0.65rem] font-semibold text-white">
               Chiudi
             </span>
           </div>
         </div>
       </section>
-
-      {/* Confirm delete modal */}
-      {deleteConfirm && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full mx-4 border border-[#c2c9bb]">
-            <div className="flex items-center gap-3 mb-4">
-              <span
-                className="material-symbols-outlined text-3xl text-red-600"
-                data-icon="warning"
-              >
-                warning
-              </span>
-              <h3 className="text-lg font-bold text-black">
-                Conferma eliminazione
-              </h3>
-            </div>
-            <p className="text-sm text-gray-600 mb-6">
-              Sei sicuro di voler eliminare questa attività? Verranno rimosse
-              anche tutte le foto associate.
-            </p>
-            <div className="flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setDeleteConfirm(null)}
-                className="h-10 px-4 rounded-lg border border-[#c2c9bb] text-sm font-bold text-black hover:bg-gray-100 transition"
-                disabled={deleting}
-              >
-                Annulla
-              </button>
-              <button
-                type="button"
-                onClick={handleDelete}
-                className="h-10 px-4 rounded-lg bg-red-600 text-white text-sm font-bold hover:bg-red-700 transition inline-flex items-center gap-2"
-                disabled={deleting}
-              >
-                {deleting ? (
-                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                      fill="none"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                    />
-                  </svg>
-                ) : (
-                  <span
-                    className="material-symbols-outlined text-lg"
-                    data-icon="delete"
-                  >
-                    delete
-                  </span>
-                )}
-                Elimina
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
