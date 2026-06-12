@@ -4,6 +4,7 @@ import LoginPage from "./pages/LoginPage";
 import AdminPage from "./pages/AdminPage";
 import ClientePage from "./pages/ClientePage";
 import FullCalendarPage from "./pages/FullCalendarPage";
+import WeatherPage from "./pages/WeatherPage";
 
 function clearStoredAuth() {
   if (typeof window === "undefined") return;
@@ -121,6 +122,16 @@ function App() {
           element={
             authenticatedRole === "admin" ? (
               <FullCalendarPage onBack={() => { window.location.hash = "#/admin"; }} />
+            ) : (
+              <Navigate to="/" replace />
+            )
+          }
+        />
+        <Route
+          path="/admin/weather"
+          element={
+            authenticatedRole === "admin" ? (
+              <WeatherPage onBack={() => { window.location.hash = "#/admin"; }} />
             ) : (
               <Navigate to="/" replace />
             )

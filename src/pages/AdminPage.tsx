@@ -3078,6 +3078,15 @@ export default function AdminPage({ onLogout }: AdminPageProps) {
         >
           <img src="/images/Admin.png" alt="Admin" className="w-56 mt-8" />
         </div>
+
+        <div
+          className="fixed bottom-6 right-6 z-50 cursor-pointer"
+          onClick={() => navigate("/admin/weather")}
+        >
+          <span className="material-symbols-outlined text-4xl text-white bg-black/30 rounded-full p-2">
+            partly_cloudy_day
+          </span>
+        </div>
       </main>
 
       {/* Modali */}
