@@ -2117,23 +2117,14 @@ function FullCalendarPage() {
             </div>
           </div>
           {showAttivitaForm ? (
-            <div
-              style={{
-                position: "fixed",
-                inset: 0,
-                zIndex: 9999,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                backgroundColor: "rgba(0,0,0,0.5)",
-                padding: 0
-              }}
-            >
-              <div
-                className="overflow-auto rounded-2xl bg-[url('/images/sfondo1.jpg')] bg-cover bg-center p-4 sm:p-6 shadow-2xl border border-[#c2c9bb] flex flex-col min-h-0"
+            <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/20 backdrop-blur-sm p-0 overflow-auto">
+              <section
+                className="w-full h-full max-w-none flex flex-col rounded-none border border-[#c2c9bb] bg-[#f2f4f2] shadow-2xl p-4 overflow-y-auto"
                 style={{
-                  width: "min(calc(100vw - 32px), 520px)",
-                  maxHeight: "90vh"
+                  backgroundImage: "url('/images/sfondo1.jpg')",
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                  backgroundRepeat: "no-repeat"
                 }}
               >
                 <div className="flex items-center justify-center gap-3 mb-3">
@@ -2487,7 +2478,7 @@ function FullCalendarPage() {
                     </div>
                   </div>
                 )}
-              </div>
+              </section>
             </div>
           ) : null}
         </>
