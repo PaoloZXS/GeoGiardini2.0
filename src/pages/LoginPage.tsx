@@ -15,6 +15,7 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -86,9 +87,17 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
     >
       <div className="w-full max-w-sm">
         {/* Logo e Titolo */}
-        <div className="text-center mb-8">
-          <div className="w-20 h-20 mx-auto mb-4">
-            <img src="/leaf-512.png" alt="GeoGiardini" className="w-20 h-20" />
+        <div
+          className="text-center mb-8"
+          style={{ transform: "translateY(-50px)" }}
+        >
+          <div className="w-32 h-32 mx-auto -mt-8">
+            <img
+              src="/leaf-512.png"
+              alt="GeoGiardini"
+              className="w-32 h-32"
+              style={{ position: "relative", top: "20px" }}
+            />
           </div>
           <h1 className="text-2xl font-bold italic leading-tight text-[#2563eb]">
             GeoGiardini
@@ -155,15 +164,32 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
             <label className="block text-sm font-bold text-black mb-1.5 ml-1">
               {selectedRole === "admin" ? "Password" : "Codice"}
             </label>
-            <input
-              type={selectedRole === "admin" ? "password" : "text"}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder={
-                selectedRole === "admin" ? "••••••••" : "Inserisci il codice"
-              }
-              className="input-field"
-            />
+            <div className="relative">
+              <input
+                type={
+                  selectedRole === "admin" && !showPassword
+                    ? "password"
+                    : "text"
+                }
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder={
+                  selectedRole === "admin" ? "••••••••" : "Inserisci il codice"
+                }
+                className="input-field w-full pr-10"
+              />
+              {selectedRole === "admin" && (
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center text-gray-500 hover:text-gray-700"
+                >
+                  <span className="material-symbols-outlined text-xl">
+                    {showPassword ? "visibility_off" : "visibility"}
+                  </span>
+                </button>
+              )}
+            </div>
           </div>
 
           {error && (
