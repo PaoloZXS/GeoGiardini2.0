@@ -1899,7 +1899,7 @@ function InserisciModal({
             </div>
           </div>
 
-          {/* Griglia foto 4x2 */}
+          {/* Griglia foto 3x2 */}
           <div>
             <input
               ref={fileInputRef}
@@ -1911,9 +1911,9 @@ function InserisciModal({
               onChange={(e) => {
                 if (e.target.files) {
                   const total = nuoveFoto.length + e.target.files.length;
-                  if (total > 8) {
+                  if (total > 6) {
                     setStatusType("error");
-                    setStatusMessage("Massimo 8 foto.");
+                    setStatusMessage("Massimo 6 foto.");
                     clearStatus();
                     return;
                   }
@@ -1924,20 +1924,20 @@ function InserisciModal({
                 }
               }}
             />
-            <div className="flex items-start gap-6">
+            <div className="flex items-start gap-4">
               <div
-                className="grid justify-start gap-3 w-full p-2 bg-transparent border border-white"
-                style={{ gridTemplateColumns: "repeat(4, 60px)" }}
+                className="grid justify-start gap-3 p-2 bg-transparent border border-white shrink-0"
+                style={{ gridTemplateColumns: "repeat(3, 60px)" }}
               >
-                {Array.from({ length: 8 }).map((_, idx) => {
+                {Array.from({ length: 6 }).map((_, idx) => {
                   const fotoExistente = fotoEsistenti[idx];
                   const nuovaFoto = !fotoExistente
                     ? nuoveFoto[idx - fotoEsistenti.length]
                     : null;
                   const hasPhoto = !!fotoExistente || !!nuovaFoto;
-                  const isLast = idx === 7;
+                  const isLast = idx === 5;
                   const showPlus =
-                    isLast && nuoveFoto.length + fotoEsistenti.length < 8;
+                    isLast && nuoveFoto.length + fotoEsistenti.length < 6;
                   return (
                     <div
                       key={idx}
@@ -1990,8 +1990,8 @@ function InserisciModal({
                   );
                 })}
               </div>
-              <div className="flex flex-col gap-4">
-                <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer">
+              <div className="flex flex-row sm:flex-col gap-4 flex-wrap">
+                <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer whitespace-nowrap">
                   <input
                     type="radio"
                     name="stato"
@@ -2002,7 +2002,7 @@ function InserisciModal({
                   />
                   Promemoria
                 </label>
-                <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer">
+                <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer whitespace-nowrap">
                   <input
                     type="radio"
                     name="stato"
@@ -2013,7 +2013,7 @@ function InserisciModal({
                   />
                   Confermato
                 </label>
-                <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer">
+                <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer whitespace-nowrap">
                   <input
                     type="radio"
                     name="stato"
@@ -2024,7 +2024,7 @@ function InserisciModal({
                   />
                   Eseguito
                 </label>
-                <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer">
+                <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer whitespace-nowrap">
                   <input
                     type="checkbox"
                     checked={privato}

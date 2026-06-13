@@ -2478,10 +2478,10 @@ function FullCalendarPage() {
                         if (e.target.files) {
                           const total =
                             attivitaNuoveFoto.length + e.target.files.length;
-                          if (total > 8) {
+                          if (total > 6) {
                             setAttivitaStatus({
                               type: "error",
-                              message: "Massimo 8 foto."
+                              message: "Massimo 6 foto."
                             });
                             clearAttivitaStatus();
                             return;
@@ -2493,12 +2493,12 @@ function FullCalendarPage() {
                         }
                       }}
                     />
-                    <div className="flex flex-row gap-4 items-start">
+                    <div className="flex items-start gap-4">
                       <div
-                        className="grid justify-start gap-3 p-2 bg-transparent border border-white"
-                        style={{ gridTemplateColumns: "repeat(4, 60px)" }}
+                        className="grid justify-start gap-3 p-2 bg-transparent border border-white shrink-0"
+                        style={{ gridTemplateColumns: "repeat(3, 60px)" }}
                       >
-                        {Array.from({ length: 8 }).map((_, idx) => {
+                        {Array.from({ length: 6 }).map((_, idx) => {
                           const fotoExistente = attivitaFotoEsistenti[idx];
                           const nuovaFoto = !fotoExistente
                             ? attivitaNuoveFoto[
@@ -2506,12 +2506,12 @@ function FullCalendarPage() {
                               ]
                             : null;
                           const hasPhoto = !!fotoExistente || !!nuovaFoto;
-                          const isLast = idx === 7;
+                          const isLast = idx === 5;
                           const showPlus =
                             isLast &&
                             attivitaNuoveFoto.length +
                               attivitaFotoEsistenti.length <
-                              8;
+                              6;
                           return (
                             <div
                               key={idx}
