@@ -3332,7 +3332,10 @@ export default function AdminPage({ onLogout }: AdminPageProps) {
             className="relative left-[-20px] inline-flex flex-col items-center gap-1 rounded-full hover:bg-surface-container transition-colors active:scale-95 duration-150 p-0"
             aria-label="Logout"
           >
-            <span className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-surface">
+            <span
+              className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-surface"
+              style={{ position: "relative", top: "50px" }}
+            >
               <svg
                 className="w-6 h-6 text-on-surface-variant"
                 fill="none"
@@ -3347,7 +3350,10 @@ export default function AdminPage({ onLogout }: AdminPageProps) {
                 <path d="M21 12H9" />
               </svg>
             </span>
-            <span className="text-[0.65rem] font-semibold uppercase tracking-[0.02em] text-on-surface-variant">
+            <span
+              className="text-[0.65rem] font-semibold uppercase tracking-[0.02em] text-on-surface-variant"
+              style={{ position: "relative", top: "50px" }}
+            >
               Logout
             </span>
           </button>
@@ -3376,7 +3382,7 @@ export default function AdminPage({ onLogout }: AdminPageProps) {
               groups
             </span>
             <span className="font-label-lg text-label-lg">
-              Anagrafica Clienti
+              Anagrafica Contatti
             </span>
           </button>
           <button
