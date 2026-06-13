@@ -12,10 +12,9 @@ function ClientiModal({ onClose }: { onClose: () => void }) {
   const [clientiList, setClientiList] = useState<any[]>([]);
   const [editingClienteId, setEditingClienteId] = useState<string | null>(null);
   const [nomeCliente, setNomeCliente] = useState("");
-  const [indirizzoCliente, setIndirizzoCliente] = useState("");
-  const [telefonoCliente, setTelefonoCliente] = useState("");
   const [clienteCodice, setClienteCodice] = useState("");
   const [clienteAttivo, setClienteAttivo] = useState(false);
+  const [privato, setPrivato] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [statusType, setStatusType] = useState<"success" | "error" | null>(
@@ -49,15 +48,31 @@ function ClientiModal({ onClose }: { onClose: () => void }) {
         return;
       }
       setClientiList(
-        (data || []).map((cliente: any) => ({
-          ...cliente,
-          id: cliente.id?.toString?.() ?? "",
-          attivo:
-            cliente.attivo === 1 ||
-            cliente.attivo === "1" ||
-            cliente.attivo === true ||
-            cliente.attivo === "true"
-        }))
+        (data || [])
+          .filter(
+            (cliente: any) =>
+              !(
+                cliente.privato === true &&
+                cliente.created_by !==
+                  (typeof window !== "undefined"
+                    ? window.localStorage.getItem("loginUsername") || ""
+                    : "")
+              )
+          )
+          .map((cliente: any) => ({
+            ...cliente,
+            id: cliente.id?.toString?.() ?? "",
+            attivo:
+              cliente.attivo === 1 ||
+              cliente.attivo === "1" ||
+              cliente.attivo === true ||
+              cliente.attivo === "true",
+            privato:
+              cliente.privato === 1 ||
+              cliente.privato === "1" ||
+              cliente.privato === true ||
+              cliente.privato === "true"
+          }))
       );
     } catch (error) {
       console.error("Caricamento clienti fallito", error);
@@ -70,13 +85,9 @@ function ClientiModal({ onClose }: { onClose: () => void }) {
 
   const handleSaveCliente = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (
-      !nomeCliente.trim() ||
-      !indirizzoCliente.trim() ||
-      !clienteCodice.trim()
-    ) {
+    if (!nomeCliente.trim() || !clienteCodice.trim()) {
       setStatusType("error");
-      setStatusMessage("Nome, indirizzo e codice sono obbligatori.");
+      setStatusMessage("Nome e codice sono obbligatori.");
       clearStatusAfterDelay();
       return;
     }
@@ -86,11 +97,11 @@ function ClientiModal({ onClose }: { onClose: () => void }) {
     try {
       const payload = {
         nome: nomeCliente.trim(),
-        indirizzo: indirizzoCliente.trim(),
-        telefono: telefonoCliente.trim(),
         codice: clienteCodice.trim(),
-        attivo: clienteAttivo
+        attivo: clienteAttivo,
+        privato: privato
       };
+      payload.created_by = window.localStorage.getItem("loginUsername") || null;
       if (editingClienteId) {
         const { error } = await supabase
           .from("clienti")
@@ -110,10 +121,9 @@ function ClientiModal({ onClose }: { onClose: () => void }) {
       await fetchClienti();
       setEditingClienteId(null);
       setNomeCliente("");
-      setIndirizzoCliente("");
-      setTelefonoCliente("");
       setClienteCodice("");
       setClienteAttivo(false);
+      setPrivato(false);
       clearStatusAfterDelay();
     } catch (error) {
       console.error(error);
@@ -140,8 +150,6 @@ function ClientiModal({ onClose }: { onClose: () => void }) {
       if (editingClienteId === id) {
         setEditingClienteId(null);
         setNomeCliente("");
-        setIndirizzoCliente("");
-        setTelefonoCliente("");
       }
       clearStatusAfterDelay();
     } catch (error) {
@@ -182,8 +190,6 @@ function ClientiModal({ onClose }: { onClose: () => void }) {
   const handleSelectCliente = (cliente: any) => {
     setEditingClienteId(cliente.id);
     setNomeCliente(cliente.nome);
-    setIndirizzoCliente(cliente.indirizzo);
-    setTelefonoCliente(cliente.telefono);
     setClienteCodice(cliente.codice || "");
     setClienteAttivo(
       cliente.attivo === 1 ||
@@ -191,15 +197,15 @@ function ClientiModal({ onClose }: { onClose: () => void }) {
         cliente.attivo === true ||
         cliente.attivo === "true"
     );
+    setPrivato(cliente.privato === true);
   };
 
   const handleClearClienteForm = () => {
     setEditingClienteId(null);
     setNomeCliente("");
-    setIndirizzoCliente("");
-    setTelefonoCliente("");
     setClienteCodice("");
     setClienteAttivo(false);
+    setPrivato(false);
     setStatusMessage(null);
     setStatusType(null);
     nomeClienteRef.current?.blur();
@@ -208,16 +214,6 @@ function ClientiModal({ onClose }: { onClose: () => void }) {
       document.activeElement instanceof HTMLElement
     )
       document.activeElement.blur();
-  };
-
-  const buildTelUrl = (phone: string) => {
-    const cleaned = phone.trim().replace(/[^\d+]/g, "");
-    return cleaned ? `tel:${cleaned}` : "";
-  };
-
-  const handleTelefonoCall = () => {
-    const telUrl = buildTelUrl(telefonoCliente);
-    if (telUrl) window.location.href = telUrl;
   };
 
   return (
@@ -261,57 +257,17 @@ function ClientiModal({ onClose }: { onClose: () => void }) {
           </div>
           <div>
             <label className="pl-2 text-sm font-bold text-black block">
-              Indirizzo
+              Codice
             </label>
             <input
-              className="w-full h-10 px-4 rounded-lg border border-[#c2c9bb] bg-[#f8faf8] focus:ring-2 focus:ring-[#154212] focus:border-[#154212] outline-none text-sm text-black font-bold"
-              placeholder="Es. Via Roma 1"
+              className="w-3/4 h-10 px-4 rounded-lg border border-[#c2c9bb] bg-[#f8faf8] focus:ring-2 focus:ring-[#154212] focus:border-[#154212] outline-none text-sm text-black font-bold"
+              placeholder="Es. CLI-2024"
               type="text"
-              value={indirizzoCliente}
-              onChange={(e) => setIndirizzoCliente(e.target.value)}
+              value={clienteCodice}
+              onChange={(e) => setClienteCodice(e.target.value)}
             />
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="pl-2 text-xs font-bold text-black block">
-                Codice
-              </label>
-              <input
-                className="w-3/4 h-10 px-4 rounded-lg border border-[#c2c9bb] bg-[#f8faf8] focus:ring-2 focus:ring-[#154212] focus:border-[#154212] outline-none text-sm text-black font-bold"
-                placeholder="Es. CLI-2024"
-                type="text"
-                value={clienteCodice}
-                onChange={(e) => setClienteCodice(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="pl-2 text-xs font-bold text-black block">
-                Telefono
-              </label>
-              <div className="relative">
-                <input
-                  className="w-full h-10 pr-12 px-4 rounded-lg border border-[#c2c9bb] bg-[#f8faf8] focus:ring-2 focus:ring-[#154212] focus:border-[#154212] outline-none text-sm text-black font-bold"
-                  placeholder="Es. 345 123 4567"
-                  type="text"
-                  value={telefonoCliente}
-                  onChange={(e) => setTelefonoCliente(e.target.value)}
-                />
-                {telefonoCliente.trim() ? (
-                  <button
-                    type="button"
-                    onClick={handleTelefonoCall}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#25D366] text-white hover:bg-[#1DA851]"
-                    title="Chiama il cliente"
-                  >
-                    <span className="material-symbols-outlined text-base text-white">
-                      call
-                    </span>
-                  </button>
-                ) : null}
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 text-sm font-bold text-black mt-1 pl-2">
+          <div className="flex items-center gap-4 text-sm font-bold text-black mt-1 pl-2">
             <label
               className={`inline-flex items-center gap-2 ${clienteAttivo ? "text-emerald-950" : "text-red-600"}`}
             >
@@ -332,6 +288,15 @@ function ClientiModal({ onClose }: { onClose: () => void }) {
                 {clienteAttivo ? "Contatto Attivo" : "Contatto Non attivo"}
               </span>
             </label>
+            <label className="inline-flex items-center gap-2 text-black">
+              <input
+                type="checkbox"
+                className="h-4 w-4 accent-violet-600"
+                checked={privato}
+                onChange={(e) => setPrivato(e.target.checked)}
+              />
+              <span>Contatto Privato</span>
+            </label>
           </div>
 
           <div className="min-h-0">
@@ -342,7 +307,7 @@ function ClientiModal({ onClose }: { onClose: () => void }) {
               </p>
             </div>
             <div
-              className="overflow-y-auto rounded-2xl border-2 border-black bg-white p-2 space-y-2 mt-[10px] mb-3"
+              className="overflow-y-auto border border-black bg-white p-0 mt-[10px] mb-3"
               style={{ maxHeight: "245px" }}
             >
               {clientiList.length === 0 ? (
@@ -362,7 +327,7 @@ function ClientiModal({ onClose }: { onClose: () => void }) {
                         handleSelectCliente(cliente);
                       }
                     }}
-                    className={`w-full rounded-xl border p-0.5 text-left transition cursor-pointer ${
+                    className={`w-full border-b border-black last:border-b-0 py-2 px-0.5 min-h-[44px] text-left transition cursor-pointer ${
                       editingClienteId === cliente.id
                         ? "border-emerald-600 bg-emerald-600/20 text-black"
                         : "border-[#c2c9bb] bg-white hover:bg-[#eceeec]"
@@ -382,23 +347,23 @@ function ClientiModal({ onClose }: { onClose: () => void }) {
                           {cliente.nome}
                         </p>
                       </div>
-                      <button
-                        type="button"
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-red-100 text-red-600 hover:bg-red-200 transition-colors"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openDeleteConfirmation(
-                            "cliente",
-                            cliente.id,
-                            cliente.nome
-                          );
-                        }}
-                        aria-label={`Elimina ${cliente.nome}`}
-                      >
-                        <span className="material-symbols-outlined text-lg">
-                          delete
-                        </span>
-                      </button>
+                      <div className="flex items-center gap-1 shrink-0">
+                        {cliente.privato === true ? (
+                          <span
+                            className="material-symbols-outlined text-sm text-violet-600"
+                            title="Privato"
+                          >
+                            lock
+                          </span>
+                        ) : (
+                          <span
+                            className="material-symbols-outlined text-sm text-blue-500"
+                            title="Pubblico"
+                          >
+                            public
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))
@@ -423,6 +388,29 @@ function ClientiModal({ onClose }: { onClose: () => void }) {
               className="flex items-center justify-end gap-12"
               style={{ marginRight: "20px" }}
             >
+              {editingClienteId && (
+                <div className="flex flex-col items-center">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      openDeleteConfirmation(
+                        "cliente",
+                        editingClienteId,
+                        nomeCliente
+                      )
+                    }
+                    className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-violet-600 text-white transition hover:bg-violet-700"
+                    title="Elimina contatto"
+                  >
+                    <span className="material-symbols-outlined text-xl">
+                      delete
+                    </span>
+                  </button>
+                  <span className="mt-1 text-[0.65rem] font-semibold text-white">
+                    Elimina
+                  </span>
+                </div>
+              )}
               <div className="flex flex-col items-center">
                 <button
                   type="button"

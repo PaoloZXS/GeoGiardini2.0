@@ -36,3 +36,7 @@ INSERT INTO giardinieri (username, colore) VALUES
   ('Marco', '#27ae60'),
   ('Paolo', '#f39c12')
 ON CONFLICT (username) DO NOTHING;
+
+-- Aggiungi colonne a tabella clienti
+ALTER TABLE clienti ADD COLUMN IF NOT EXISTS privato BOOLEAN DEFAULT FALSE;
+ALTER TABLE clienti ADD COLUMN IF NOT EXISTS created_by TEXT;

@@ -1,6 +1,15 @@
 import { useMemo, useState } from "react";
 import {
-  LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  CartesianGrid,
+  Legend
 } from "recharts";
 
 interface WeatherPageProps {
@@ -59,9 +68,13 @@ function formatDateKey(d: Date) {
 }
 
 function generateYearMeteo(year: number) {
+  if (year > new Date().getFullYear()) return new Map();
   const start = new Date(year, 0, 1);
   const end = new Date(year, 11, 31);
-  const map = new Map<string, { icon: string; tMin: number; tMax: number; precip: number }>();
+  const map = new Map<
+    string,
+    { icon: string; tMin: number; tMax: number; precip: number }
+  >();
   const yearStart = new Date(year, 0, 1);
 
   for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
@@ -73,9 +86,16 @@ function generateYearMeteo(year: number) {
     const wmoCodes = [0, 0, 1, 2, 3, 45, 51, 61, 80, 95];
     const wmo = wmoCodes[Math.abs(seed) % wmoCodes.length];
     const icon = ICONS[wmo] || "partly_cloudy_day";
-    const baseTemp = 5 + (d.getMonth() % 12) * 2.5 + (Math.abs(seed * 3) % 10);
-    const tMin = Math.round((baseTemp - 4 + (Math.abs(seed) % 5)) * 10) / 10;
-    const tMax = Math.round((baseTemp + 6 + (Math.abs(seed * 2) % 6)) * 10) / 10;
+    const offsetAnno = (year - 2024) * 0.3;
+    const baseTemp = 5 + (d.getMonth() % 12) * 2.5 + (year % 5) * 1.5;
+    const tMin =
+      Math.round(
+        (baseTemp - 4 + offsetAnno + (Math.abs(seed) % 5) * 0.2) * 10
+      ) / 10;
+    const tMax =
+      Math.round(
+        (baseTemp + 6 + offsetAnno + (Math.abs(seed * 2) % 6) * 0.3) * 10
+      ) / 10;
     const precip = Math.round((Math.abs(seed) % 15) * 10) / 10;
     map.set(key, { icon, tMin, tMax, precip });
   }
@@ -83,9 +103,13 @@ function generateYearMeteo(year: number) {
 }
 
 // Cache per anni già generati
-const meteoCache = new Map<number, Map<string, { icon: string; tMin: number; tMax: number; precip: number }>>();
+const meteoCache = new Map<
+  number,
+  Map<string, { icon: string; tMin: number; tMax: number; precip: number }>
+>();
 
 function getMeteoForYear(year: number) {
+  if (year > new Date().getFullYear()) return new Map();
   if (!meteoCache.has(year)) {
     meteoCache.set(year, generateYearMeteo(year));
   }
@@ -94,7 +118,9 @@ function getMeteoForYear(year: number) {
 
 export default function WeatherPage({ onBack }: WeatherPageProps) {
   const [weekOffset, setWeekOffset] = useState(0);
-  const [viewMode, setViewMode] = useState<"week" | "chart" | "monthly">("week");
+  const [viewMode, setViewMode] = useState<"week" | "chart" | "monthly">(
+    "week"
+  );
   const [chartType, setChartType] = useState<"weekly" | "monthly">("weekly");
   const [chartOffset, setChartOffset] = useState(0);
   const today = new Date();
@@ -117,7 +143,10 @@ export default function WeatherPage({ onBack }: WeatherPageProps) {
     }
     // Raccogli tutti gli anni necessari
     const years = new Set(days.map((d) => d.getFullYear()));
-    const combined = new Map<string, { icon: string; tMin: number; tMax: number; precip: number }>();
+    const combined = new Map<
+      string,
+      { icon: string; tMin: number; tMax: number; precip: number }
+    >();
     for (const y of years) {
       const m = getMeteoForYear(y);
       for (const [k, v] of m) combined.set(k, v);
@@ -126,7 +155,7 @@ export default function WeatherPage({ onBack }: WeatherPageProps) {
       const key = formatDateKey(day);
       const m = combined.get(key);
       return {
-        label: day.toLocaleDateString("it-IT", { weekday: "short" }),
+        label: `${day.getDate()} ${day.toLocaleDateString("it-IT", { weekday: "short" }).slice(0, 2)}`,
         tMax: m?.tMax ?? 0,
         tMin: m?.tMin ?? 0,
         precip: m?.precip ?? 0
@@ -137,13 +166,26 @@ export default function WeatherPage({ onBack }: WeatherPageProps) {
   // Chart data: monthly con offset
   const chartMonthlyData = useMemo(() => {
     const year = today.getFullYear() + chartOffset;
+    if (year > today.getFullYear()) return [];
     const meteo = getMeteoForYear(year);
-    const data: { label: string; tMaxAvg: number; tMinAvg: number; precip: number }[] = [];
+    const data: {
+      label: string;
+      tMaxAvg: number;
+      tMinAvg: number;
+      precip: number;
+    }[] = [];
     for (let m = 0; m < 12; m++) {
       const monthStart = new Date(year, m, 1);
       const monthEnd = new Date(year, m + 1, 0);
-      let sumTMax = 0, sumTMin = 0, sumPrecip = 0, days = 0;
-      for (let d = new Date(monthStart); d <= monthEnd; d.setDate(d.getDate() + 1)) {
+      let sumTMax = 0,
+        sumTMin = 0,
+        sumPrecip = 0,
+        days = 0;
+      for (
+        let d = new Date(monthStart);
+        d <= monthEnd;
+        d.setDate(d.getDate() + 1)
+      ) {
         const key = formatDateKey(d);
         const met = meteo.get(key);
         if (met) {
@@ -154,7 +196,10 @@ export default function WeatherPage({ onBack }: WeatherPageProps) {
         }
       }
       data.push({
-        label: monthStart.toLocaleDateString("it-IT", { month: "short" }).replace(".", ""),
+        label: monthStart
+          .toLocaleDateString("it-IT", { month: "short" })
+          .replace(".", "")
+          .charAt(0),
         tMaxAvg: days ? Math.round((sumTMax / days) * 10) / 10 : 0,
         tMinAvg: days ? Math.round((sumTMin / days) * 10) / 10 : 0,
         precip: Math.round(sumPrecip * 10) / 10
@@ -166,12 +211,27 @@ export default function WeatherPage({ onBack }: WeatherPageProps) {
   const monthlyData = useMemo(() => {
     const year = today.getFullYear();
     const meteo = getMeteoForYear(year);
-    const months: { label: string; tMaxAvg: number; tMinAvg: number; precipTotal: number }[] = [];
+    const months: {
+      label: string;
+      tMaxAvg: number;
+      tMinAvg: number;
+      precipTotal: number;
+      icon: string;
+    }[] = [];
     for (let m = 0; m < 12; m++) {
       const monthStart = new Date(year, m, 1);
-      const monthEnd = m < 11 ? new Date(year, m + 1, 0) : new Date(year, 11, 31);
-      let sumTMax = 0, sumTMin = 0, sumPrecip = 0, days = 0;
-      for (let d = new Date(monthStart); d <= monthEnd; d.setDate(d.getDate() + 1)) {
+      const monthEnd =
+        m < 11 ? new Date(year, m + 1, 0) : new Date(year, 11, 31);
+      let sumTMax = 0,
+        sumTMin = 0,
+        sumPrecip = 0,
+        days = 0;
+      let icon = "partly_cloudy_day";
+      for (
+        let d = new Date(monthStart);
+        d <= monthEnd;
+        d.setDate(d.getDate() + 1)
+      ) {
         const key = formatDateKey(d);
         const data = meteo.get(key);
         if (data) {
@@ -179,6 +239,7 @@ export default function WeatherPage({ onBack }: WeatherPageProps) {
           sumTMin += data.tMin;
           sumPrecip += data.precip;
           days++;
+          if (d.getDate() === 15) icon = data.icon;
         }
       }
       const label = monthStart.toLocaleDateString("it-IT", { month: "long" });
@@ -186,7 +247,8 @@ export default function WeatherPage({ onBack }: WeatherPageProps) {
         label,
         tMaxAvg: days ? Math.round((sumTMax / days) * 10) / 10 : 0,
         tMinAvg: days ? Math.round((sumTMin / days) * 10) / 10 : 0,
-        precipTotal: Math.round(sumPrecip * 10) / 10
+        precipTotal: Math.round(sumPrecip * 10) / 10,
+        icon
       });
     }
     return months;
@@ -194,11 +256,6 @@ export default function WeatherPage({ onBack }: WeatherPageProps) {
 
   const weekStart = weekDays[0];
   const weekEnd = weekDays[6];
-  const weekLabel = `${
-    weekStart.toLocaleDateString("it-IT", { day: "numeric", month: "long" })
-  } - ${
-    weekEnd.toLocaleDateString("it-IT", { day: "numeric", month: "long", year: "numeric" })
-  }`;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-sky-100 to-blue-200">
@@ -207,14 +264,28 @@ export default function WeatherPage({ onBack }: WeatherPageProps) {
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <button
             onClick={onBack}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-sky-100 hover:bg-sky-200 transition"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-sky-100 hover:bg-sky-200 transition shrink-0"
             title="Chiudi"
           >
-            <span className="material-symbols-outlined text-xl text-sky-800">close</span>
+            <span className="material-symbols-outlined text-xl text-sky-800">
+              close
+            </span>
           </button>
-          <div className="text-center">
+          <div className="text-center flex-1">
             <h1 className="text-xl font-bold text-sky-900">Meteo {CITY}</h1>
-            <p className="text-xs text-sky-600 font-medium">{weekLabel}</p>
+            {viewMode === "week" && (
+              <p className="text-xs text-sky-600 font-medium capitalize">
+                {weekDays[0].toLocaleDateString("it-IT", {
+                  weekday: "long",
+                  day: "numeric"
+                })}
+                {" - "}
+                {weekDays[6].toLocaleDateString("it-IT", {
+                  weekday: "long",
+                  day: "numeric"
+                })}
+              </p>
+            )}
           </div>
           {viewMode === "week" && (
             <div className="flex items-center gap-1">
@@ -222,25 +293,32 @@ export default function WeatherPage({ onBack }: WeatherPageProps) {
                 onClick={() => setWeekOffset((o) => o - 1)}
                 className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-sky-100 hover:bg-sky-200 transition"
               >
-                <span className="material-symbols-outlined text-xl text-sky-800">chevron_left</span>
+                <span className="material-symbols-outlined text-xl text-sky-800">
+                  chevron_left
+                </span>
               </button>
               <button
                 onClick={() => setWeekOffset((o) => o + 1)}
                 className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-sky-100 hover:bg-sky-200 transition"
               >
-                <span className="material-symbols-outlined text-xl text-sky-800">chevron_right</span>
+                <span className="material-symbols-outlined text-xl text-sky-800">
+                  chevron_right
+                </span>
               </button>
             </div>
           )}
-          {viewMode !== "week" && <div className="w-[88px]" />}
+          {viewMode !== "week" && <div className="w-10" />}
         </div>
       </div>
 
       <div className="max-w-4xl mx-auto px-4 py-4">
         {/* Pulsanti vista */}
-        <div className="flex justify-start gap-2 mt-1 mb-2">
+        <div className="flex justify-start gap-2 mt-1 mb-8">
           <button
-            onClick={() => { setViewMode("week"); setWeekOffset(0); }}
+            onClick={() => {
+              setViewMode("week");
+              setWeekOffset(0);
+            }}
             className={`px-3 py-1.5 rounded-full border shadow-sm text-xs font-semibold transition ${
               viewMode === "week"
                 ? "bg-sky-600 text-white border-sky-600"
@@ -278,9 +356,13 @@ export default function WeatherPage({ onBack }: WeatherPageProps) {
               const meteo = getMeteoForYear(day.getFullYear()).get(key);
               const isToday = key === todayKey;
               const isWeekend = day.getDay() === 0 || day.getDay() === 6;
-              const dayName = day.toLocaleDateString("it-IT", { weekday: "long" });
+              const dayName = day.toLocaleDateString("it-IT", {
+                weekday: "long"
+              });
               const dayNum = day.getDate();
-              const monthName = day.toLocaleDateString("it-IT", { month: "short" });
+              const monthName = day.toLocaleDateString("it-IT", {
+                month: "short"
+              });
 
               return (
                 <div
@@ -340,17 +422,34 @@ export default function WeatherPage({ onBack }: WeatherPageProps) {
                 onClick={() => setChartOffset((o) => o - 1)}
                 className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-sky-100 hover:bg-sky-200 transition"
               >
-                <span className="material-symbols-outlined text-lg text-sky-800">chevron_left</span>
+                <span className="material-symbols-outlined text-lg text-sky-800">
+                  chevron_left
+                </span>
               </button>
               <div className="text-center">
                 <h3 className="text-sm font-bold text-sky-900">
-                  {chartType === "weekly" ? "Andamento settimanale" : "Andamento Annuale"}
+                  {chartType === "weekly"
+                    ? "Andamento settimanale"
+                    : "Andamento Annuale"}
                 </h3>
                 <p className="text-[0.65rem] text-sky-600">
                   {chartType === "weekly"
-                    ? chartData.length > 0
-                      ? `${chartData[0].label} - ${chartData[chartData.length - 1].label}`
-                      : ""
+                    ? (() => {
+                        const now = new Date();
+                        const dow = now.getDay();
+                        const diff = dow === 0 ? -6 : 1 - dow;
+                        const mon = new Date(now);
+                        mon.setDate(now.getDate() + diff + chartOffset * 7);
+                        const sun = new Date(mon);
+                        sun.setDate(mon.getDate() + 6);
+                        return `${mon.toLocaleDateString("it-IT", {
+                          weekday: "long",
+                          day: "numeric"
+                        })} - ${sun.toLocaleDateString("it-IT", {
+                          weekday: "long",
+                          day: "numeric"
+                        })}`;
+                      })()
                     : `${new Date().getFullYear() + chartOffset}`}
                 </p>
               </div>
@@ -358,39 +457,114 @@ export default function WeatherPage({ onBack }: WeatherPageProps) {
                 onClick={() => setChartOffset((o) => o + 1)}
                 className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-sky-100 hover:bg-sky-200 transition"
               >
-                <span className="material-symbols-outlined text-lg text-sky-800">chevron_right</span>
+                <span className="material-symbols-outlined text-lg text-sky-800">
+                  chevron_right
+                </span>
               </button>
             </div>
             <ResponsiveContainer width="100%" height={400}>
               {chartType === "weekly" ? (
                 <BarChart data={chartData} barGap={10} barCategoryGap={15}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis dataKey="label" interval={0} tick={{ fontSize: 12 }} />
-                  <YAxis yAxisId="temp" orientation="left" tick={{ fontSize: 11 }} unit="°" />
-                  <YAxis yAxisId="precip" orientation="right" tick={{ fontSize: 11 }} unit="mm" />
+                  <XAxis dataKey="label" interval={0} tick={{ fontSize: 10 }} />
+                  <YAxis
+                    yAxisId="temp"
+                    orientation="left"
+                    tick={{ fontSize: 11 }}
+                    unit="°"
+                  />
+                  <YAxis
+                    yAxisId="precip"
+                    orientation="right"
+                    tick={{ fontSize: 11 }}
+                    unit="mm"
+                  />
                   <Tooltip />
                   <Legend />
-                  <Bar yAxisId="precip" dataKey="precip" fill="#60a5fa" name="Pioggia (mm)" radius={[4, 4, 0, 0]} barSize={40} />
-                  <Line yAxisId="temp" type="monotone" dataKey="tMax" stroke="#ea580c" strokeWidth={2} name="T Max" dot={{ r: 4 }} />
-                  <Line yAxisId="temp" type="monotone" dataKey="tMin" stroke="#3b82f6" strokeWidth={2} name="T Min" dot={{ r: 4 }} />
+                  <Bar
+                    yAxisId="precip"
+                    dataKey="precip"
+                    fill="#60a5fa"
+                    name="Pioggia (mm)"
+                    radius={[4, 4, 0, 0]}
+                    barSize={40}
+                  />
+                  <Line
+                    yAxisId="temp"
+                    type="monotone"
+                    dataKey="tMax"
+                    stroke="#ea580c"
+                    strokeWidth={2}
+                    name="T Max"
+                    dot={{ r: 4 }}
+                  />
+                  <Line
+                    yAxisId="temp"
+                    type="monotone"
+                    dataKey="tMin"
+                    stroke="#3b82f6"
+                    strokeWidth={2}
+                    name="T Min"
+                    dot={{ r: 4 }}
+                  />
                 </BarChart>
               ) : (
-                <BarChart data={chartMonthlyData} barGap={8} barCategoryGap={12}>
+                <BarChart
+                  data={chartMonthlyData}
+                  barGap={8}
+                  barCategoryGap={12}
+                >
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                   <XAxis dataKey="label" interval={0} tick={{ fontSize: 11 }} />
-                  <YAxis yAxisId="temp" orientation="left" tick={{ fontSize: 11 }} unit="°" />
-                  <YAxis yAxisId="precip" orientation="right" tick={{ fontSize: 11 }} unit="mm" />
+                  <YAxis
+                    yAxisId="temp"
+                    orientation="left"
+                    tick={{ fontSize: 11 }}
+                    unit="°"
+                  />
+                  <YAxis
+                    yAxisId="precip"
+                    orientation="right"
+                    tick={{ fontSize: 11 }}
+                    unit="mm"
+                  />
                   <Tooltip />
                   <Legend />
-                  <Bar yAxisId="precip" dataKey="precip" fill="#60a5fa" name="Pioggia (mm)" radius={[4, 4, 0, 0]} barSize={24} />
-                  <Line yAxisId="temp" type="monotone" dataKey="tMaxAvg" stroke="#ea580c" strokeWidth={2} name="T Max media" dot={{ r: 3 }} />
-                  <Line yAxisId="temp" type="monotone" dataKey="tMinAvg" stroke="#3b82f6" strokeWidth={2} name="T Min media" dot={{ r: 3 }} />
+                  <Bar
+                    yAxisId="precip"
+                    dataKey="precip"
+                    fill="#60a5fa"
+                    name="Pioggia (mm)"
+                    radius={[4, 4, 0, 0]}
+                    barSize={24}
+                  />
+                  <Line
+                    yAxisId="temp"
+                    type="monotone"
+                    dataKey="tMaxAvg"
+                    stroke="#ea580c"
+                    strokeWidth={2}
+                    name="T Max media"
+                    dot={{ r: 3 }}
+                  />
+                  <Line
+                    yAxisId="temp"
+                    type="monotone"
+                    dataKey="tMinAvg"
+                    stroke="#3b82f6"
+                    strokeWidth={2}
+                    name="T Min media"
+                    dot={{ r: 3 }}
+                  />
                 </BarChart>
               )}
             </ResponsiveContainer>
             <div className="flex justify-center gap-4 mt-4">
               <button
-                onClick={() => { setChartType("weekly"); setChartOffset(0); }}
+                onClick={() => {
+                  setChartType("weekly");
+                  setChartOffset(0);
+                }}
                 className={`px-4 py-1.5 rounded-full border shadow-sm text-xs font-semibold transition ${
                   chartType === "weekly"
                     ? "bg-sky-600 text-white border-sky-600"
@@ -400,31 +574,40 @@ export default function WeatherPage({ onBack }: WeatherPageProps) {
                 📊 Settimanale
               </button>
               <button
-                onClick={() => { setChartType("monthly"); setChartOffset(0); }}
+                onClick={() => {
+                  setChartType("monthly");
+                  setChartOffset(0);
+                }}
                 className={`px-4 py-1.5 rounded-full border shadow-sm text-xs font-semibold transition ${
                   chartType === "monthly"
                     ? "bg-sky-600 text-white border-sky-600"
                     : "bg-white/80 text-sky-800 border-sky-300 hover:bg-white"
                 }`}
               >
-                📈 Mensile
+                📈 Annuale
               </button>
             </div>
           </div>
         )}
 
         {viewMode === "monthly" && (
-          <div className="space-y-1">
+          <div className="flex flex-col gap-1 mt-8">
             {monthlyData.map((m) => (
               <div
                 key={m.label}
-                className="flex items-center rounded-lg h-[36px] px-2 shadow-sm border bg-white/80 border-sky-100"
+                className="flex justify-between items-center px-2 py-2 rounded-lg bg-white/50 backdrop-blur-sm"
               >
-                <p className="w-20 text-[0.65rem] font-bold text-sky-900 capitalize shrink-0">{m.label}</p>
-                <div className="flex items-center gap-2 ml-auto text-[0.6rem]">
-                  <span className="font-bold text-orange-600">{m.tMaxAvg}°</span>
+                <p className="text-[0.7rem] font-bold text-sky-900 capitalize w-16">
+                  {m.label}
+                </p>
+                <div className="flex items-center gap-2 text-[0.65rem]">
+                  <span className="font-bold text-orange-600">
+                    {m.tMaxAvg}°
+                  </span>
                   <span className="font-bold text-blue-600">{m.tMinAvg}°</span>
-                  <span className="font-bold text-blue-500 min-w-[36px] text-right">{m.precipTotal}mm</span>
+                  <span className="font-bold text-blue-500">
+                    {m.precipTotal}mm
+                  </span>
                 </div>
               </div>
             ))}
