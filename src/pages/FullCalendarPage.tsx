@@ -1,4 +1,4 @@
-import {
+﻿import {
   useEffect,
   useMemo,
   useRef,
@@ -401,6 +401,7 @@ function FullCalendarPage() {
     Set<string>
   >(new Set());
   const [dragWarning, setDragWarning] = useState<string | null>(null);
+  const [calendarKey, setCalendarKey] = useState(0);
   const [selectedAppointmentId, setSelectedAppointmentId] = useState<
     string | null
   >(null);
@@ -433,7 +434,9 @@ function FullCalendarPage() {
   // Stato form "Inserimento Attività"
   const [showAttivitaForm, setShowAttivitaForm] = useState(false);
   const [attivitaEditId, setAttivitaEditId] = useState<string | null>(null);
-  const [linkedAppuntamentoId, setLinkedAppuntamentoId] = useState<string | null>(null);
+  const [linkedAppuntamentoId, setLinkedAppuntamentoId] = useState<
+    string | null
+  >(null);
   const [attivitaDataInizio, setAttivitaDataInizio] = useState("");
   const [attivitaDataFine, setAttivitaDataFine] = useState("");
   const [attivitaLocalitaId, setAttivitaLocalitaId] = useState("");
@@ -442,10 +445,17 @@ function FullCalendarPage() {
   const [attivitaNote, setAttivitaNote] = useState("");
   const [attivitaClienteId, setAttivitaClienteId] = useState("");
   const [attivitaVisibile, setAttivitaVisibile] = useState(false);
+  const [attivitaStato, setAttivitaStato] = useState<
+    "promemoria" | "confermato" | "eseguito"
+  >("promemoria");
+  const [attivitaPrivato, setAttivitaPrivato] = useState(false);
   const [attivitaNuoveFoto, setAttivitaNuoveFoto] = useState<File[]>([]);
   const [attivitaFotoEsistenti, setAttivitaFotoEsistenti] = useState<any[]>([]);
   const [attivitaSaving, setAttivitaSaving] = useState(false);
-  const [attivitaStatus, setAttivitaStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [attivitaStatus, setAttivitaStatus] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
   const attivitaFileInputRef = useRef<HTMLInputElement | null>(null);
   const attivitaStatusTimeoutRef = useRef<number | null>(null);
   const navigate = useNavigate();
@@ -625,40 +635,47 @@ function FullCalendarPage() {
     setError(null);
     setDragWarning(null);
     try {
-      const [giardinieriData, appuntamentiData, clientiData, attivitaData, localitaData, categorieData, inserimentiData] =
-        await Promise.all([
-          supabase
-            .from("giardinieri")
-            .select("*")
-            .order("username", { ascending: true }),
-          supabase
-            .from("appuntamenti")
-            .select(
-              "*, clienti(*), appuntamenti_giardinieri(*, giardinieri(*)), appuntamenti_attivita(*, attivita(*))"
-            )
-            .order("data", { ascending: true }),
-          supabase
-            .from("clienti")
-            .select("id, nome")
-            .order("nome", { ascending: true }),
-          supabase
-            .from("attivita")
-            .select("*, categorie(nome)")
-            .order("descrizione", { ascending: true }),
-          supabase
-            .from("localita")
-            .select("id, localita")
-            .order("localita", { ascending: true }),
-          supabase
-            .from("categorie")
-            .select("*")
-            .order("nome", { ascending: true }),
-          supabase
-            .from("inserimenti_attivita")
-            .select("*, attivita(*, categorie(*)), localita(*)")
-            .eq("aggiungi_al_planning", true)
-            .order("data_inizio", { ascending: false })
-        ]);
+      const [
+        giardinieriData,
+        appuntamentiData,
+        clientiData,
+        attivitaData,
+        localitaData,
+        categorieData,
+        inserimentiData
+      ] = await Promise.all([
+        supabase
+          .from("giardinieri")
+          .select("*")
+          .order("username", { ascending: true }),
+        supabase
+          .from("appuntamenti")
+          .select(
+            "*, clienti(*), appuntamenti_giardinieri(*, giardinieri(*)), appuntamenti_attivita(*, attivita(*))"
+          )
+          .order("data", { ascending: true }),
+        supabase
+          .from("clienti")
+          .select("id, nome")
+          .order("nome", { ascending: true }),
+        supabase
+          .from("attivita")
+          .select("*, categorie(nome)")
+          .order("descrizione", { ascending: true }),
+        supabase
+          .from("localita")
+          .select("id, localita")
+          .order("localita", { ascending: true }),
+        supabase
+          .from("categorie")
+          .select("*")
+          .order("nome", { ascending: true }),
+        supabase
+          .from("inserimenti_attivita")
+          .select("*, attivita(*, categorie(*)), localita(*)")
+          .eq("aggiungi_al_planning", true)
+          .order("data_inizio", { ascending: false })
+      ]);
 
       if (giardinieriData.error) throw new Error(giardinieriData.error.message);
       if (appuntamentiData.error)
@@ -700,6 +717,7 @@ function FullCalendarPage() {
       setLocalitaList(localitaData.data || []);
       setCategorieList(categorieData.data || []);
       setInserimentiAttivita(inserimentiData.data || []);
+      setCalendarKey((k) => k + 1);
     } catch (err) {
       console.error("Errore caricamento dati calendario", err);
       setError(
@@ -1025,6 +1043,8 @@ function FullCalendarPage() {
     setAttivitaNote("");
     setAttivitaClienteId("");
     setAttivitaVisibile(false);
+    setAttivitaStato("promemoria");
+    setAttivitaPrivato(false);
     setAttivitaNuoveFoto([]);
     setAttivitaFotoEsistenti([]);
     setAttivitaEditId(null);
@@ -1039,20 +1059,26 @@ function FullCalendarPage() {
   };
 
   const clearAttivitaStatus = () => {
-    if (attivitaStatusTimeoutRef.current) window.clearTimeout(attivitaStatusTimeoutRef.current);
+    if (attivitaStatusTimeoutRef.current)
+      window.clearTimeout(attivitaStatusTimeoutRef.current);
     attivitaStatusTimeoutRef.current = window.setTimeout(() => {
       setAttivitaStatus(null);
       attivitaStatusTimeoutRef.current = null;
     }, 2000);
   };
 
-  const uploadFoto = async (file: File, attivitaId: string): Promise<string> => {
+  const uploadFoto = async (
+    file: File,
+    attivitaId: string
+  ): Promise<string> => {
     const fileName = `${attivitaId}/${Date.now()}_${file.name}`;
     const { error: uploadError } = await supabase.storage
       .from("foto")
       .upload(fileName, file, { cacheControl: "3600", upsert: false });
     if (uploadError) throw uploadError;
-    const { data: urlData } = supabase.storage.from("foto").getPublicUrl(fileName);
+    const { data: urlData } = supabase.storage
+      .from("foto")
+      .getPublicUrl(fileName);
     return urlData?.publicUrl || "";
   };
 
@@ -1070,7 +1096,10 @@ function FullCalendarPage() {
   const handleSaveAttivita = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!attivitaLocalitaId || !attivitaAttivitaId) {
-      setAttivitaStatus({ type: "error", message: "Località e Attività sono obbligatorie." });
+      setAttivitaStatus({
+        type: "error",
+        message: "Località e Attività sono obbligatorie."
+      });
       clearAttivitaStatus();
       return;
     }
@@ -1084,8 +1113,17 @@ function FullCalendarPage() {
         note: attivitaNote.trim() || null,
         cliente_id: attivitaClienteId || null,
         visibile: attivitaVisibile,
-        aggiungi_al_planning: true
+        aggiungi_al_planning: true,
+        stato: attivitaStato,
+        privato: attivitaPrivato
       };
+
+      if (!attivitaEditId) {
+        payload.created_by =
+          (typeof window !== "undefined"
+            ? window.localStorage.getItem("loginUsername")
+            : null) || null;
+      }
 
       let recordId: string;
 
@@ -1111,7 +1149,9 @@ function FullCalendarPage() {
       // Upload nuove foto
       for (const file of attivitaNuoveFoto) {
         const fotoUrl = await uploadFoto(file, recordId);
-        await supabase.from("foto_attivita").insert({ attivita_id: recordId, foto_url: fotoUrl });
+        await supabase
+          .from("foto_attivita")
+          .insert({ attivita_id: recordId, foto_url: fotoUrl });
       }
       setAttivitaNuoveFoto([]);
 
@@ -1127,7 +1167,10 @@ function FullCalendarPage() {
       // Chiudi il modal dopo 2 secondi per far vedere il messaggio
       setTimeout(() => resetAndClose(), 2000);
     } catch (err: any) {
-      setAttivitaStatus({ type: "error", message: err.message || "Errore durante il salvataggio." });
+      setAttivitaStatus({
+        type: "error",
+        message: err.message || "Errore durante il salvataggio."
+      });
       clearAttivitaStatus();
     } finally {
       setAttivitaSaving(false);
@@ -1146,17 +1189,30 @@ function FullCalendarPage() {
           .eq("attivita_id", attivitaEditId);
         for (const foto of fotoList || []) {
           const path = foto.foto_url?.split("/foto/").pop();
-          if (path) await supabase.storage.from("foto").remove([path]).catch(() => {});
+          if (path)
+            await supabase.storage
+              .from("foto")
+              .remove([path])
+              .catch(() => {});
         }
-        await supabase.from("foto_attivita").delete().eq("attivita_id", attivitaEditId);
-        await supabase.from("inserimenti_attivita").delete().eq("id", attivitaEditId);
+        await supabase
+          .from("foto_attivita")
+          .delete()
+          .eq("attivita_id", attivitaEditId);
+        await supabase
+          .from("inserimenti_attivita")
+          .delete()
+          .eq("id", attivitaEditId);
       }
 
       setShowDeleteConfirm(false);
       resetAndClose();
       await loadData();
     } catch (err: any) {
-      setAttivitaStatus({ type: "error", message: err.message || "Errore durante l'eliminazione." });
+      setAttivitaStatus({
+        type: "error",
+        message: err.message || "Errore durante l'eliminazione."
+      });
       clearAttivitaStatus();
     } finally {
       setAttivitaSaving(false);
@@ -1415,7 +1471,15 @@ function FullCalendarPage() {
       }
 
       // Eventi da inserimenti_attivita (aggiungi_al_planning = true)
+      const currentUsername =
+        typeof window !== "undefined"
+          ? window.localStorage.getItem("loginUsername") || ""
+          : "";
+
       for (const item of inserimentiAttivita) {
+        if (item.privato && item.created_by !== currentUsername) {
+          continue;
+        }
         const startDate = item.data_inizio || "";
         const endDate = item.data_fine || item.data_inizio || "";
         if (!startDate) continue;
@@ -1431,19 +1495,38 @@ function FullCalendarPage() {
 
         const eventTitle = `${attDescr}${clientName ? ` - ${clientName}` : ""}`;
 
+        // Mappa colori in base a stato
+        let eventBgColor: string;
+        const stato = (item.stato || "").toLowerCase();
+        switch (stato) {
+          case "promemoria":
+            eventBgColor = "#f59e0b"; // ambra/giallo
+            break;
+          case "confermato":
+            eventBgColor = "#3b82f6"; // blu
+            break;
+          case "eseguito":
+            eventBgColor = "#10b981"; // verde
+            break;
+          default:
+            eventBgColor = "#2c3e50"; // default
+        }
+
         rawEvents.push({
           id: `ins_${item.id}`,
           title: eventTitle,
           start: buildIsoDateTime(startDate, "08:00"),
           end: buildIsoDateTime(endDate, "17:00"),
-          backgroundColor: "#2c3e50",
-          borderColor: "#2c3e50",
+          backgroundColor: eventBgColor,
+          borderColor: eventBgColor,
           textColor: "#ffffff",
           extendedProps: {
             originalStart: startDate,
             originalEnd: endDate,
             activity: attDescr,
-            location: locName
+            location: locName,
+            stato: item.stato,
+            privato: item.privato
           }
         });
       }
@@ -1648,6 +1731,7 @@ function FullCalendarPage() {
             }}
           >
             <FullCalendar
+              key={calendarKey}
               ref={calendarRef}
               plugins={[dayGridPlugin, interactionPlugin]}
               initialView="dayGridThreeDays"
@@ -1724,13 +1808,18 @@ function FullCalendarPage() {
                   setAttivitaLocalitaId(item.localita_id?.toString() || "");
                   setAttivitaCategoriaId(
                     item.attivita?.categorie?.id?.toString() ||
-                    item.attivita?.categoria_id?.toString() ||
-                    ""
+                      item.attivita?.categoria_id?.toString() ||
+                      ""
                   );
                   setAttivitaAttivitaId(item.attivita_id?.toString() || "");
                   setAttivitaNote(item.note || "");
                   setAttivitaClienteId(item.cliente_id?.toString() || "");
                   setAttivitaVisibile(!!item.visibile);
+                  setAttivitaStato(
+                    (item.stato as "promemoria" | "confermato" | "eseguito") ||
+                      "promemoria"
+                  );
+                  setAttivitaPrivato(!!item.privato);
                   // Carica foto esistenti
                   const { data: foto } = await supabase
                     .from("foto_attivita")
@@ -1763,10 +1852,15 @@ function FullCalendarPage() {
                 const match = (linked || []).find((ins: any) => {
                   const insDate = ins.data_inizio?.toString?.()?.trim?.() || "";
                   const insLoc =
-                    localitaList.find(
-                      (l: any) => l.id?.toString() === ins.localita_id?.toString()
-                    )?.localita?.toString?.()?.trim?.() || "";
-                  const insAtt = ins.attivita?.descrizione?.toString?.()?.trim?.() || "";
+                    localitaList
+                      .find(
+                        (l: any) =>
+                          l.id?.toString() === ins.localita_id?.toString()
+                      )
+                      ?.localita?.toString?.()
+                      ?.trim?.() || "";
+                  const insAtt =
+                    ins.attivita?.descrizione?.toString?.()?.trim?.() || "";
                   const sameDate = insDate === apptDataNorm;
                   const sameLoc = insLoc === apptLoc && !!apptLoc;
                   const sameAtt = insAtt === apptAtt && !!apptAtt;
@@ -1781,8 +1875,8 @@ function FullCalendarPage() {
                   setAttivitaLocalitaId(match.localita_id || "");
                   setAttivitaCategoriaId(
                     match.attivita?.categorie?.id?.toString() ||
-                    match.attivita?.categoria_id?.toString() ||
-                    ""
+                      match.attivita?.categoria_id?.toString() ||
+                      ""
                   );
                   setAttivitaAttivitaId(match.attivita_id?.toString() || "");
                   setAttivitaNote(match.note || "");
@@ -1802,7 +1896,9 @@ function FullCalendarPage() {
                   const att = attivitaList.find(
                     (a: any) => a.descrizione === appt.attivita
                   );
-                  setAttivitaDataInizio(appt.data || formatLocalDate(new Date()));
+                  setAttivitaDataInizio(
+                    appt.data || formatLocalDate(new Date())
+                  );
                   setAttivitaDataFine(appt.end_date || appt.data || "");
                   setAttivitaLocalitaId(loc?.id?.toString() || "");
                   setAttivitaCategoriaId(att?.categoria_id || "");
@@ -1855,7 +1951,9 @@ function FullCalendarPage() {
                   arg.event.extendedProps.giardiniereName || "";
                 const activity = arg.event.extendedProps.activity || "";
                 const location = arg.event.extendedProps.location || "";
-                const secondaRiga = [location, activity].filter(Boolean).join(" - ");
+                const secondaRiga = [location, activity]
+                  .filter(Boolean)
+                  .join(" - ");
                 return {
                   html:
                     `<div style="font-size:0.75rem;line-height:1.2;display:flex;flex-direction:column;justify-content:center;overflow:hidden;">` +
@@ -2041,6 +2139,64 @@ function FullCalendarPage() {
               </div>
             </div>
           </div>
+
+          {/* Legenda colori stato attività */}
+          <div
+            style={{
+              position: "fixed",
+              bottom: "44px",
+              left: "36px",
+              zIndex: 10,
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              columnGap: "12px",
+              rowGap: "4px",
+              background: "rgba(255,255,255,0.9)",
+              backdropFilter: "blur(4px)",
+              borderRadius: "12px",
+              padding: "6px 8px",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+              fontSize: "10px"
+            }}
+          >
+            <span style={{ display: "flex", alignItems: "center", gap: "3px" }}>
+              <span
+                style={{
+                  width: 10,
+                  height: 10,
+                  borderRadius: 2,
+                  backgroundColor: "#f59e0b",
+                  display: "inline-block"
+                }}
+              />
+              Promemoria
+            </span>
+            <span style={{ display: "flex", alignItems: "center", gap: "3px" }}>
+              <span
+                style={{
+                  width: 10,
+                  height: 10,
+                  borderRadius: 2,
+                  backgroundColor: "#3b82f6",
+                  display: "inline-block"
+                }}
+              />
+              Confermato
+            </span>
+            <span style={{ display: "flex", alignItems: "center", gap: "3px" }}>
+              <span
+                style={{
+                  width: 10,
+                  height: 10,
+                  borderRadius: 2,
+                  backgroundColor: "#10b981",
+                  display: "inline-block"
+                }}
+              />
+              Eseguito
+            </span>
+          </div>
+
           <div
             style={{
               position: "fixed",
@@ -2150,7 +2306,9 @@ function FullCalendarPage() {
                     playlist_add
                   </span>
                   <h3 className="text-xl font-semibold text-[#2563eb]">
-                    {attivitaEditId ? "Modifica Attività" : "Inserimento Attività"}
+                    {attivitaEditId
+                      ? "Modifica Attività"
+                      : "Inserimento Attività"}
                   </h3>
                 </div>
                 <form
@@ -2168,7 +2326,9 @@ function FullCalendarPage() {
                         className="w-full h-10 px-4 rounded-lg border border-[#c2c9bb] bg-[#f8faf8] focus:ring-2 focus:ring-[#154212] outline-none text-xs font-bold"
                         value={attivitaDataInizio}
                         onChange={(e) => setAttivitaDataInizio(e.target.value)}
-                        onClick={(e) => (e.target as HTMLInputElement).showPicker()}
+                        onClick={(e) =>
+                          (e.target as HTMLInputElement).showPicker()
+                        }
                       />
                     </div>
                     <div>
@@ -2180,7 +2340,9 @@ function FullCalendarPage() {
                         className="w-full h-10 px-4 rounded-lg border border-[#c2c9bb] bg-[#f8faf8] focus:ring-2 focus:ring-[#154212] outline-none text-xs font-bold"
                         value={attivitaDataFine}
                         onChange={(e) => setAttivitaDataFine(e.target.value)}
-                        onClick={(e) => (e.target as HTMLInputElement).showPicker()}
+                        onClick={(e) =>
+                          (e.target as HTMLInputElement).showPicker()
+                        }
                       />
                     </div>
                   </div>
@@ -2194,7 +2356,9 @@ function FullCalendarPage() {
                       className="w-full h-10 px-4 rounded-lg border border-[#c2c9bb] bg-[#f8faf8] focus:ring-2 focus:ring-[#154212] outline-none text-xs font-bold"
                       value={attivitaLocalitaId}
                       onChange={(e) => setAttivitaLocalitaId(e.target.value)}
-                      style={{ color: attivitaLocalitaId ? "black" : "#9ca3af" }}
+                      style={{
+                        color: attivitaLocalitaId ? "black" : "#9ca3af"
+                      }}
                     >
                       <option value="" className="text-[#9ca3af]">
                         Seleziona località...
@@ -2220,13 +2384,19 @@ function FullCalendarPage() {
                           setAttivitaCategoriaId(e.target.value);
                           setAttivitaAttivitaId("");
                         }}
-                        style={{ color: attivitaCategoriaId ? "black" : "#9ca3af" }}
+                        style={{
+                          color: attivitaCategoriaId ? "black" : "#9ca3af"
+                        }}
                       >
                         <option value="" className="text-[#9ca3af]">
                           Seleziona Soggetto
                         </option>
                         {categorieList.map((c: any) => (
-                          <option key={c.id} value={c.id} className="text-black">
+                          <option
+                            key={c.id}
+                            value={c.id}
+                            className="text-black"
+                          >
                             {c.nome}
                           </option>
                         ))}
@@ -2240,13 +2410,19 @@ function FullCalendarPage() {
                         className="w-full h-10 px-4 rounded-lg border border-[#c2c9bb] bg-[#f8faf8] focus:ring-2 focus:ring-[#154212] outline-none text-xs font-bold"
                         value={attivitaAttivitaId}
                         onChange={(e) => setAttivitaAttivitaId(e.target.value)}
-                        style={{ color: attivitaAttivitaId ? "black" : "#9ca3af" }}
+                        style={{
+                          color: attivitaAttivitaId ? "black" : "#9ca3af"
+                        }}
                       >
                         <option value="" className="text-[#9ca3af]">
                           Seleziona Azione...
                         </option>
                         {filteredAttivitaForm.map((a: any) => (
-                          <option key={a.id} value={a.id} className="text-black">
+                          <option
+                            key={a.id}
+                            value={a.id}
+                            className="text-black"
+                          >
                             {a.descrizione}
                           </option>
                         ))}
@@ -2300,74 +2476,146 @@ function FullCalendarPage() {
                       className="hidden"
                       onChange={(e) => {
                         if (e.target.files) {
-                          const total = attivitaNuoveFoto.length + e.target.files.length;
+                          const total =
+                            attivitaNuoveFoto.length + e.target.files.length;
                           if (total > 8) {
-                            setAttivitaStatus({ type: "error", message: "Massimo 8 foto." });
+                            setAttivitaStatus({
+                              type: "error",
+                              message: "Massimo 8 foto."
+                            });
                             clearAttivitaStatus();
                             return;
                           }
-                          setAttivitaNuoveFoto((prev) => [...prev, ...Array.from(e.target.files!)]);
+                          setAttivitaNuoveFoto((prev) => [
+                            ...prev,
+                            ...Array.from(e.target.files!)
+                          ]);
                         }
                       }}
                     />
-                    <div
-                      className="grid justify-center gap-3 w-full p-2 bg-transparent border border-white"
-                      style={{ gridTemplateColumns: "repeat(4, 60px)" }}
-                    >
-                      {Array.from({ length: 8 }).map((_, idx) => {
-                        const fotoExistente = attivitaFotoEsistenti[idx];
-                        const nuovaFoto = !fotoExistente
-                          ? attivitaNuoveFoto[idx - attivitaFotoEsistenti.length]
-                          : null;
-                        const hasPhoto = !!fotoExistente || !!nuovaFoto;
-                        const isLast = idx === 7;
-                        const showPlus = isLast && attivitaNuoveFoto.length + attivitaFotoEsistenti.length < 8;
-                        return (
-                          <div
-                            key={idx}
-                            className="relative group cursor-pointer border border-[#e5e7eb] flex items-center justify-center overflow-hidden"
-                            style={{
-                              width: "60px",
-                              height: "60px",
-                              backgroundColor: hasPhoto ? "transparent" : "#f9fafb"
-                            }}
-                            onClick={() => attivitaFileInputRef.current?.click()}
-                          >
-                            {hasPhoto ? (
-                              <>
-                                <img
-                                  src={
-                                    fotoExistente
-                                      ? fotoExistente.foto_url
-                                      : URL.createObjectURL(nuovaFoto!)
-                                  }
-                                  alt="Foto"
-                                  className="w-full h-full object-cover"
-                                />
-                                <button
-                                  type="button"
-                                  className="absolute top-0 right-0 bg-red-600 text-white w-4 h-4 flex items-center justify-center text-[10px] leading-none opacity-0 group-hover:opacity-100 transition"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (fotoExistente)
-                                      handleDeleteFotoAttivita(fotoExistente.id, fotoExistente.foto_url);
-                                    else
-                                      setAttivitaNuoveFoto((prev) =>
-                                        prev.filter((_, i) => i !== idx - attivitaFotoEsistenti.length)
-                                      );
-                                  }}
-                                >
-                                  ✕
-                                </button>
-                              </>
-                            ) : showPlus ? (
-                              <span className="material-symbols-outlined text-2xl text-[#9ca3af]">
-                                add
-                              </span>
-                            ) : null}
-                          </div>
-                        );
-                      })}
+                    <div className="flex flex-row gap-4 items-start">
+                      <div
+                        className="grid justify-start gap-3 p-2 bg-transparent border border-white"
+                        style={{ gridTemplateColumns: "repeat(4, 60px)" }}
+                      >
+                        {Array.from({ length: 8 }).map((_, idx) => {
+                          const fotoExistente = attivitaFotoEsistenti[idx];
+                          const nuovaFoto = !fotoExistente
+                            ? attivitaNuoveFoto[
+                                idx - attivitaFotoEsistenti.length
+                              ]
+                            : null;
+                          const hasPhoto = !!fotoExistente || !!nuovaFoto;
+                          const isLast = idx === 7;
+                          const showPlus =
+                            isLast &&
+                            attivitaNuoveFoto.length +
+                              attivitaFotoEsistenti.length <
+                              8;
+                          return (
+                            <div
+                              key={idx}
+                              className="relative group cursor-pointer border border-[#e5e7eb] flex items-center justify-center overflow-hidden"
+                              style={{
+                                width: "60px",
+                                height: "60px",
+                                backgroundColor: hasPhoto
+                                  ? "transparent"
+                                  : "#f9fafb"
+                              }}
+                              onClick={() =>
+                                attivitaFileInputRef.current?.click()
+                              }
+                            >
+                              {hasPhoto ? (
+                                <>
+                                  <img
+                                    src={
+                                      fotoExistente
+                                        ? fotoExistente.foto_url
+                                        : URL.createObjectURL(nuovaFoto!)
+                                    }
+                                    alt="Foto"
+                                    className="w-full h-full object-cover"
+                                  />
+                                  <button
+                                    type="button"
+                                    className="absolute top-0 right-0 bg-red-600 text-white w-4 h-4 flex items-center justify-center text-[10px] leading-none opacity-0 group-hover:opacity-100 transition"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (fotoExistente)
+                                        handleDeleteFotoAttivita(
+                                          fotoExistente.id,
+                                          fotoExistente.foto_url
+                                        );
+                                      else
+                                        setAttivitaNuoveFoto((prev) =>
+                                          prev.filter(
+                                            (_, i) =>
+                                              i !==
+                                              idx - attivitaFotoEsistenti.length
+                                          )
+                                        );
+                                    }}
+                                  >
+                                    ✕
+                                  </button>
+                                </>
+                              ) : showPlus ? (
+                                <span className="material-symbols-outlined text-2xl text-[#9ca3af]">
+                                  add
+                                </span>
+                              ) : null}
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer">
+                          <input
+                            type="radio"
+                            name="attivitaStato"
+                            value="promemoria"
+                            checked={attivitaStato === "promemoria"}
+                            onChange={() => setAttivitaStato("promemoria")}
+                            className="h-4 w-4 accent-[#154212]"
+                          />
+                          Promemoria
+                        </label>
+                        <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer">
+                          <input
+                            type="radio"
+                            name="attivitaStato"
+                            value="confermato"
+                            checked={attivitaStato === "confermato"}
+                            onChange={() => setAttivitaStato("confermato")}
+                            className="h-4 w-4 accent-[#154212]"
+                          />
+                          Confermato
+                        </label>
+                        <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer">
+                          <input
+                            type="radio"
+                            name="attivitaStato"
+                            value="eseguito"
+                            checked={attivitaStato === "eseguito"}
+                            onChange={() => setAttivitaStato("eseguito")}
+                            className="h-4 w-4 accent-[#154212]"
+                          />
+                          Eseguito
+                        </label>
+                        <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={attivitaPrivato}
+                            onChange={(e) =>
+                              setAttivitaPrivato(e.target.checked)
+                            }
+                            className="h-4 w-4 accent-[#154212]"
+                          />
+                          Privato
+                        </label>
+                      </div>
                     </div>
                   </div>
 
@@ -2385,8 +2633,12 @@ function FullCalendarPage() {
                   </div>
 
                   <div className="mt-auto bg-transparent pt-3 pb-3">
-                    <div className="flex items-center justify-end gap-12" style={{ marginRight: "20px" }}>
-                      {attivitaEditId || (linkedAppuntamentoId && !attivitaEditId) ? (
+                    <div
+                      className="flex items-center justify-end gap-12"
+                      style={{ marginRight: "20px" }}
+                    >
+                      {attivitaEditId ||
+                      (linkedAppuntamentoId && !attivitaEditId) ? (
                         <div className="flex flex-col items-center">
                           <button
                             type="button"
@@ -2394,7 +2646,9 @@ function FullCalendarPage() {
                             className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-violet-600 text-white transition hover:bg-violet-700"
                             title="Elimina"
                           >
-                            <span className="material-symbols-outlined text-xl">delete</span>
+                            <span className="material-symbols-outlined text-xl">
+                              delete
+                            </span>
                           </button>
                           <span className="mt-1 text-[0.65rem] font-semibold text-white">
                             Elimina
@@ -2428,12 +2682,29 @@ function FullCalendarPage() {
                           disabled={attivitaSaving}
                         >
                           {attivitaSaving ? (
-                            <svg className="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                            <svg
+                              className="animate-spin h-5 w-5 text-white"
+                              viewBox="0 0 24 24"
+                            >
+                              <circle
+                                className="opacity-25"
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                stroke="currentColor"
+                                strokeWidth="4"
+                                fill="none"
+                              />
+                              <path
+                                className="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                              />
                             </svg>
                           ) : (
-                            <span className="material-symbols-outlined text-xl">save</span>
+                            <span className="material-symbols-outlined text-xl">
+                              save
+                            </span>
                           )}
                         </button>
                         <span className="mt-1 text-[0.65rem] font-semibold text-white">
@@ -2446,7 +2717,9 @@ function FullCalendarPage() {
                           type="button"
                           onClick={resetAndClose}
                         >
-                          <span className="material-symbols-outlined text-xl">close</span>
+                          <span className="material-symbols-outlined text-xl">
+                            close
+                          </span>
                         </button>
                         <span className="mt-1 text-[0.65rem] font-semibold text-white">
                           Chiudi
@@ -2462,7 +2735,8 @@ function FullCalendarPage() {
                         Confermi eliminazione?
                       </p>
                       <p className="mb-4 text-sm text-gray-600">
-                        Questa azione eliminerà definitivamente l'attività e l'appuntamento collegato.
+                        Questa azione eliminerà definitivamente l'attività e
+                        l'appuntamento collegato.
                       </p>
                       <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
                         <button

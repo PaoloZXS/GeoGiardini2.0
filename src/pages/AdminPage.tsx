@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../supabaseClient";
 
@@ -707,7 +707,7 @@ function LocalitaModal({ onClose }: { onClose: () => void }) {
         >
           <div>
             <label className="pl-2 text-sm font-bold text-black block">
-              Località *
+              Località
             </label>
             <input
               className="w-full h-10 px-4 rounded-lg border border-[#c2c9bb] bg-[#f8faf8] focus:ring-2 focus:ring-[#154212] focus:border-[#154212] outline-none text-sm text-black font-bold"
@@ -765,7 +765,7 @@ function LocalitaModal({ onClose }: { onClose: () => void }) {
               </p>
             </div>
             <div
-              className="overflow-y-auto rounded-2xl border-2 border-black bg-white p-2 space-y-2 mt-[10px] mb-3"
+              className="overflow-y-auto rounded-none bg-white p-2 space-y-2 mt-[10px] mb-3"
               style={{ maxHeight: "245px" }}
             >
               {list.length === 0 ? (
@@ -785,19 +785,12 @@ function LocalitaModal({ onClose }: { onClose: () => void }) {
                         handleSelect(item);
                       }
                     }}
-                    className={`w-full rounded-xl border p-0.5 text-left transition cursor-pointer ${editingId === item.id ? "border-emerald-600 bg-emerald-600/20 text-black" : "border-[#c2c9bb] bg-white hover:bg-[#eceeec]"}`}
+                    className={`w-full rounded-none p-0.5 text-left transition cursor-pointer ${editingId === item.id ? "border-emerald-600 bg-emerald-600/20 text-black" : "border-[#c2c9bb] bg-white hover:bg-[#eceeec]"}`}
                   >
                     <div className="flex items-center justify-between gap-2">
                       <div className="min-w-0">
                         <p className="text-sm truncate text-[#191c1b]">
-                          {item.localita}{" "}
-                          {item.clienti ? (
-                            <span className="text-[#72796e]">
-                              - Cliente: {item.clienti.nome}
-                            </span>
-                          ) : (
-                            ""
-                          )}
+                          {item.localita} - {item.clienti?.nome || ""}
                         </p>
                       </div>
                     </div>
@@ -823,7 +816,9 @@ function LocalitaModal({ onClose }: { onClose: () => void }) {
                     className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-violet-600 text-white transition hover:bg-violet-700"
                     title="Elimina"
                   >
-                    <span className="material-symbols-outlined text-xl">delete</span>
+                    <span className="material-symbols-outlined text-xl">
+                      delete
+                    </span>
                   </button>
                   <span className="mt-1 text-[0.65rem] font-semibold text-white">
                     Elimina
@@ -1191,7 +1186,7 @@ function AttivitaModal({ onClose }: { onClose: () => void }) {
           </div>
 
           {/* Azione - combobox */}
-          <div className="relative">
+          <div className="relative overflow-visible">
             <label className="pl-2 text-sm font-bold text-black block">
               Azione
             </label>
@@ -1209,7 +1204,7 @@ function AttivitaModal({ onClose }: { onClose: () => void }) {
               autoComplete="off"
             />
             {showDescDropdown && filteredDescrizioni.length > 0 && (
-              <div className="absolute z-10 w-full mt-1 rounded-lg border border-[#c2c9bb] bg-white shadow-lg max-h-40 overflow-y-auto">
+              <div className="absolute z-50 w-full mt-1 rounded-lg border border-[#c2c9bb] bg-white shadow-lg max-h-40 overflow-y-auto">
                 {filteredDescrizioni.map((d, i) => (
                   <button
                     key={i}
@@ -1310,16 +1305,24 @@ function AttivitaModal({ onClose }: { onClose: () => void }) {
                   <button
                     type="button"
                     onClick={() => {
-                      const item = list.find((x: any) => x.id?.toString() === selectedId);
+                      const item = list.find(
+                        (x: any) => x.id?.toString() === selectedId
+                      );
                       if (item) {
                         const label = `${item.categorie?.nome || ""} - ${item.descrizione || ""}`;
-                        setDeleteConfirmation({ type: "attivita", id: selectedId, label });
+                        setDeleteConfirmation({
+                          type: "attivita",
+                          id: selectedId,
+                          label
+                        });
                       }
                     }}
                     className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-violet-600 text-white transition hover:bg-violet-700"
                     title="Elimina"
                   >
-                    <span className="material-symbols-outlined text-xl">delete</span>
+                    <span className="material-symbols-outlined text-xl">
+                      delete
+                    </span>
                   </button>
                   <span className="mt-1 text-[0.65rem] font-semibold text-white">
                     Elimina
@@ -1434,10 +1437,12 @@ function AttivitaModal({ onClose }: { onClose: () => void }) {
 
 function InserisciModal({
   onClose,
-  editData
+  editData,
+  onRecordSaved
 }: {
   onClose: () => void;
   editData?: any;
+  onRecordSaved?: () => void;
 }) {
   const today = new Date().toISOString().split("T")[0];
   const [dataInizio, setDataInizio] = useState(today);
@@ -1453,6 +1458,10 @@ function InserisciModal({
   const [fotoEsistenti, setFotoEsistenti] = useState<any[]>([]);
   const [visibile, setVisibile] = useState(false);
   const [aggiungiPlanning, setAggiungiPlanning] = useState(false);
+  const [stato, setStato] = useState<"promemoria" | "confermato" | "eseguito">(
+    "promemoria"
+  );
+  const [privato, setPrivato] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [localitaList, setLocalitaList] = useState<any[]>([]);
@@ -1499,6 +1508,19 @@ function InserisciModal({
   // Pre-fill form when in edit mode
   useEffect(() => {
     if (editData) {
+      // Blocca modifica se privato di un altro admin
+      if (
+        editData.privato &&
+        editData.created_by &&
+        editData.created_by !==
+          (typeof window !== "undefined"
+            ? window.localStorage.getItem("loginUsername")
+            : "")
+      ) {
+        alert("Non puoi modificare un promemoria privato di un altro admin.");
+        onClose();
+        return;
+      }
       setDataInizio(editData.data_inizio || today);
       setDataInizioEdited(true);
       setDataFine(editData.data_fine || today);
@@ -1509,6 +1531,11 @@ function InserisciModal({
       setClienteId(editData.cliente_id || "");
       setVisibile(!!editData.visibile);
       setAggiungiPlanning(!!editData.aggiungi_al_planning);
+      setStato(
+        (editData.stato as "promemoria" | "confermato" | "eseguito") ||
+          "promemoria"
+      );
+      setPrivato(!!editData.privato);
       // Carica categoria dall'attività
       if (editData.attivita?.categorie?.id) {
         setCategoriaId(editData.attivita.categorie.id);
@@ -1532,6 +1559,18 @@ function InserisciModal({
     (a: any) => !categoriaId || a.categoria_id === categoriaId
   );
 
+  const uniqueFilteredAttivita = (() => {
+    const seen = new Set<string>();
+    return filteredAttivita.filter((item: any) => {
+      const descrizione = item.descrizione?.toString?.()?.trim?.() || "";
+      if (!descrizione || seen.has(descrizione)) {
+        return false;
+      }
+      seen.add(descrizione);
+      return true;
+    });
+  })();
+
   const resetForm = () => {
     setDataInizio(today);
     setDataInizioEdited(false);
@@ -1546,6 +1585,8 @@ function InserisciModal({
     setFotoEsistenti([]);
     setVisibile(false);
     setAggiungiPlanning(false);
+    setStato("promemoria");
+    setPrivato(false);
   };
 
   const uploadFoto = async (
@@ -1582,8 +1623,11 @@ function InserisciModal({
         note: note.trim() || null,
         cliente_id: clienteId || null,
         visibile,
-        aggiungi_al_planning: aggiungiPlanning
+        aggiungi_al_planning: aggiungiPlanning,
+        stato,
+        privato
       };
+      payload.created_by = window.localStorage.getItem("loginUsername") || null;
 
       let recordId: string;
       if (editData?.id) {
@@ -1621,6 +1665,9 @@ function InserisciModal({
       );
       resetForm();
       clearStatus();
+      // Notifica il padre per aggiornare il badge in tempo reale
+      if (onRecordSaved) onRecordSaved();
+      window.dispatchEvent(new CustomEvent("inserimento-salvato"));
       // Chiudi il modal dopo 2 secondi per far vedere il messaggio
       setTimeout(() => onClose(), 2000);
     } catch (err: any) {
@@ -1653,11 +1700,22 @@ function InserisciModal({
         .eq("attivita_id", editData.id);
       for (const f of foto || []) {
         const path = f.foto_url?.split("/foto/").pop();
-        if (path) await supabase.storage.from("foto").remove([path]).catch(() => {});
+        if (path)
+          await supabase.storage
+            .from("foto")
+            .remove([path])
+            .catch(() => {});
       }
-      await supabase.from("foto_attivita").delete().eq("attivita_id", editData.id);
-      await supabase.from("inserimenti_attivita").delete().eq("id", editData.id);
+      await supabase
+        .from("foto_attivita")
+        .delete()
+        .eq("attivita_id", editData.id);
+      await supabase
+        .from("inserimenti_attivita")
+        .delete()
+        .eq("id", editData.id);
       setShowDeleteConfirm(false);
+      window.dispatchEvent(new CustomEvent("inserimento-salvato"));
       onClose();
     } catch (err) {
       console.error("Errore eliminazione", err);
@@ -1795,7 +1853,7 @@ function InserisciModal({
                 <option value="" className="text-[#9ca3af]">
                   Seleziona Azione...
                 </option>
-                {filteredAttivita.map((a: any) => (
+                {uniqueFilteredAttivita.map((a: any) => (
                   <option key={a.id} value={a.id} className="text-black">
                     {a.descrizione}
                   </option>
@@ -1866,70 +1924,116 @@ function InserisciModal({
                 }
               }}
             />
-            <div
-              className="grid justify-center gap-3 w-full p-2 bg-transparent border border-white"
-              style={{ gridTemplateColumns: "repeat(4, 60px)" }}
-            >
-              {Array.from({ length: 8 }).map((_, idx) => {
-                const fotoExistente = fotoEsistenti[idx];
-                const nuovaFoto = !fotoExistente
-                  ? nuoveFoto[idx - fotoEsistenti.length]
-                  : null;
-                const hasPhoto = !!fotoExistente || !!nuovaFoto;
-                const isLast = idx === 7;
-                const showPlus =
-                  isLast && nuoveFoto.length + fotoEsistenti.length < 8;
-                return (
-                  <div
-                    key={idx}
-                    className="relative group cursor-pointer border border-[#e5e7eb] flex items-center justify-center overflow-hidden"
-                    style={{
-                      width: "60px",
-                      height: "60px",
-                      backgroundColor: hasPhoto ? "transparent" : "#f9fafb"
-                    }}
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    {hasPhoto ? (
-                      <>
-                        <img
-                          src={
-                            fotoExistente
-                              ? fotoExistente.foto_url
-                              : URL.createObjectURL(nuovaFoto!)
-                          }
-                          alt="Foto"
-                          className="w-full h-full object-cover"
-                        />
-                        <button
-                          type="button"
-                          className="absolute top-0 right-0 bg-red-600 text-white w-4 h-4 flex items-center justify-center text-[10px] leading-none opacity-0 group-hover:opacity-100 transition"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (fotoExistente)
-                              handleDeleteFoto(
-                                fotoExistente.id,
-                                fotoExistente.foto_url
-                              );
-                            else
-                              setNuoveFoto((prev) =>
-                                prev.filter(
-                                  (_, i) => i !== idx - fotoEsistenti.length
-                                )
-                              );
-                          }}
-                        >
-                          ✕
-                        </button>
-                      </>
-                    ) : showPlus ? (
-                      <span className="material-symbols-outlined text-2xl text-[#9ca3af]">
-                        add
-                      </span>
-                    ) : null}
-                  </div>
-                );
-              })}
+            <div className="flex items-start gap-6">
+              <div
+                className="grid justify-start gap-3 w-full p-2 bg-transparent border border-white"
+                style={{ gridTemplateColumns: "repeat(4, 60px)" }}
+              >
+                {Array.from({ length: 8 }).map((_, idx) => {
+                  const fotoExistente = fotoEsistenti[idx];
+                  const nuovaFoto = !fotoExistente
+                    ? nuoveFoto[idx - fotoEsistenti.length]
+                    : null;
+                  const hasPhoto = !!fotoExistente || !!nuovaFoto;
+                  const isLast = idx === 7;
+                  const showPlus =
+                    isLast && nuoveFoto.length + fotoEsistenti.length < 8;
+                  return (
+                    <div
+                      key={idx}
+                      className="relative group cursor-pointer border border-[#e5e7eb] flex items-center justify-center overflow-hidden"
+                      style={{
+                        width: "60px",
+                        height: "60px",
+                        backgroundColor: hasPhoto ? "transparent" : "#f9fafb"
+                      }}
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      {hasPhoto ? (
+                        <>
+                          <img
+                            src={
+                              fotoExistente
+                                ? fotoExistente.foto_url
+                                : URL.createObjectURL(nuovaFoto!)
+                            }
+                            alt="Foto"
+                            className="w-full h-full object-cover"
+                          />
+                          <button
+                            type="button"
+                            className="absolute top-0 right-0 bg-red-600 text-white w-4 h-4 flex items-center justify-center text-[10px] leading-none opacity-0 group-hover:opacity-100 transition"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (fotoExistente)
+                                handleDeleteFoto(
+                                  fotoExistente.id,
+                                  fotoExistente.foto_url
+                                );
+                              else
+                                setNuoveFoto((prev) =>
+                                  prev.filter(
+                                    (_, i) => i !== idx - fotoEsistenti.length
+                                  )
+                                );
+                            }}
+                          >
+                            ×
+                          </button>
+                        </>
+                      ) : showPlus ? (
+                        <span className="material-symbols-outlined text-2xl text-[#9ca3af]">
+                          add
+                        </span>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="flex flex-col gap-4">
+                <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer">
+                  <input
+                    type="radio"
+                    name="stato"
+                    value="promemoria"
+                    checked={stato === "promemoria"}
+                    onChange={() => setStato("promemoria")}
+                    className="h-4 w-4 accent-[#154212]"
+                  />
+                  Promemoria
+                </label>
+                <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer">
+                  <input
+                    type="radio"
+                    name="stato"
+                    value="confermato"
+                    checked={stato === "confermato"}
+                    onChange={() => setStato("confermato")}
+                    className="h-4 w-4 accent-[#154212]"
+                  />
+                  Confermato
+                </label>
+                <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer">
+                  <input
+                    type="radio"
+                    name="stato"
+                    value="eseguito"
+                    checked={stato === "eseguito"}
+                    onChange={() => setStato("eseguito")}
+                    className="h-4 w-4 accent-[#154212]"
+                  />
+                  Eseguito
+                </label>
+                <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={privato}
+                    onChange={(e) => setPrivato(e.target.checked)}
+                    className="h-4 w-4 accent-[#154212]"
+                  />
+                  Privato
+                </label>
+              </div>
             </div>
           </div>
 
@@ -1967,7 +2071,9 @@ function InserisciModal({
                   className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-violet-600 text-white transition hover:bg-violet-700"
                   title="Elimina"
                 >
-                  <span className="material-symbols-outlined text-xl">delete</span>
+                  <span className="material-symbols-outlined text-xl">
+                    delete
+                  </span>
                 </button>
                 <span className="mt-1 text-[0.65rem] font-semibold text-white">
                   Elimina
@@ -2050,7 +2156,8 @@ function InserisciModal({
                 Confermi eliminazione?
               </p>
               <p className="mb-4 text-sm text-gray-600">
-                Questa azione eliminerà definitivamente l'attività e tutte le foto associate.
+                Questa azione eliminerà definitivamente l'attività e tutte le
+                foto associate.
               </p>
               <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
                 <button
@@ -2782,7 +2889,10 @@ function ListaAttivitaModal({ onClose }: { onClose: () => void }) {
         </div>
 
         {/* Tabella */}
-        <div className="border border-black rounded-lg overflow-y-auto" style={{ maxHeight: "400px" }}>
+        <div
+          className="border border-black rounded-lg overflow-y-auto"
+          style={{ maxHeight: "400px" }}
+        >
           {loading ? (
             <div className="flex justify-center py-8">
               <svg
@@ -2875,6 +2985,200 @@ function ListaAttivitaModal({ onClose }: { onClose: () => void }) {
   );
 }
 
+// === Promemoria Modal ===
+
+function PromemoriaModal({ onClose }: { onClose: () => void }) {
+  const [list, setList] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editItem, setEditItem] = useState<any | null>(null);
+  const currentUsername =
+    typeof window !== "undefined"
+      ? window.localStorage.getItem("loginUsername") || ""
+      : "";
+
+  const fetchList = async () => {
+    setLoading(true);
+    try {
+      const { data } = await supabase
+        .from("inserimenti_attivita")
+        .select(
+          "*, localita!left(localita), attivita!left(descrizione, categoria_id, categorie!left(id, nome)), clienti!left(nome)"
+        )
+        .eq("stato", "promemoria")
+        .order("data_inizio", { ascending: false });
+      if (data) {
+        // Filtra: se privato=true e created_by !== currentUser, non mostrare
+        const filtered = data.filter(
+          (item: any) => !(item.privato && item.created_by !== currentUsername)
+        );
+        setList(filtered);
+      }
+    } catch (err) {
+      console.error("Errore caricamento promemoria", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchList();
+  }, []);
+
+  const formatDate = (d: string) => {
+    if (!d) return "-";
+    return new Date(d + "T00:00:00").toLocaleDateString("it-IT", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric"
+    });
+  };
+
+  if (editItem) {
+    return (
+      <InserisciModal
+        onClose={() => {
+          setEditItem(null);
+          fetchList();
+        }}
+        editData={editItem}
+        onRecordSaved={() => {
+          window.dispatchEvent(new CustomEvent("inserimento-salvato"));
+        }}
+      />
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/20 backdrop-blur-sm p-0 overflow-auto">
+      <section
+        className="w-full h-full max-w-none flex flex-col border border-[#c2c9bb] bg-[#f2f4f2] shadow-2xl"
+        style={{
+          backgroundImage: "url('/images/sfondo1.jpg')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat"
+        }}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 pb-2">
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-2xl text-[#2563eb]">
+              notifications
+            </span>
+            <h2 className="text-lg font-bold text-[#2563eb]">
+              Lista Promemoria
+            </h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-red-600 text-white hover:bg-red-700 transition"
+            title="Chiudi"
+          >
+            <span className="material-symbols-outlined text-lg">close</span>
+          </button>
+        </div>
+
+        {/* Contenuto scrollabile */}
+        <div
+          className="flex-1 px-4 pb-4 overflow-hidden flex flex-col mt-10"
+          style={{ maxHeight: "60vh" }}
+        >
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <svg
+                className="animate-spin h-8 w-8 text-[#2563eb]"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                  fill="none"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                />
+              </svg>
+            </div>
+          ) : list.length === 0 ? (
+            <div className="flex items-center justify-center py-12 text-gray-500 font-semibold">
+              Nessun promemoria presente.
+            </div>
+          ) : (
+            <div className="overflow-y-auto rounded-xl border border-[#c2c9bb] bg-white p-2 space-y-2">
+              {list.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setEditItem(item)}
+                  className="w-full text-left rounded-xl border border-[#c2c9bb] bg-white p-3 hover:bg-[#eceeec] transition cursor-pointer shadow-sm"
+                >
+                  <div className="grid grid-cols-2 gap-2">
+                    {/* Colonna sinistra */}
+                    <div className="text-left">
+                      <div className="text-xs font-bold text-gray-500">
+                        {formatDate(item.data_inizio)}
+                      </div>
+                      <div className="mt-0.5 text-sm font-bold text-[#191c1b]">
+                        {item.localita?.localita || "—"}
+                        {item.attivita?.descrizione ? (
+                          <span className="font-normal text-[#42493e]">
+                            {" "}
+                            — {item.attivita.descrizione}
+                            {item.clienti?.nome
+                              ? ` — ${item.clienti.nome}`
+                              : ""}
+                          </span>
+                        ) : item.clienti?.nome ? (
+                          ` — ${item.clienti.nome}`
+                        ) : (
+                          ""
+                        )}
+                      </div>
+                    </div>
+                    {/* Colonna destra */}
+                    <div className="text-right">
+                      <div className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
+                        <span className="material-symbols-outlined text-xs">
+                          schedule
+                        </span>
+                        Promemoria
+                      </div>
+                      <div className="mt-0.5">
+                        {item.aggiungi_al_planning ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] text-blue-600 font-semibold">
+                            <span className="material-symbols-outlined text-xs">
+                              calendar_month
+                            </span>
+                            Visibile in planning
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[10px] text-gray-400 font-semibold">
+                            <span className="material-symbols-outlined text-xs">
+                              calendar_month
+                            </span>
+                            Non in planning
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+    </div>
+  );
+}
+
 // === Admin Page ===
 
 export default function AdminPage({ onLogout }: AdminPageProps) {
@@ -2887,9 +3191,12 @@ export default function AdminPage({ onLogout }: AdminPageProps) {
     | "localita"
     | "inserisci"
     | "lista-attivita"
+    | "promemoria"
     | null
   >(null);
   const [now, setNow] = useState(new Date());
+  const [notificaCount, setNotificaCount] = useState(0);
+  const [chatCount, setChatCount] = useState(0);
 
   const actionButtonClasses = (action: string) =>
     `flex flex-col items-center justify-center text-center min-h-[72px] gap-0 p-md rounded-xl transition-all active:scale-95 w-full ${
@@ -2901,6 +3208,41 @@ export default function AdminPage({ onLogout }: AdminPageProps) {
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 60000);
     return () => clearInterval(timer);
+  }, []);
+
+  const fetchNotificaCount = useCallback(async () => {
+    const { count } = await supabase
+      .from("inserimenti_attivita")
+      .select("*", { count: "exact", head: true })
+      .eq("stato", "promemoria");
+    if (count !== null) {
+      setNotificaCount(count);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchNotificaCount();
+    const interval = setInterval(fetchNotificaCount, 30000);
+    window.addEventListener("inserimento-salvato", fetchNotificaCount);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("inserimento-salvato", fetchNotificaCount);
+    };
+  }, [fetchNotificaCount]);
+
+  useEffect(() => {
+    const fetchChatCount = async () => {
+      const { count } = await supabase
+        .from("messaggi")
+        .select("*", { count: "exact", head: true })
+        .eq("letta", false);
+      if (count !== null) {
+        setChatCount(count);
+      }
+    };
+    fetchChatCount();
+    const interval = setInterval(fetchChatCount, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const handleActionClick = (actionId: string) => {
@@ -2919,14 +3261,56 @@ export default function AdminPage({ onLogout }: AdminPageProps) {
 
   return (
     <div className="bg-background text-on-surface h-screen flex flex-col overflow-hidden admin-page-root">
-      <header className="w-full shrink-0 bg-transparent dark:bg-transparent flex items-center justify-between px-edge-margin pt-8 h-touch-target-min z-40">
+      <header className="w-full shrink-0 bg-transparent dark:bg-transparent flex items-center justify-between px-edge-margin pt-0 h-touch-target-min z-40">
         <div className="flex items-center gap-sm">
-          <img
-            src="/leaf-512.png"
-            alt="Logo GeoGiardini"
-            className="admin-page__brand-logo"
-            style={{ width: "4.5rem", height: "4.5rem", objectFit: "contain" }}
-          />
+          <div className="relative inline-flex flex-col items-center">
+            <img
+              src="/leaf-512.png"
+              alt="Logo GeoGiardini"
+              className="admin-page__brand-logo"
+              style={{
+                width: "4.5rem",
+                height: "4.5rem",
+                objectFit: "contain"
+              }}
+            />
+            <div
+              className="flex flex-col items-start w-full pl-1"
+              style={{ marginTop: "-0.5rem" }}
+            >
+              <div
+                className="flex items-center gap-2"
+                style={{ marginTop: "20px" }}
+              >
+                <button
+                  type="button"
+                  onClick={() => setModal("promemoria")}
+                  className="relative inline-flex items-center justify-center w-8 h-8 rounded-lg bg-green-600 text-white"
+                >
+                  <span className="material-symbols-outlined text-lg leading-none">
+                    notifications
+                  </span>
+                  <span
+                    className="absolute text-[12px] font-bold leading-none"
+                    style={{ top: "-3px", right: "-3px" }}
+                  >
+                    {notificaCount}
+                  </span>
+                </button>
+                <div
+                  className="relative inline-flex items-center justify-center w-8 h-8 rounded-lg bg-blue-600 text-white"
+                  style={{ marginLeft: "18px" }}
+                >
+                  <span className="material-symbols-outlined text-lg leading-none">
+                    chat
+                  </span>
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                    8
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
           <h1
             className="admin-page__title-emphasis"
             style={{
@@ -2934,7 +3318,8 @@ export default function AdminPage({ onLogout }: AdminPageProps) {
               fontSize: "2rem",
               lineHeight: 1.1,
               color: "#2563eb",
-              fontWeight: 700
+              fontWeight: 700,
+              marginTop: "-40px"
             }}
           >
             GeoGiardini
@@ -2973,7 +3358,7 @@ export default function AdminPage({ onLogout }: AdminPageProps) {
       <main className="flex-1 flex flex-col max-w-[720px] mx-auto w-full px-edge-margin overflow-hidden py-md">
         <section className="mb-md shrink-0">
           <h2 className="font-headline-md text-headline-md leading-tight admin-page__welcome">
-            Angelo •{" "}
+            {localStorage.getItem("loginUsername") || "Admin"} •{" "}
             <span className="admin-page__welcome-emphasis">Admin Panel</span>
           </h2>
         </section>
@@ -3093,12 +3478,18 @@ export default function AdminPage({ onLogout }: AdminPageProps) {
       {modal === "clienti" && <ClientiModal onClose={() => setModal(null)} />}
       {modal === "localita" && <LocalitaModal onClose={() => setModal(null)} />}
       {modal === "inserisci" && (
-        <InserisciModal onClose={() => setModal(null)} />
+        <InserisciModal
+          onClose={() => setModal(null)}
+          onRecordSaved={fetchNotificaCount}
+        />
       )}
       {modal === "attivita" && <AttivitaModal onClose={() => setModal(null)} />}
       {modal === "report" && <ReportModal onClose={() => setModal(null)} />}
       {modal === "lista-attivita" && (
         <ListaAttivitaModal onClose={() => setModal(null)} />
+      )}
+      {modal === "promemoria" && (
+        <PromemoriaModal onClose={() => setModal(null)} />
       )}
     </div>
   );
