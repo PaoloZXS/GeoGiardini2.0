@@ -626,7 +626,6 @@ function LocalitaModal({ onClose }: { onClose: () => void }) {
   const [clienti, setClienti] = useState<any[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [localita, setLocalita] = useState("");
-  const [descrizione, setDescrizione] = useState("");
   const [note, setNote] = useState("");
   const [clienteId, setClienteId] = useState("");
   const [isSaving, setIsSaving] = useState(false);
@@ -695,7 +694,6 @@ function LocalitaModal({ onClose }: { onClose: () => void }) {
   const resetForm = () => {
     setEditingId(null);
     setLocalita("");
-    setDescrizione("");
     setNote("");
     setClienteId("");
   };
@@ -712,7 +710,6 @@ function LocalitaModal({ onClose }: { onClose: () => void }) {
     try {
       const payload = {
         localita: localita.trim(),
-        descrizione: descrizione.trim(),
         note: note.trim(),
         cliente_id: clienteId || null
       };
@@ -776,7 +773,6 @@ function LocalitaModal({ onClose }: { onClose: () => void }) {
   const handleSelect = (item: any) => {
     setEditingId(item.id);
     setLocalita(item.localita);
-    setDescrizione(item.descrizione || "");
     setNote(item.note || "");
     setClienteId(item.cliente_id || "");
   };
@@ -832,17 +828,7 @@ function LocalitaModal({ onClose }: { onClose: () => void }) {
               onChange={(e) => setLocalita(e.target.value)}
             />
           </div>
-          <div>
-            <label className="pl-2 text-sm font-bold text-black block">
-              Azione
-            </label>
-            <textarea
-              className="w-full min-h-[60px] px-4 py-2 rounded-lg border border-[#c2c9bb] bg-[#f8faf8] focus:ring-2 focus:ring-[#154212] focus:border-[#154212] outline-none text-sm text-black font-bold resize-none"
-              placeholder="Azione..."
-              value={descrizione}
-              onChange={(e) => setDescrizione(e.target.value)}
-            />
-          </div>
+
           <div>
             <label className="pl-2 text-sm font-bold text-black block">
               Note
@@ -1577,6 +1563,8 @@ function InserisciModal({
     "promemoria"
   );
   const [privato, setPrivato] = useState(false);
+  const [visibileGiardiniere, setVisibileGiardiniere] = useState(true);
+  const [visibileContatto, setVisibileContatto] = useState(true);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [localitaList, setLocalitaList] = useState<any[]>([]);
@@ -1664,6 +1652,8 @@ function InserisciModal({
           "promemoria"
       );
       setPrivato(!!editData.privato);
+      setVisibileGiardiniere(editData.visibile_giardiniere !== false);
+      setVisibileContatto(editData.visibile_contatto !== false);
       // Carica categoria dall'attività
       if (editData.attivita?.categorie?.id) {
         setCategoriaId(editData.attivita.categorie.id);
@@ -1715,6 +1705,8 @@ function InserisciModal({
     setAggiungiPlanning(false);
     setStato("promemoria");
     setPrivato(false);
+    setVisibileGiardiniere(true);
+    setVisibileContatto(true);
   };
 
   const uploadFoto = async (
@@ -1737,7 +1729,7 @@ function InserisciModal({
     e.preventDefault();
     if (!localitaId || !attivitaId) {
       setStatusType("error");
-      setStatusMessage("Località e Attività sono obbligatorie.");
+      setStatusMessage("Località e Azione sono obbligatorie.");
       clearStatus();
       return;
     }
@@ -1753,7 +1745,9 @@ function InserisciModal({
         visibile,
         aggiungi_al_planning: aggiungiPlanning,
         stato,
-        privato
+        privato,
+        visibile_giardiniere: visibileGiardiniere,
+        visibile_contatto: visibileContatto
       };
       payload.created_by = window.localStorage.getItem("loginUsername") || null;
 
@@ -2161,6 +2155,32 @@ function InserisciModal({
                   />
                   Privato
                 </label>
+                {stato === "promemoria" && (
+                  <>
+                    <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer whitespace-nowrap">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 accent-[#154212]"
+                        checked={visibileGiardiniere}
+                        onChange={(e) =>
+                          setVisibileGiardiniere(e.target.checked)
+                        }
+                      />
+                      {visibileGiardiniere
+                        ? "SI Giardinieri"
+                        : "NO Giardinieri"}
+                    </label>
+                    <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer whitespace-nowrap">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 accent-[#154212]"
+                        checked={visibileContatto}
+                        onChange={(e) => setVisibileContatto(e.target.checked)}
+                      />
+                      {visibileContatto ? "SI Contatti" : "NO Contatti"}
+                    </label>
+                  </>
+                )}
               </div>
             </div>
           </div>

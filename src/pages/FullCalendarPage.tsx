@@ -449,6 +449,10 @@ function FullCalendarPage() {
     "promemoria" | "confermato" | "eseguito"
   >("promemoria");
   const [attivitaPrivato, setAttivitaPrivato] = useState(false);
+  const [attivitaVisibileGiardiniere, setAttivitaVisibileGiardiniere] =
+    useState(true);
+  const [attivitaVisibileContatto, setAttivitaVisibileContatto] =
+    useState(true);
   const [attivitaNuoveFoto, setAttivitaNuoveFoto] = useState<File[]>([]);
   const [attivitaFotoEsistenti, setAttivitaFotoEsistenti] = useState<any[]>([]);
   const [attivitaSaving, setAttivitaSaving] = useState(false);
@@ -1052,6 +1056,8 @@ function FullCalendarPage() {
     setAttivitaVisibile(false);
     setAttivitaStato("promemoria");
     setAttivitaPrivato(false);
+    setAttivitaVisibileGiardiniere(true);
+    setAttivitaVisibileContatto(true);
     setAttivitaNuoveFoto([]);
     setAttivitaFotoEsistenti([]);
     setAttivitaEditId(null);
@@ -1122,7 +1128,9 @@ function FullCalendarPage() {
         visibile: attivitaVisibile,
         aggiungi_al_planning: true,
         stato: attivitaStato,
-        privato: attivitaPrivato
+        privato: attivitaPrivato,
+        visibile_giardiniere: attivitaVisibileGiardiniere,
+        visibile_contatto: attivitaVisibileContatto
       };
 
       if (!attivitaEditId) {
@@ -1827,6 +1835,10 @@ function FullCalendarPage() {
                       "promemoria"
                   );
                   setAttivitaPrivato(!!item.privato);
+                  setAttivitaVisibileGiardiniere(
+                    item.visibile_giardiniere !== false
+                  );
+                  setAttivitaVisibileContatto(item.visibile_contatto !== false);
                   // Carica foto esistenti
                   const { data: foto } = await supabase
                     .from("foto_attivita")
@@ -2622,6 +2634,38 @@ function FullCalendarPage() {
                           />
                           Privato
                         </label>
+                        {attivitaStato === "promemoria" && (
+                          <>
+                            <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer">
+                              <input
+                                type="checkbox"
+                                className="h-4 w-4 accent-[#154212]"
+                                checked={attivitaVisibileGiardiniere}
+                                onChange={(e) =>
+                                  setAttivitaVisibileGiardiniere(
+                                    e.target.checked
+                                  )
+                                }
+                              />
+                              {attivitaVisibileGiardiniere
+                                ? "SI Giardinieri"
+                                : "NO Giardinieri"}
+                            </label>
+                            <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer">
+                              <input
+                                type="checkbox"
+                                className="h-4 w-4 accent-[#154212]"
+                                checked={attivitaVisibileContatto}
+                                onChange={(e) =>
+                                  setAttivitaVisibileContatto(e.target.checked)
+                                }
+                              />
+                              {attivitaVisibileContatto
+                                ? "SI Contatti"
+                                : "NO Contatti"}
+                            </label>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
