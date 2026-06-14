@@ -628,6 +628,7 @@ function LocalitaModal({ onClose }: { onClose: () => void }) {
   const [localita, setLocalita] = useState("");
   const [note, setNote] = useState("");
   const [clienteId, setClienteId] = useState("");
+  const [privata, setPrivata] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [statusType, setStatusType] = useState<"success" | "error" | null>(
@@ -650,23 +651,31 @@ function LocalitaModal({ onClose }: { onClose: () => void }) {
   };
 
   const fetchData = async () => {
+    const currentUser =
+      typeof window !== "undefined"
+        ? window.localStorage.getItem("loginUsername") || ""
+        : "";
     const { data } = await supabase
       .from("localita")
       .select("*, clienti(nome, privato, created_by)")
       .order("localita");
     if (data) {
-      const currentUser =
-        typeof window !== "undefined"
-          ? window.localStorage.getItem("loginUsername") || ""
-          : "";
       setList(
         data.filter((item: any) => {
-          if (!item.cliente_id) return true;
-          const c = item.clienti;
-          if (!c) return true;
-          if (c.privato === false) return true;
-          if (c.privato === true && c.created_by === currentUser) return true;
-          return false;
+          // Filtro cliente privato
+          if (item.cliente_id && item.clienti) {
+            const c = item.clienti;
+            if (c.privato === true && c.created_by !== currentUser)
+              return false;
+          }
+          // Filtro località privata: se è privata e non appartiene all'utente corrente, nascondila
+          const itemPrivata =
+            item.privata === 1 ||
+            item.privata === "1" ||
+            item.privata === true ||
+            item.privata === "true";
+          if (itemPrivata && item.created_by !== currentUser) return false;
+          return true;
         })
       );
     }
@@ -675,10 +684,6 @@ function LocalitaModal({ onClose }: { onClose: () => void }) {
       .select("id, nome, privato, created_by")
       .order("nome");
     if (c) {
-      const currentUser =
-        typeof window !== "undefined"
-          ? window.localStorage.getItem("loginUsername") || ""
-          : "";
       setClienti(
         c.filter(
           (cl: any) => !(cl.privato === true && cl.created_by !== currentUser)
@@ -696,6 +701,7 @@ function LocalitaModal({ onClose }: { onClose: () => void }) {
     setLocalita("");
     setNote("");
     setClienteId("");
+    setPrivata(false);
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -708,10 +714,16 @@ function LocalitaModal({ onClose }: { onClose: () => void }) {
     }
     setIsSaving(true);
     try {
-      const payload = {
+      const currentUser =
+        typeof window !== "undefined"
+          ? window.localStorage.getItem("loginUsername") || null
+          : null;
+      const payload: any = {
         localita: localita.trim(),
         note: note.trim(),
-        cliente_id: clienteId || null
+        cliente_id: clienteId || null,
+        privata: privata,
+        created_by: privata ? currentUser : null
       };
       if (editingId) {
         const { error } = await supabase
@@ -775,6 +787,12 @@ function LocalitaModal({ onClose }: { onClose: () => void }) {
     setLocalita(item.localita);
     setNote(item.note || "");
     setClienteId(item.cliente_id || "");
+    setPrivata(
+      item.privata === 1 ||
+        item.privata === "1" ||
+        item.privata === true ||
+        item.privata === "true"
+    );
   };
 
   return (
@@ -857,6 +875,16 @@ function LocalitaModal({ onClose }: { onClose: () => void }) {
               ))}
             </select>
           </div>
+
+          <label className="inline-flex items-center gap-2 text-sm font-bold text-black pl-2">
+            <input
+              type="checkbox"
+              className="h-4 w-4 accent-violet-600"
+              checked={privata}
+              onChange={(e) => setPrivata(e.target.checked)}
+            />
+            <span>Località Privata</span>
+          </label>
 
           <div className="min-h-0">
             <div className="flex justify-end pr-2">

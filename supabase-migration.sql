@@ -44,3 +44,7 @@ ALTER TABLE clienti ADD COLUMN IF NOT EXISTS ruolo TEXT DEFAULT 'contatto';
 
 ALTER TABLE inserimenti_attivita ADD COLUMN IF NOT EXISTS visibile_giardiniere BOOLEAN DEFAULT TRUE;
 ALTER TABLE inserimenti_attivita ADD COLUMN IF NOT EXISTS visibile_contatto BOOLEAN DEFAULT TRUE;
+
+-- Aggiungi colonne a tabella localita
+ALTER TABLE localita ADD COLUMN IF NOT EXISTS privata BOOLEAN DEFAULT FALSE;
+ALTER TABLE localita ADD COLUMN IF NOT EXISTS created_by TEXT;
