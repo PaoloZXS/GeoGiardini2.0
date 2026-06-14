@@ -656,7 +656,7 @@ function FullCalendarPage() {
           .order("data", { ascending: true }),
         supabase
           .from("clienti")
-          .select("id, nome")
+          .select("id, nome, privato, created_by")
           .order("nome", { ascending: true }),
         supabase
           .from("attivita")
@@ -696,8 +696,15 @@ function FullCalendarPage() {
       );
       await fetchHandledAppointmentIds();
 
+      const currentUserCli =
+        typeof window !== "undefined"
+          ? window.localStorage.getItem("loginUsername") || ""
+          : "";
       setClientiList(
         (clientiData.data || [])
+          .filter(
+            (c: any) => !(c.privato === true && c.created_by !== currentUserCli)
+          )
           .map((c: any) => ({
             id: c.id?.toString() ?? "",
             nome: c.nome?.toString() ?? ""

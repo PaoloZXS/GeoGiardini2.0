@@ -41,7 +41,6 @@ The content is organized as follows:
 
 <directory_structure>
 .env.example
-.env.local
 .gitignore
 index.html
 package.json
@@ -78,11 +77,6 @@ This section contains the contents of the repository's files.
 <file path=".env.example">
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
-</file>
-
-<file path=".env.local">
-VITE_SUPABASE_URL=https://buqzzpaxklbawlcoannn.supabase.co
-VITE_SUPABASE_ANON_KEY=sb_publishable_tW193hD-ID_tCfuHae55Ug_WNftAi0h
 </file>
 
 <file path="index.html">
@@ -281,665 +275,6 @@ export default function ClientePage({ onLogout }: ClientePageProps) {
 }
 </file>
 
-<file path="src/pages/LoginPage.tsx">
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { supabase } from "../supabaseClient";
-
-interface LoginPageProps {
-  onLoginSuccess: (role: "admin" | "cliente") => void;
-}
-
-export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
-  const navigate = useNavigate();
-  const [selectedRole, setSelectedRole] = useState<"admin" | "cliente">(
-    "admin"
-  );
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
-
-    try {
-      if (selectedRole === "admin") {
-        if (
-          (username === "Angelo" && password === "A2026") ||
-          (username === "Giulio" && password === "G2026")
-        ) {
-          window.localStorage.setItem("loginRole", "admin");
-          window.localStorage.setItem("loginUsername", username);
-          window.localStorage.setItem(
-            "userId",
-            username === "Angelo" ? "1" : "2"
-          );
-          onLoginSuccess("admin");
-          navigate("/admin");
-          return;
-        }
-        setError("Credenziali non valide");
-        setLoading(false);
-        return;
-      } else {
-        // Cliente: login tramite tabella clienti su Supabase
-        const { data, error: queryError } = await supabase
-          .from("clienti")
-          .select("id, username, nome_cliente")
-          .eq("username", username)
-          .eq("codice", password)
-          .single();
-
-        if (queryError || !data) {
-          setError("Credenziali non valide");
-          setLoading(false);
-          return;
-        }
-
-        window.localStorage.setItem("loginRole", "cliente");
-        window.localStorage.setItem(
-          "loginUsername",
-          data.nome_cliente || data.username
-        );
-        window.localStorage.setItem("userId", String(data.id));
-        onLoginSuccess("cliente");
-      }
-    } catch (err) {
-      setError("Errore di connessione. Riprova.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div
-      className="min-h-screen flex flex-col items-center justify-center p-5"
-      style={{
-        backgroundImage: 'url("/images/sfondo1.jpg")',
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        backgroundRepeat: "no-repeat",
-        backgroundAttachment: "fixed",
-        backgroundColor: "#000000"
-      }}
-    >
-      <div className="w-full max-w-sm">
-        {/* Logo e Titolo */}
-        <div className="text-center mb-8">
-          <div className="w-20 h-20 mx-auto mb-4">
-            <img src="/leaf-512.png" alt="GeoGiardini" className="w-20 h-20" />
-          </div>
-          <h1 className="text-2xl font-bold italic leading-tight text-[#2563eb]">
-            GeoGiardini
-          </h1>
-          <p className="font-bold text-[#2563eb] mt-1">
-            Gestione completa delle aree verdi
-          </p>
-        </div>
-
-        {/* Selettore ruolo */}
-        <div className="flex gap-3 mb-6">
-          <button
-            type="button"
-            onClick={() => {
-              setSelectedRole("admin");
-              setError("");
-            }}
-            className={`flex-1 py-3 px-4 rounded-xl font-semibold text-sm transition-all ${
-              selectedRole === "admin"
-                ? "bg-[#154212] text-white shadow-lg"
-                : "bg-white text-[#154212] border-2 border-[#c2c9bb]"
-            }`}
-          >
-            Amministratore
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setSelectedRole("cliente");
-              setError("");
-            }}
-            className={`flex-1 py-3 px-4 rounded-xl font-semibold text-sm transition-all ${
-              selectedRole === "cliente"
-                ? "bg-[#154212] text-white shadow-lg"
-                : "bg-white text-[#154212] border-2 border-[#c2c9bb]"
-            }`}
-          >
-            Cliente
-          </button>
-        </div>
-
-        {/* Form */}
-        <form
-          onSubmit={handleLogin}
-          className="rounded-2xl p-6 shadow-lg border border-[#eceeec] space-y-4"
-        >
-          <div>
-            <label className="block text-sm font-bold text-black mb-1.5 ml-1">
-              {selectedRole === "admin" ? "Admin" : "Nome Cliente"}
-            </label>
-            <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder={
-                selectedRole === "admin"
-                  ? "Inserisci Admin"
-                  : "Inserisci Nome Cliente"
-              }
-              className="input-field"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-bold text-black mb-1.5 ml-1">
-              {selectedRole === "admin" ? "Password" : "Codice"}
-            </label>
-            <input
-              type={selectedRole === "admin" ? "password" : "text"}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder={
-                selectedRole === "admin" ? "••••••••" : "Inserisci il codice"
-              }
-              className="input-field"
-            />
-          </div>
-
-          {error && (
-            <div className="bg-red-50 text-red-700 text-sm p-3 rounded-xl border border-red-200">
-              {error}
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="btn-primary w-full text-base font-bold"
-            style={{
-              minWidth: "14rem",
-              minHeight: "3.25rem",
-              boxShadow: "0 25px 80px rgba(20, 64, 18, 0.14)"
-            }}
-          >
-            {loading ? (
-              <span className="flex items-center gap-2">
-                <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                    fill="none"
-                  />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                  />
-                </svg>
-                Accesso in corso...
-              </span>
-            ) : (
-              "Accedi"
-            )}
-          </button>
-        </form>
-
-        <p className="text-center text-xs text-[#000080] font-bold mt-6">
-          {selectedRole === "admin"
-            ? "Accesso riservato all'amministratore."
-            : "Accedi per vedere i lavori svolti nel tuo giardino."}
-        </p>
-      </div>
-    </div>
-  );
-}
-</file>
-
-<file path="src/pages/WeatherPage.tsx">
-import { useMemo, useState } from "react";
-import {
-  LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend
-} from "recharts";
-
-interface WeatherPageProps {
-  onBack: () => void;
-}
-
-const LAT = 44.9132;
-const LON = 8.6146;
-const CITY = "Alessandria";
-const API_URL = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weathercode&timezone=Europe/Rome`;
-
-const ICONS: Record<number, string> = {
-  0: "sunny",
-  1: "sunny",
-  2: "partly_cloudy_day",
-  3: "cloudy",
-  45: "foggy",
-  48: "foggy",
-  51: "rainy",
-  53: "rainy",
-  55: "rainy",
-  61: "rainy",
-  63: "rainy",
-  65: "rainy",
-  71: "weather_snowy",
-  73: "weather_snowy",
-  75: "weather_snowy",
-  80: "rainy",
-  81: "rainy",
-  82: "rainy",
-  95: "thunderstorm",
-  96: "thunderstorm",
-  99: "thunderstorm"
-};
-
-function getWeekDays(offset: number) {
-  const now = new Date();
-  const dayOfWeek = now.getDay();
-  const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-  const monday = new Date(now);
-  monday.setDate(now.getDate() + diffToMonday + offset * 7);
-  const days: Date[] = [];
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(monday);
-    d.setDate(monday.getDate() + i);
-    days.push(d);
-  }
-  return days;
-}
-
-function formatDateKey(d: Date) {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
-function generateYearMeteo(year: number) {
-  const start = new Date(year, 0, 1);
-  const end = new Date(year, 11, 31);
-  const map = new Map<string, { icon: string; tMin: number; tMax: number; precip: number }>();
-  const yearStart = new Date(year, 0, 1);
-
-  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-    const key = formatDateKey(d);
-    const dayOfYear = Math.floor(
-      (d.getTime() - yearStart.getTime()) / (1000 * 60 * 60 * 24)
-    );
-    const seed = (year * 365 + dayOfYear) * 7 + d.getMonth() * 3;
-    const wmoCodes = [0, 0, 1, 2, 3, 45, 51, 61, 80, 95];
-    const wmo = wmoCodes[Math.abs(seed) % wmoCodes.length];
-    const icon = ICONS[wmo] || "partly_cloudy_day";
-    const baseTemp = 5 + (d.getMonth() % 12) * 2.5 + (Math.abs(seed * 3) % 10);
-    const tMin = Math.round((baseTemp - 4 + (Math.abs(seed) % 5)) * 10) / 10;
-    const tMax = Math.round((baseTemp + 6 + (Math.abs(seed * 2) % 6)) * 10) / 10;
-    const precip = Math.round((Math.abs(seed) % 15) * 10) / 10;
-    map.set(key, { icon, tMin, tMax, precip });
-  }
-  return map;
-}
-
-// Cache per anni già generati
-const meteoCache = new Map<number, Map<string, { icon: string; tMin: number; tMax: number; precip: number }>>();
-
-function getMeteoForYear(year: number) {
-  if (!meteoCache.has(year)) {
-    meteoCache.set(year, generateYearMeteo(year));
-  }
-  return meteoCache.get(year)!;
-}
-
-export default function WeatherPage({ onBack }: WeatherPageProps) {
-  const [weekOffset, setWeekOffset] = useState(0);
-  const [viewMode, setViewMode] = useState<"week" | "chart" | "monthly">("week");
-  const [chartType, setChartType] = useState<"weekly" | "monthly">("weekly");
-  const [chartOffset, setChartOffset] = useState(0);
-  const today = new Date();
-
-  const weekDays = getWeekDays(weekOffset);
-  const todayKey = formatDateKey(new Date());
-
-  // Chart data: weekly con offset
-  const chartData = useMemo(() => {
-    const now = new Date();
-    const dayOfWeek = now.getDay();
-    const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-    const monday = new Date(now);
-    monday.setDate(now.getDate() + diffToMonday + chartOffset * 7);
-    const days: Date[] = [];
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(monday);
-      d.setDate(monday.getDate() + i);
-      days.push(d);
-    }
-    // Raccogli tutti gli anni necessari
-    const years = new Set(days.map((d) => d.getFullYear()));
-    const combined = new Map<string, { icon: string; tMin: number; tMax: number; precip: number }>();
-    for (const y of years) {
-      const m = getMeteoForYear(y);
-      for (const [k, v] of m) combined.set(k, v);
-    }
-    return days.map((day) => {
-      const key = formatDateKey(day);
-      const m = combined.get(key);
-      return {
-        label: day.toLocaleDateString("it-IT", { weekday: "short" }),
-        tMax: m?.tMax ?? 0,
-        tMin: m?.tMin ?? 0,
-        precip: m?.precip ?? 0
-      };
-    });
-  }, [chartOffset]);
-
-  // Chart data: monthly con offset
-  const chartMonthlyData = useMemo(() => {
-    const year = today.getFullYear() + chartOffset;
-    const meteo = getMeteoForYear(year);
-    const data: { label: string; tMaxAvg: number; tMinAvg: number; precip: number }[] = [];
-    for (let m = 0; m < 12; m++) {
-      const monthStart = new Date(year, m, 1);
-      const monthEnd = new Date(year, m + 1, 0);
-      let sumTMax = 0, sumTMin = 0, sumPrecip = 0, days = 0;
-      for (let d = new Date(monthStart); d <= monthEnd; d.setDate(d.getDate() + 1)) {
-        const key = formatDateKey(d);
-        const met = meteo.get(key);
-        if (met) {
-          sumTMax += met.tMax;
-          sumTMin += met.tMin;
-          sumPrecip += met.precip;
-          days++;
-        }
-      }
-      data.push({
-        label: monthStart.toLocaleDateString("it-IT", { month: "short" }).replace(".", ""),
-        tMaxAvg: days ? Math.round((sumTMax / days) * 10) / 10 : 0,
-        tMinAvg: days ? Math.round((sumTMin / days) * 10) / 10 : 0,
-        precip: Math.round(sumPrecip * 10) / 10
-      });
-    }
-    return data;
-  }, [chartOffset]);
-
-  const monthlyData = useMemo(() => {
-    const year = today.getFullYear();
-    const meteo = getMeteoForYear(year);
-    const months: { label: string; tMaxAvg: number; tMinAvg: number; precipTotal: number }[] = [];
-    for (let m = 0; m < 12; m++) {
-      const monthStart = new Date(year, m, 1);
-      const monthEnd = m < 11 ? new Date(year, m + 1, 0) : new Date(year, 11, 31);
-      let sumTMax = 0, sumTMin = 0, sumPrecip = 0, days = 0;
-      for (let d = new Date(monthStart); d <= monthEnd; d.setDate(d.getDate() + 1)) {
-        const key = formatDateKey(d);
-        const data = meteo.get(key);
-        if (data) {
-          sumTMax += data.tMax;
-          sumTMin += data.tMin;
-          sumPrecip += data.precip;
-          days++;
-        }
-      }
-      const label = monthStart.toLocaleDateString("it-IT", { month: "long" });
-      months.push({
-        label,
-        tMaxAvg: days ? Math.round((sumTMax / days) * 10) / 10 : 0,
-        tMinAvg: days ? Math.round((sumTMin / days) * 10) / 10 : 0,
-        precipTotal: Math.round(sumPrecip * 10) / 10
-      });
-    }
-    return months;
-  }, []);
-
-  const weekStart = weekDays[0];
-  const weekEnd = weekDays[6];
-  const weekLabel = `${
-    weekStart.toLocaleDateString("it-IT", { day: "numeric", month: "long" })
-  } - ${
-    weekEnd.toLocaleDateString("it-IT", { day: "numeric", month: "long", year: "numeric" })
-  }`;
-
-  return (
-    <div className="min-h-screen bg-gradient-to-b from-sky-100 to-blue-200">
-      {/* Header fisso */}
-      <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-sky-200 shadow-sm">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-          <button
-            onClick={onBack}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-sky-100 hover:bg-sky-200 transition"
-            title="Chiudi"
-          >
-            <span className="material-symbols-outlined text-xl text-sky-800">close</span>
-          </button>
-          <div className="text-center">
-            <h1 className="text-xl font-bold text-sky-900">Meteo {CITY}</h1>
-            <p className="text-xs text-sky-600 font-medium">{weekLabel}</p>
-          </div>
-          {viewMode === "week" && (
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => setWeekOffset((o) => o - 1)}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-sky-100 hover:bg-sky-200 transition"
-              >
-                <span className="material-symbols-outlined text-xl text-sky-800">chevron_left</span>
-              </button>
-              <button
-                onClick={() => setWeekOffset((o) => o + 1)}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-sky-100 hover:bg-sky-200 transition"
-              >
-                <span className="material-symbols-outlined text-xl text-sky-800">chevron_right</span>
-              </button>
-            </div>
-          )}
-          {viewMode !== "week" && <div className="w-[88px]" />}
-        </div>
-      </div>
-
-      <div className="max-w-4xl mx-auto px-4 py-4">
-        {/* Pulsanti vista */}
-        <div className="flex justify-start gap-2 mt-1 mb-2">
-          <button
-            onClick={() => { setViewMode("week"); setWeekOffset(0); }}
-            className={`px-3 py-1.5 rounded-full border shadow-sm text-xs font-semibold transition ${
-              viewMode === "week"
-                ? "bg-sky-600 text-white border-sky-600"
-                : "bg-white/80 text-sky-800 border-sky-300 hover:bg-white"
-            }`}
-          >
-            📅 Settimana
-          </button>
-          <button
-            onClick={() => setViewMode("chart")}
-            className={`px-3 py-1.5 rounded-full border shadow-sm text-xs font-semibold transition ${
-              viewMode === "chart"
-                ? "bg-sky-600 text-white border-sky-600"
-                : "bg-white/80 text-sky-800 border-sky-300 hover:bg-white"
-            }`}
-          >
-            📈 Grafico
-          </button>
-          <button
-            onClick={() => setViewMode("monthly")}
-            className={`px-3 py-1.5 rounded-full border shadow-sm text-xs font-semibold transition ${
-              viewMode === "monthly"
-                ? "bg-sky-600 text-white border-sky-600"
-                : "bg-white/80 text-sky-800 border-sky-300 hover:bg-white"
-            }`}
-          >
-            📊 Medie mensili
-          </button>
-        </div>
-
-        {viewMode === "week" && (
-          <div className="space-y-1">
-            {weekDays.map((day) => {
-              const key = formatDateKey(day);
-              const meteo = getMeteoForYear(day.getFullYear()).get(key);
-              const isToday = key === todayKey;
-              const isWeekend = day.getDay() === 0 || day.getDay() === 6;
-              const dayName = day.toLocaleDateString("it-IT", { weekday: "long" });
-              const dayNum = day.getDate();
-              const monthName = day.toLocaleDateString("it-IT", { month: "short" });
-
-              return (
-                <div
-                  key={key}
-                  className={`flex items-center rounded-lg h-[40px] py-0.5 px-1.5 shadow-sm border ${
-                    isToday
-                      ? "bg-white border-sky-400 ring-1 ring-sky-300"
-                      : isWeekend
-                        ? "bg-blue-50/70 border-sky-100"
-                        : "bg-white/80 border-sky-100"
-                  }`}
-                >
-                  <div className="min-w-[60px]">
-                    <p className="text-xs font-bold text-sky-900 uppercase tracking-wide truncate leading-tight">
-                      {dayName}
-                    </p>
-                    <p className="text-[0.6rem] text-gray-500 leading-tight">
-                      {dayNum} {monthName}
-                    </p>
-                  </div>
-                  {meteo ? (
-                    <>
-                      <div className="min-w-[40px] text-center">
-                        <span className="material-symbols-outlined text-2xl text-sky-600">
-                          {meteo.icon}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1 ml-auto">
-                        <span className="text-sm font-bold text-orange-600">
-                          {meteo.tMax}°
-                        </span>
-                        <span className="text-xs text-gray-500">
-                          {meteo.tMin}°
-                        </span>
-                      </div>
-                      <div className="min-w-[40px] text-right">
-                        <span className="text-[0.55rem] text-blue-500">
-                          💧{meteo.precip}mm
-                        </span>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="flex items-center ml-auto">
-                      <span className="text-xs text-gray-400">N/D</span>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {viewMode === "chart" && (
-          <div className="bg-white/80 rounded-2xl p-4 shadow-sm border border-sky-100 w-full max-w-6xl mx-auto">
-            <div className="flex items-center justify-center gap-4 mb-3">
-              <button
-                onClick={() => setChartOffset((o) => o - 1)}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-sky-100 hover:bg-sky-200 transition"
-              >
-                <span className="material-symbols-outlined text-lg text-sky-800">chevron_left</span>
-              </button>
-              <div className="text-center">
-                <h3 className="text-sm font-bold text-sky-900">
-                  {chartType === "weekly" ? "Andamento settimanale" : "Andamento Annuale"}
-                </h3>
-                <p className="text-[0.65rem] text-sky-600">
-                  {chartType === "weekly"
-                    ? chartData.length > 0
-                      ? `${chartData[0].label} - ${chartData[chartData.length - 1].label}`
-                      : ""
-                    : `${new Date().getFullYear() + chartOffset}`}
-                </p>
-              </div>
-              <button
-                onClick={() => setChartOffset((o) => o + 1)}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-sky-100 hover:bg-sky-200 transition"
-              >
-                <span className="material-symbols-outlined text-lg text-sky-800">chevron_right</span>
-              </button>
-            </div>
-            <ResponsiveContainer width="100%" height={400}>
-              {chartType === "weekly" ? (
-                <BarChart data={chartData} barGap={10} barCategoryGap={15}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis dataKey="label" interval={0} tick={{ fontSize: 12 }} />
-                  <YAxis yAxisId="temp" orientation="left" tick={{ fontSize: 11 }} unit="°" />
-                  <YAxis yAxisId="precip" orientation="right" tick={{ fontSize: 11 }} unit="mm" />
-                  <Tooltip />
-                  <Legend />
-                  <Bar yAxisId="precip" dataKey="precip" fill="#60a5fa" name="Pioggia (mm)" radius={[4, 4, 0, 0]} barSize={40} />
-                  <Line yAxisId="temp" type="monotone" dataKey="tMax" stroke="#ea580c" strokeWidth={2} name="T Max" dot={{ r: 4 }} />
-                  <Line yAxisId="temp" type="monotone" dataKey="tMin" stroke="#3b82f6" strokeWidth={2} name="T Min" dot={{ r: 4 }} />
-                </BarChart>
-              ) : (
-                <BarChart data={chartMonthlyData} barGap={8} barCategoryGap={12}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis dataKey="label" interval={0} tick={{ fontSize: 11 }} />
-                  <YAxis yAxisId="temp" orientation="left" tick={{ fontSize: 11 }} unit="°" />
-                  <YAxis yAxisId="precip" orientation="right" tick={{ fontSize: 11 }} unit="mm" />
-                  <Tooltip />
-                  <Legend />
-                  <Bar yAxisId="precip" dataKey="precip" fill="#60a5fa" name="Pioggia (mm)" radius={[4, 4, 0, 0]} barSize={24} />
-                  <Line yAxisId="temp" type="monotone" dataKey="tMaxAvg" stroke="#ea580c" strokeWidth={2} name="T Max media" dot={{ r: 3 }} />
-                  <Line yAxisId="temp" type="monotone" dataKey="tMinAvg" stroke="#3b82f6" strokeWidth={2} name="T Min media" dot={{ r: 3 }} />
-                </BarChart>
-              )}
-            </ResponsiveContainer>
-            <div className="flex justify-center gap-4 mt-4">
-              <button
-                onClick={() => { setChartType("weekly"); setChartOffset(0); }}
-                className={`px-4 py-1.5 rounded-full border shadow-sm text-xs font-semibold transition ${
-                  chartType === "weekly"
-                    ? "bg-sky-600 text-white border-sky-600"
-                    : "bg-white/80 text-sky-800 border-sky-300 hover:bg-white"
-                }`}
-              >
-                📊 Settimanale
-              </button>
-              <button
-                onClick={() => { setChartType("monthly"); setChartOffset(0); }}
-                className={`px-4 py-1.5 rounded-full border shadow-sm text-xs font-semibold transition ${
-                  chartType === "monthly"
-                    ? "bg-sky-600 text-white border-sky-600"
-                    : "bg-white/80 text-sky-800 border-sky-300 hover:bg-white"
-                }`}
-              >
-                📈 Mensile
-              </button>
-            </div>
-          </div>
-        )}
-
-        {viewMode === "monthly" && (
-          <div className="space-y-1">
-            {monthlyData.map((m) => (
-              <div
-                key={m.label}
-                className="flex items-center rounded-lg h-[36px] px-2 shadow-sm border bg-white/80 border-sky-100"
-              >
-                <p className="w-20 text-[0.65rem] font-bold text-sky-900 capitalize shrink-0">{m.label}</p>
-                <div className="flex items-center gap-2 ml-auto text-[0.6rem]">
-                  <span className="font-bold text-orange-600">{m.tMaxAvg}°</span>
-                  <span className="font-bold text-blue-600">{m.tMinAvg}°</span>
-                  <span className="font-bold text-blue-500 min-w-[36px] text-right">{m.precipTotal}mm</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-</file>
-
 <file path="src/supabaseClient.ts">
 import { createClient } from "@supabase/supabase-js";
 
@@ -955,47 +290,6 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 <file path="src/vite-env.d.ts">
 /// <reference types="vite/client" />
-</file>
-
-<file path="supabase-migration.sql">
--- Crea tabella giardinieri
-CREATE TABLE IF NOT EXISTS giardinieri (
-  id BIGSERIAL PRIMARY KEY,
-  username TEXT NOT NULL UNIQUE,
-  colore TEXT DEFAULT '#0b79d0',
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Crea tabella appuntamenti_giardinieri (junction)
-CREATE TABLE IF NOT EXISTS appuntamenti_giardinieri (
-  id BIGSERIAL PRIMARY KEY,
-  appuntamento_id UUID REFERENCES appuntamenti(id) ON DELETE CASCADE,
-  giardiniere_id BIGINT REFERENCES giardinieri(id) ON DELETE CASCADE,
-  UNIQUE(appuntamento_id, giardiniere_id)
-);
-
--- Crea tabella appuntamenti_attivita (junction) se non esiste
-CREATE TABLE IF NOT EXISTS appuntamenti_attivita (
-  id BIGSERIAL PRIMARY KEY,
-  appuntamento_id UUID REFERENCES appuntamenti(id) ON DELETE CASCADE,
-  attivita_id UUID REFERENCES attivita(id) ON DELETE CASCADE,
-  UNIQUE(appuntamento_id, attivita_id)
-);
-
--- Crea tabella notifiche se non esiste
-CREATE TABLE IF NOT EXISTS notifiche (
-  id BIGSERIAL PRIMARY KEY,
-  appuntamento_id UUID REFERENCES appuntamenti(id) ON DELETE CASCADE,
-  read INTEGER DEFAULT 0,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Inserisci giardinieri di default
-INSERT INTO giardinieri (username, colore) VALUES
-  ('Angelo', '#0b79d0'),
-  ('Marco', '#27ae60'),
-  ('Paolo', '#f39c12')
-ON CONFLICT (username) DO NOTHING;
 </file>
 
 <file path="tailwind.config.js">
@@ -1095,11 +389,6 @@ import react from "@vitejs/plugin-react";
 export default defineConfig({
   plugins: [react()],
 });
-</file>
-
-<file path=".gitignore">
-.vercel
-node_modules
 </file>
 
 <file path="src/App.tsx">
@@ -1289,6 +578,673 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
 );
 </file>
 
+<file path="src/pages/WeatherPage.tsx">
+import { useMemo, useState } from "react";
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  CartesianGrid,
+  Legend
+} from "recharts";
+
+interface WeatherPageProps {
+  onBack: () => void;
+}
+
+const LAT = 44.9132;
+const LON = 8.6146;
+const CITY = "Alessandria";
+const API_URL = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weathercode&timezone=Europe/Rome`;
+
+const ICONS: Record<number, string> = {
+  0: "sunny",
+  1: "sunny",
+  2: "partly_cloudy_day",
+  3: "cloudy",
+  45: "foggy",
+  48: "foggy",
+  51: "rainy",
+  53: "rainy",
+  55: "rainy",
+  61: "rainy",
+  63: "rainy",
+  65: "rainy",
+  71: "weather_snowy",
+  73: "weather_snowy",
+  75: "weather_snowy",
+  80: "rainy",
+  81: "rainy",
+  82: "rainy",
+  95: "thunderstorm",
+  96: "thunderstorm",
+  99: "thunderstorm"
+};
+
+function getWeekDays(offset: number) {
+  const now = new Date();
+  const dayOfWeek = now.getDay();
+  const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  const monday = new Date(now);
+  monday.setDate(now.getDate() + diffToMonday + offset * 7);
+  const days: Date[] = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    days.push(d);
+  }
+  return days;
+}
+
+function formatDateKey(d: Date) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function generateYearMeteo(year: number) {
+  if (year > new Date().getFullYear()) return new Map();
+  const start = new Date(year, 0, 1);
+  const end = new Date(year, 11, 31);
+  const map = new Map<
+    string,
+    { icon: string; tMin: number; tMax: number; precip: number }
+  >();
+  const yearStart = new Date(year, 0, 1);
+
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    const key = formatDateKey(d);
+    const dayOfYear = Math.floor(
+      (d.getTime() - yearStart.getTime()) / (1000 * 60 * 60 * 24)
+    );
+    const seed = (year * 365 + dayOfYear) * 7 + d.getMonth() * 3;
+    const wmoCodes = [0, 0, 1, 2, 3, 45, 51, 61, 80, 95];
+    const wmo = wmoCodes[Math.abs(seed) % wmoCodes.length];
+    const icon = ICONS[wmo] || "partly_cloudy_day";
+    const offsetAnno = (year - 2024) * 0.3;
+    const baseTemp = 5 + (d.getMonth() % 12) * 2.5 + (year % 5) * 1.5;
+    const tMin =
+      Math.round(
+        (baseTemp - 4 + offsetAnno + (Math.abs(seed) % 5) * 0.2) * 10
+      ) / 10;
+    const tMax =
+      Math.round(
+        (baseTemp + 6 + offsetAnno + (Math.abs(seed * 2) % 6) * 0.3) * 10
+      ) / 10;
+    const precip = Math.round((Math.abs(seed) % 15) * 10) / 10;
+    map.set(key, { icon, tMin, tMax, precip });
+  }
+  return map;
+}
+
+// Cache per anni già generati
+const meteoCache = new Map<
+  number,
+  Map<string, { icon: string; tMin: number; tMax: number; precip: number }>
+>();
+
+function getMeteoForYear(year: number) {
+  if (year > new Date().getFullYear()) return new Map();
+  if (!meteoCache.has(year)) {
+    meteoCache.set(year, generateYearMeteo(year));
+  }
+  return meteoCache.get(year)!;
+}
+
+export default function WeatherPage({ onBack }: WeatherPageProps) {
+  const [weekOffset, setWeekOffset] = useState(0);
+  const [viewMode, setViewMode] = useState<"week" | "chart" | "monthly">(
+    "week"
+  );
+  const [chartType, setChartType] = useState<"weekly" | "monthly">("weekly");
+  const [chartOffset, setChartOffset] = useState(0);
+  const today = new Date();
+
+  const weekDays = getWeekDays(weekOffset);
+  const todayKey = formatDateKey(new Date());
+
+  // Chart data: weekly con offset
+  const chartData = useMemo(() => {
+    const now = new Date();
+    const dayOfWeek = now.getDay();
+    const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    const monday = new Date(now);
+    monday.setDate(now.getDate() + diffToMonday + chartOffset * 7);
+    const days: Date[] = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      days.push(d);
+    }
+    // Raccogli tutti gli anni necessari
+    const years = new Set(days.map((d) => d.getFullYear()));
+    const combined = new Map<
+      string,
+      { icon: string; tMin: number; tMax: number; precip: number }
+    >();
+    for (const y of years) {
+      const m = getMeteoForYear(y);
+      for (const [k, v] of m) combined.set(k, v);
+    }
+    return days.map((day) => {
+      const key = formatDateKey(day);
+      const m = combined.get(key);
+      return {
+        label: `${day.getDate()} ${day.toLocaleDateString("it-IT", { weekday: "short" }).slice(0, 2)}`,
+        tMax: m?.tMax ?? 0,
+        tMin: m?.tMin ?? 0,
+        precip: m?.precip ?? 0
+      };
+    });
+  }, [chartOffset]);
+
+  // Chart data: monthly con offset
+  const chartMonthlyData = useMemo(() => {
+    const year = today.getFullYear() + chartOffset;
+    if (year > today.getFullYear()) return [];
+    const meteo = getMeteoForYear(year);
+    const data: {
+      label: string;
+      tMaxAvg: number;
+      tMinAvg: number;
+      precip: number;
+    }[] = [];
+    for (let m = 0; m < 12; m++) {
+      const monthStart = new Date(year, m, 1);
+      const monthEnd = new Date(year, m + 1, 0);
+      let sumTMax = 0,
+        sumTMin = 0,
+        sumPrecip = 0,
+        days = 0;
+      for (
+        let d = new Date(monthStart);
+        d <= monthEnd;
+        d.setDate(d.getDate() + 1)
+      ) {
+        const key = formatDateKey(d);
+        const met = meteo.get(key);
+        if (met) {
+          sumTMax += met.tMax;
+          sumTMin += met.tMin;
+          sumPrecip += met.precip;
+          days++;
+        }
+      }
+      data.push({
+        label: monthStart
+          .toLocaleDateString("it-IT", { month: "short" })
+          .replace(".", "")
+          .charAt(0),
+        tMaxAvg: days ? Math.round((sumTMax / days) * 10) / 10 : 0,
+        tMinAvg: days ? Math.round((sumTMin / days) * 10) / 10 : 0,
+        precip: Math.round(sumPrecip * 10) / 10
+      });
+    }
+    return data;
+  }, [chartOffset]);
+
+  const monthlyData = useMemo(() => {
+    const year = today.getFullYear();
+    const meteo = getMeteoForYear(year);
+    const months: {
+      label: string;
+      tMaxAvg: number;
+      tMinAvg: number;
+      precipTotal: number;
+      icon: string;
+    }[] = [];
+    for (let m = 0; m < 12; m++) {
+      const monthStart = new Date(year, m, 1);
+      const monthEnd =
+        m < 11 ? new Date(year, m + 1, 0) : new Date(year, 11, 31);
+      let sumTMax = 0,
+        sumTMin = 0,
+        sumPrecip = 0,
+        days = 0;
+      let icon = "partly_cloudy_day";
+      for (
+        let d = new Date(monthStart);
+        d <= monthEnd;
+        d.setDate(d.getDate() + 1)
+      ) {
+        const key = formatDateKey(d);
+        const data = meteo.get(key);
+        if (data) {
+          sumTMax += data.tMax;
+          sumTMin += data.tMin;
+          sumPrecip += data.precip;
+          days++;
+          if (d.getDate() === 15) icon = data.icon;
+        }
+      }
+      const label = monthStart.toLocaleDateString("it-IT", { month: "long" });
+      months.push({
+        label,
+        tMaxAvg: days ? Math.round((sumTMax / days) * 10) / 10 : 0,
+        tMinAvg: days ? Math.round((sumTMin / days) * 10) / 10 : 0,
+        precipTotal: Math.round(sumPrecip * 10) / 10,
+        icon
+      });
+    }
+    return months;
+  }, []);
+
+  const weekStart = weekDays[0];
+  const weekEnd = weekDays[6];
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-sky-100 to-blue-200">
+      {/* Header fisso */}
+      <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-sky-200 shadow-sm">
+        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+          <button
+            onClick={onBack}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-sky-100 hover:bg-sky-200 transition shrink-0"
+            title="Chiudi"
+          >
+            <span className="material-symbols-outlined text-xl text-sky-800">
+              close
+            </span>
+          </button>
+          <div className="text-center flex-1">
+            <h1 className="text-xl font-bold text-sky-900">Meteo {CITY}</h1>
+            {viewMode === "week" && (
+              <p className="text-xs text-sky-600 font-medium capitalize">
+                {weekDays[0].toLocaleDateString("it-IT", {
+                  weekday: "long",
+                  day: "numeric"
+                })}
+                {" - "}
+                {weekDays[6].toLocaleDateString("it-IT", {
+                  weekday: "long",
+                  day: "numeric"
+                })}
+              </p>
+            )}
+          </div>
+          {viewMode === "week" && (
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setWeekOffset((o) => o - 1)}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-sky-100 hover:bg-sky-200 transition"
+              >
+                <span className="material-symbols-outlined text-xl text-sky-800">
+                  chevron_left
+                </span>
+              </button>
+              <button
+                onClick={() => setWeekOffset((o) => o + 1)}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-sky-100 hover:bg-sky-200 transition"
+              >
+                <span className="material-symbols-outlined text-xl text-sky-800">
+                  chevron_right
+                </span>
+              </button>
+            </div>
+          )}
+          {viewMode !== "week" && <div className="w-10" />}
+        </div>
+      </div>
+
+      <div className="max-w-4xl mx-auto px-4 py-4">
+        {/* Pulsanti vista */}
+        <div className="flex justify-start gap-2 mt-1 mb-8">
+          <button
+            onClick={() => {
+              setViewMode("week");
+              setWeekOffset(0);
+            }}
+            className={`px-3 py-1.5 rounded-full border shadow-sm text-xs font-semibold transition ${
+              viewMode === "week"
+                ? "bg-sky-600 text-white border-sky-600"
+                : "bg-white/80 text-sky-800 border-sky-300 hover:bg-white"
+            }`}
+          >
+            📅 Settimana
+          </button>
+          <button
+            onClick={() => setViewMode("chart")}
+            className={`px-3 py-1.5 rounded-full border shadow-sm text-xs font-semibold transition ${
+              viewMode === "chart"
+                ? "bg-sky-600 text-white border-sky-600"
+                : "bg-white/80 text-sky-800 border-sky-300 hover:bg-white"
+            }`}
+          >
+            📈 Grafico
+          </button>
+          <button
+            onClick={() => setViewMode("monthly")}
+            className={`px-3 py-1.5 rounded-full border shadow-sm text-xs font-semibold transition ${
+              viewMode === "monthly"
+                ? "bg-sky-600 text-white border-sky-600"
+                : "bg-white/80 text-sky-800 border-sky-300 hover:bg-white"
+            }`}
+          >
+            📊 Medie mensili
+          </button>
+        </div>
+
+        {viewMode === "week" && (
+          <div className="space-y-1">
+            {weekDays.map((day) => {
+              const key = formatDateKey(day);
+              const meteo = getMeteoForYear(day.getFullYear()).get(key);
+              const isToday = key === todayKey;
+              const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+              const dayName = day.toLocaleDateString("it-IT", {
+                weekday: "long"
+              });
+              const dayNum = day.getDate();
+              const monthName = day.toLocaleDateString("it-IT", {
+                month: "short"
+              });
+
+              return (
+                <div
+                  key={key}
+                  className={`flex items-center rounded-lg h-[40px] py-0.5 px-1.5 shadow-sm border ${
+                    isToday
+                      ? "bg-white border-sky-400 ring-1 ring-sky-300"
+                      : isWeekend
+                        ? "bg-blue-50/70 border-sky-100"
+                        : "bg-white/80 border-sky-100"
+                  }`}
+                >
+                  <div className="min-w-[60px]">
+                    <p className="text-xs font-bold text-sky-900 uppercase tracking-wide truncate leading-tight">
+                      {dayName}
+                    </p>
+                    <p className="text-[0.6rem] text-gray-500 leading-tight">
+                      {dayNum} {monthName}
+                    </p>
+                  </div>
+                  {meteo ? (
+                    <>
+                      <div className="min-w-[40px] text-center">
+                        <span className="material-symbols-outlined text-2xl text-sky-600">
+                          {meteo.icon}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1 ml-auto">
+                        <span className="text-sm font-bold text-orange-600">
+                          {meteo.tMax}°
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {meteo.tMin}°
+                        </span>
+                      </div>
+                      <div className="min-w-[40px] text-right">
+                        <span className="text-[0.55rem] text-blue-500">
+                          💧{meteo.precip}mm
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex items-center ml-auto">
+                      <span className="text-xs text-gray-400">N/D</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {viewMode === "chart" && (
+          <div className="bg-white/80 rounded-2xl p-4 shadow-sm border border-sky-100 w-full max-w-6xl mx-auto">
+            <div className="flex items-center justify-center gap-4 mb-3">
+              <button
+                onClick={() => setChartOffset((o) => o - 1)}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-sky-100 hover:bg-sky-200 transition"
+              >
+                <span className="material-symbols-outlined text-lg text-sky-800">
+                  chevron_left
+                </span>
+              </button>
+              <div className="text-center">
+                <h3 className="text-sm font-bold text-sky-900">
+                  {chartType === "weekly"
+                    ? "Andamento settimanale"
+                    : "Andamento Annuale"}
+                </h3>
+                <p className="text-[0.65rem] text-sky-600">
+                  {chartType === "weekly"
+                    ? (() => {
+                        const now = new Date();
+                        const dow = now.getDay();
+                        const diff = dow === 0 ? -6 : 1 - dow;
+                        const mon = new Date(now);
+                        mon.setDate(now.getDate() + diff + chartOffset * 7);
+                        const sun = new Date(mon);
+                        sun.setDate(mon.getDate() + 6);
+                        return `${mon.toLocaleDateString("it-IT", {
+                          weekday: "long",
+                          day: "numeric"
+                        })} - ${sun.toLocaleDateString("it-IT", {
+                          weekday: "long",
+                          day: "numeric"
+                        })}`;
+                      })()
+                    : `${new Date().getFullYear() + chartOffset}`}
+                </p>
+              </div>
+              <button
+                onClick={() => setChartOffset((o) => o + 1)}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-sky-100 hover:bg-sky-200 transition"
+              >
+                <span className="material-symbols-outlined text-lg text-sky-800">
+                  chevron_right
+                </span>
+              </button>
+            </div>
+            <ResponsiveContainer width="100%" height={400}>
+              {chartType === "weekly" ? (
+                <BarChart data={chartData} barGap={10} barCategoryGap={15}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis dataKey="label" interval={0} tick={{ fontSize: 10 }} />
+                  <YAxis
+                    yAxisId="temp"
+                    orientation="left"
+                    tick={{ fontSize: 11 }}
+                    unit="°"
+                  />
+                  <YAxis
+                    yAxisId="precip"
+                    orientation="right"
+                    tick={{ fontSize: 11 }}
+                    unit="mm"
+                  />
+                  <Tooltip />
+                  <Legend />
+                  <Bar
+                    yAxisId="precip"
+                    dataKey="precip"
+                    fill="#60a5fa"
+                    name="Pioggia (mm)"
+                    radius={[4, 4, 0, 0]}
+                    barSize={40}
+                  />
+                  <Line
+                    yAxisId="temp"
+                    type="monotone"
+                    dataKey="tMax"
+                    stroke="#ea580c"
+                    strokeWidth={2}
+                    name="T Max"
+                    dot={{ r: 4 }}
+                  />
+                  <Line
+                    yAxisId="temp"
+                    type="monotone"
+                    dataKey="tMin"
+                    stroke="#3b82f6"
+                    strokeWidth={2}
+                    name="T Min"
+                    dot={{ r: 4 }}
+                  />
+                </BarChart>
+              ) : (
+                <BarChart
+                  data={chartMonthlyData}
+                  barGap={8}
+                  barCategoryGap={12}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis dataKey="label" interval={0} tick={{ fontSize: 11 }} />
+                  <YAxis
+                    yAxisId="temp"
+                    orientation="left"
+                    tick={{ fontSize: 11 }}
+                    unit="°"
+                  />
+                  <YAxis
+                    yAxisId="precip"
+                    orientation="right"
+                    tick={{ fontSize: 11 }}
+                    unit="mm"
+                  />
+                  <Tooltip />
+                  <Legend />
+                  <Bar
+                    yAxisId="precip"
+                    dataKey="precip"
+                    fill="#60a5fa"
+                    name="Pioggia (mm)"
+                    radius={[4, 4, 0, 0]}
+                    barSize={24}
+                  />
+                  <Line
+                    yAxisId="temp"
+                    type="monotone"
+                    dataKey="tMaxAvg"
+                    stroke="#ea580c"
+                    strokeWidth={2}
+                    name="T Max media"
+                    dot={{ r: 3 }}
+                  />
+                  <Line
+                    yAxisId="temp"
+                    type="monotone"
+                    dataKey="tMinAvg"
+                    stroke="#3b82f6"
+                    strokeWidth={2}
+                    name="T Min media"
+                    dot={{ r: 3 }}
+                  />
+                </BarChart>
+              )}
+            </ResponsiveContainer>
+            <div className="flex justify-center gap-4 mt-4">
+              <button
+                onClick={() => {
+                  setChartType("weekly");
+                  setChartOffset(0);
+                }}
+                className={`px-4 py-1.5 rounded-full border shadow-sm text-xs font-semibold transition ${
+                  chartType === "weekly"
+                    ? "bg-sky-600 text-white border-sky-600"
+                    : "bg-white/80 text-sky-800 border-sky-300 hover:bg-white"
+                }`}
+              >
+                📊 Settimanale
+              </button>
+              <button
+                onClick={() => {
+                  setChartType("monthly");
+                  setChartOffset(0);
+                }}
+                className={`px-4 py-1.5 rounded-full border shadow-sm text-xs font-semibold transition ${
+                  chartType === "monthly"
+                    ? "bg-sky-600 text-white border-sky-600"
+                    : "bg-white/80 text-sky-800 border-sky-300 hover:bg-white"
+                }`}
+              >
+                📈 Annuale
+              </button>
+            </div>
+          </div>
+        )}
+
+        {viewMode === "monthly" && (
+          <div className="flex flex-col gap-1 mt-8">
+            {monthlyData.map((m) => (
+              <div
+                key={m.label}
+                className="flex justify-between items-center px-2 py-2 rounded-lg bg-white/50 backdrop-blur-sm"
+              >
+                <p className="text-[0.7rem] font-bold text-sky-900 capitalize w-16">
+                  {m.label}
+                </p>
+                <div className="flex items-center gap-2 text-[0.65rem]">
+                  <span className="font-bold text-orange-600">
+                    {m.tMaxAvg}°
+                  </span>
+                  <span className="font-bold text-blue-600">{m.tMinAvg}°</span>
+                  <span className="font-bold text-blue-500">
+                    {m.precipTotal}mm
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="supabase-migration.sql">
+-- Crea tabella giardinieri
+CREATE TABLE IF NOT EXISTS giardinieri (
+  id BIGSERIAL PRIMARY KEY,
+  username TEXT NOT NULL UNIQUE,
+  colore TEXT DEFAULT '#0b79d0',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Crea tabella appuntamenti_giardinieri (junction)
+CREATE TABLE IF NOT EXISTS appuntamenti_giardinieri (
+  id BIGSERIAL PRIMARY KEY,
+  appuntamento_id UUID REFERENCES appuntamenti(id) ON DELETE CASCADE,
+  giardiniere_id BIGINT REFERENCES giardinieri(id) ON DELETE CASCADE,
+  UNIQUE(appuntamento_id, giardiniere_id)
+);
+
+-- Crea tabella appuntamenti_attivita (junction) se non esiste
+CREATE TABLE IF NOT EXISTS appuntamenti_attivita (
+  id BIGSERIAL PRIMARY KEY,
+  appuntamento_id UUID REFERENCES appuntamenti(id) ON DELETE CASCADE,
+  attivita_id UUID REFERENCES attivita(id) ON DELETE CASCADE,
+  UNIQUE(appuntamento_id, attivita_id)
+);
+
+-- Crea tabella notifiche se non esiste
+CREATE TABLE IF NOT EXISTS notifiche (
+  id BIGSERIAL PRIMARY KEY,
+  appuntamento_id UUID REFERENCES appuntamenti(id) ON DELETE CASCADE,
+  read INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Inserisci giardinieri di default
+INSERT INTO giardinieri (username, colore) VALUES
+  ('Angelo', '#0b79d0'),
+  ('Marco', '#27ae60'),
+  ('Paolo', '#f39c12')
+ON CONFLICT (username) DO NOTHING;
+
+-- Aggiungi colonne a tabella clienti
+ALTER TABLE clienti ADD COLUMN IF NOT EXISTS privato BOOLEAN DEFAULT FALSE;
+ALTER TABLE clienti ADD COLUMN IF NOT EXISTS created_by TEXT;
+</file>
+
 <file path="vercel.json">
 {
   "buildCommand": "node ./node_modules/vite/bin/vite.js build",
@@ -1298,74 +1254,10 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
 }
 </file>
 
-<file path="public/sw.js">
-const CACHE_NAME = "geogiardini-v3";
-const ASSETS_TO_CACHE = [
-  "/",
-  "/index.html",
-  "/favicon.svg",
-  "/manifest.json",
-  "/leaf-512.png"
-];
-
-self.addEventListener("install", (event) => {
-  self.skipWaiting();
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS_TO_CACHE))
-  );
-});
-
-self.addEventListener("activate", (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys.map((key) => {
-          if (key !== CACHE_NAME) return caches.delete(key);
-        })
-      )
-    )
-  );
-  self.clients.claim();
-});
-
-self.addEventListener("push", (event) => {
-  const data = event.data?.json?.() ?? {};
-  const title = data.title || "GeoGiardini";
-  const options = {
-    body: data.body || data.message || "",
-    icon: "/leaf-512.png",
-    badge: "/leaf-512.png",
-    requireInteraction: true,
-    vibrate: [120, 80, 120],
-    data: {
-      url: data.url || "/",
-      ...data.data
-    }
-  };
-
-  event.waitUntil(self.registration.showNotification(title, options));
-});
-
-self.addEventListener("notificationclick", (event) => {
-  event.notification.close();
-  const targetUrl = event.notification.data?.url || "/";
-  event.waitUntil(
-    self.clients
-      .matchAll({ type: "window", includeUncontrolled: true })
-      .then((clients) => {
-        for (const client of clients) {
-          if ("focus" in client) return client.focus();
-        }
-        if (self.clients.openWindow) return self.clients.openWindow(targetUrl);
-      })
-  );
-});
-
-self.addEventListener("message", (event) => {
-  if (event.data && event.data.type === "SKIP_WAITING") {
-    self.skipWaiting();
-  }
-});
+<file path=".gitignore">
+.vercel
+node_modules
+.env*.local
 </file>
 
 <file path="src/index.css">
@@ -1850,6 +1742,361 @@ tr:hover td {
 }
 </file>
 
+<file path="src/pages/LoginPage.tsx">
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "../supabaseClient";
+
+interface LoginPageProps {
+  onLoginSuccess: (role: "admin" | "cliente") => void;
+}
+
+export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
+  const navigate = useNavigate();
+  const [selectedRole, setSelectedRole] = useState<"admin" | "cliente">(
+    "admin"
+  );
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    try {
+      if (selectedRole === "admin") {
+        const trimmedUser = username.trim();
+        const trimmedPass = password.trim();
+        if (
+          (trimmedUser === "Angelo" && trimmedPass === "A2026") ||
+          (trimmedUser.toLowerCase() === "giulio" && trimmedPass === "G2026")
+        ) {
+          window.localStorage.setItem("loginRole", "admin");
+          window.localStorage.setItem("loginUsername", trimmedUser);
+          window.localStorage.setItem(
+            "userId",
+            trimmedUser === "Angelo" ? "1" : "2"
+          );
+          onLoginSuccess("admin");
+          navigate("/admin");
+          return;
+        }
+        setError("Credenziali non valide");
+        setLoading(false);
+        return;
+      } else {
+        // Cliente: login tramite tabella clienti su Supabase
+        const { data, error: queryError } = await supabase
+          .from("clienti")
+          .select("id, username, nome_cliente")
+          .eq("username", username)
+          .eq("codice", password)
+          .single();
+
+        if (queryError || !data) {
+          setError("Credenziali non valide");
+          setLoading(false);
+          return;
+        }
+
+        window.localStorage.setItem("loginRole", "cliente");
+        window.localStorage.setItem(
+          "loginUsername",
+          data.nome_cliente || data.username
+        );
+        window.localStorage.setItem("userId", String(data.id));
+        onLoginSuccess("cliente");
+      }
+    } catch (err) {
+      setError("Errore di connessione. Riprova.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div
+      className="min-h-screen flex flex-col items-center justify-center p-5"
+      style={{
+        backgroundImage: 'url("/images/sfondo1.jpg")',
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
+        backgroundAttachment: "fixed",
+        backgroundColor: "#000000"
+      }}
+    >
+      <div className="w-full max-w-sm">
+        {/* Logo e Titolo */}
+        <div
+          className="text-center mb-8"
+          style={{ transform: "translateY(-50px)" }}
+        >
+          <div className="w-32 h-32 mx-auto -mt-8">
+            <img
+              src="/leaf-512.png"
+              alt="GeoGiardini"
+              className="w-32 h-32"
+              style={{ position: "relative", top: "20px" }}
+            />
+          </div>
+          <h1 className="text-2xl font-bold italic leading-tight text-[#2563eb]">
+            GeoGiardini
+          </h1>
+          <p className="font-bold text-[#2563eb] mt-1">
+            Gestione completa delle aree verdi
+          </p>
+        </div>
+
+        {/* Selettore ruolo */}
+        <div className="flex gap-3 mb-6">
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedRole("admin");
+              setError("");
+            }}
+            className={`flex-1 py-3 px-4 rounded-xl font-semibold text-sm transition-all ${
+              selectedRole === "admin"
+                ? "bg-[#154212] text-white shadow-lg"
+                : "bg-white text-[#154212] border-2 border-[#c2c9bb]"
+            }`}
+          >
+            Amministratore
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedRole("cliente");
+              setError("");
+            }}
+            className={`flex-1 py-3 px-4 rounded-xl font-semibold text-sm transition-all ${
+              selectedRole === "cliente"
+                ? "bg-[#154212] text-white shadow-lg"
+                : "bg-white text-[#154212] border-2 border-[#c2c9bb]"
+            }`}
+          >
+            Cliente
+          </button>
+        </div>
+
+        {/* Form */}
+        <form
+          onSubmit={handleLogin}
+          className="rounded-2xl p-6 shadow-lg border border-[#eceeec] space-y-4"
+        >
+          <div>
+            <label className="block text-sm font-bold text-black mb-1.5 ml-1">
+              {selectedRole === "admin" ? "Admin" : "Nome Cliente"}
+            </label>
+            <input
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder={
+                selectedRole === "admin"
+                  ? "Inserisci Admin"
+                  : "Inserisci Nome Cliente"
+              }
+              className="input-field"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-bold text-black mb-1.5 ml-1">
+              {selectedRole === "admin" ? "Password" : "Codice"}
+            </label>
+            <div className="relative">
+              <input
+                type={
+                  selectedRole === "admin" && !showPassword
+                    ? "password"
+                    : "text"
+                }
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder={
+                  selectedRole === "admin" ? "••••••••" : "Inserisci il codice"
+                }
+                className="input-field w-full pr-10"
+              />
+              {selectedRole === "admin" && (
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center text-gray-500 hover:text-gray-700"
+                >
+                  <span className="material-symbols-outlined text-xl">
+                    {showPassword ? "visibility_off" : "visibility"}
+                  </span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {error && (
+            <div className="bg-red-50 text-red-700 text-sm p-3 rounded-xl border border-red-200">
+              {error}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="btn-primary w-full text-base font-bold"
+            style={{
+              minWidth: "14rem",
+              minHeight: "3.25rem",
+              boxShadow: "0 25px 80px rgba(20, 64, 18, 0.14)"
+            }}
+          >
+            {loading ? (
+              <span className="flex items-center gap-2">
+                <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                    fill="none"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                  />
+                </svg>
+                Accesso in corso...
+              </span>
+            ) : (
+              "Accedi"
+            )}
+          </button>
+        </form>
+
+        <p className="text-center text-xs text-[#000080] font-bold mt-6">
+          {selectedRole === "admin"
+            ? "Accesso riservato all'amministratore."
+            : "Accedi per vedere i lavori svolti nel tuo giardino."}
+        </p>
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="public/sw.js">
+const CACHE_NAME = "geogiardini-v4";
+const ASSETS_TO_CACHE = [
+  "/",
+  "/index.html",
+  "/favicon.svg",
+  "/manifest.json",
+  "/leaf-512.png"
+];
+
+self.addEventListener("install", (event) => {
+  self.skipWaiting();
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS_TO_CACHE))
+  );
+});
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(
+        keys.map((key) => {
+          if (key !== CACHE_NAME) return caches.delete(key);
+        })
+      )
+    )
+  );
+  self.clients.claim();
+});
+
+self.addEventListener("push", (event) => {
+  const data = event.data?.json?.() ?? {};
+  const title = data.title || "GeoGiardini";
+  const options = {
+    body: data.body || data.message || "",
+    icon: "/leaf-512.png",
+    badge: "/leaf-512.png",
+    requireInteraction: true,
+    vibrate: [120, 80, 120],
+    data: {
+      url: data.url || "/",
+      ...data.data
+    }
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const targetUrl = event.notification.data?.url || "/";
+  event.waitUntil(
+    self.clients
+      .matchAll({ type: "window", includeUncontrolled: true })
+      .then((clients) => {
+        for (const client of clients) {
+          if ("focus" in client) return client.focus();
+        }
+        if (self.clients.openWindow) return self.clients.openWindow(targetUrl);
+      })
+  );
+});
+
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
+});
+</file>
+
+<file path="package.json">
+{
+  "name": "geogiardini-2",
+  "private": true,
+  "version": "2.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "vercel-build": "npm run build"
+  },
+  "dependencies": {
+    "@fullcalendar/core": "^6.1.20",
+    "@fullcalendar/daygrid": "^6.1.20",
+    "@fullcalendar/interaction": "^6.1.20",
+    "@fullcalendar/react": "^6.1.20",
+    "@fullcalendar/timegrid": "^6.1.20",
+    "@supabase/supabase-js": "^2.107.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.16.0",
+    "recharts": "^3.8.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "autoprefixer": "^10.4.18",
+    "postcss": "^8.4.35",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5.7.0",
+    "vite": "^5.4.1"
+  }
+}
+</file>
+
 <file path="src/pages/FullCalendarPage.tsx">
 import {
   useEffect,
@@ -2254,6 +2501,7 @@ function FullCalendarPage() {
     Set<string>
   >(new Set());
   const [dragWarning, setDragWarning] = useState<string | null>(null);
+  const [calendarKey, setCalendarKey] = useState(0);
   const [selectedAppointmentId, setSelectedAppointmentId] = useState<
     string | null
   >(null);
@@ -2569,6 +2817,7 @@ function FullCalendarPage() {
       setLocalitaList(localitaData.data || []);
       setCategorieList(categorieData.data || []);
       setInserimentiAttivita(inserimentiData.data || []);
+      setCalendarKey((k) => k + 1);
     } catch (err) {
       console.error("Errore caricamento dati calendario", err);
       setError(
@@ -3346,19 +3595,38 @@ function FullCalendarPage() {
 
         const eventTitle = `${attDescr}${clientName ? ` - ${clientName}` : ""}`;
 
+        // Mappa colori in base a stato
+        let eventBgColor: string;
+        const stato = (item.stato || "").toLowerCase();
+        switch (stato) {
+          case "promemoria":
+            eventBgColor = "#f59e0b"; // ambra/giallo
+            break;
+          case "confermato":
+            eventBgColor = "#3b82f6"; // blu
+            break;
+          case "eseguito":
+            eventBgColor = "#10b981"; // verde
+            break;
+          default:
+            eventBgColor = "#2c3e50"; // default
+        }
+
         rawEvents.push({
           id: `ins_${item.id}`,
           title: eventTitle,
           start: buildIsoDateTime(startDate, "08:00"),
           end: buildIsoDateTime(endDate, "17:00"),
-          backgroundColor: "#2c3e50",
-          borderColor: "#2c3e50",
+          backgroundColor: eventBgColor,
+          borderColor: eventBgColor,
           textColor: "#ffffff",
           extendedProps: {
             originalStart: startDate,
             originalEnd: endDate,
             activity: attDescr,
-            location: locName
+            location: locName,
+            stato: item.stato,
+            privato: item.privato
           }
         });
       }
@@ -3563,6 +3831,7 @@ function FullCalendarPage() {
             }}
           >
             <FullCalendar
+              key={calendarKey}
               ref={calendarRef}
               plugins={[dayGridPlugin, interactionPlugin]}
               initialView="dayGridThreeDays"
@@ -3970,6 +4239,64 @@ function FullCalendarPage() {
               </div>
             </div>
           </div>
+
+          {/* Legenda colori stato attività */}
+          <div
+            style={{
+              position: "fixed",
+              bottom: "44px",
+              left: "36px",
+              zIndex: 10,
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              columnGap: "12px",
+              rowGap: "4px",
+              background: "rgba(255,255,255,0.9)",
+              backdropFilter: "blur(4px)",
+              borderRadius: "12px",
+              padding: "6px 8px",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+              fontSize: "10px"
+            }}
+          >
+            <span style={{ display: "flex", alignItems: "center", gap: "3px" }}>
+              <span
+                style={{
+                  width: 10,
+                  height: 10,
+                  borderRadius: 2,
+                  backgroundColor: "#f59e0b",
+                  display: "inline-block"
+                }}
+              />
+              Promemoria
+            </span>
+            <span style={{ display: "flex", alignItems: "center", gap: "3px" }}>
+              <span
+                style={{
+                  width: 10,
+                  height: 10,
+                  borderRadius: 2,
+                  backgroundColor: "#3b82f6",
+                  display: "inline-block"
+                }}
+              />
+              Confermato
+            </span>
+            <span style={{ display: "flex", alignItems: "center", gap: "3px" }}>
+              <span
+                style={{
+                  width: 10,
+                  height: 10,
+                  borderRadius: 2,
+                  backgroundColor: "#10b981",
+                  display: "inline-block"
+                }}
+              />
+              Eseguito
+            </span>
+          </div>
+
           <div
             style={{
               position: "fixed",
@@ -4251,10 +4578,10 @@ function FullCalendarPage() {
                         if (e.target.files) {
                           const total =
                             attivitaNuoveFoto.length + e.target.files.length;
-                          if (total > 8) {
+                          if (total > 6) {
                             setAttivitaStatus({
                               type: "error",
-                              message: "Massimo 8 foto."
+                              message: "Massimo 6 foto."
                             });
                             clearAttivitaStatus();
                             return;
@@ -4266,12 +4593,12 @@ function FullCalendarPage() {
                         }
                       }}
                     />
-                    <div className="flex flex-row gap-4 items-start">
+                    <div className="flex items-start gap-4">
                       <div
-                        className="grid justify-start gap-3 p-2 bg-transparent border border-white"
-                        style={{ gridTemplateColumns: "repeat(4, 60px)" }}
+                        className="grid justify-start gap-3 p-2 bg-transparent border border-white shrink-0"
+                        style={{ gridTemplateColumns: "repeat(3, 60px)" }}
                       >
-                        {Array.from({ length: 8 }).map((_, idx) => {
+                        {Array.from({ length: 6 }).map((_, idx) => {
                           const fotoExistente = attivitaFotoEsistenti[idx];
                           const nuovaFoto = !fotoExistente
                             ? attivitaNuoveFoto[
@@ -4279,12 +4606,12 @@ function FullCalendarPage() {
                               ]
                             : null;
                           const hasPhoto = !!fotoExistente || !!nuovaFoto;
-                          const isLast = idx === 7;
+                          const isLast = idx === 5;
                           const showPlus =
                             isLast &&
                             attivitaNuoveFoto.length +
                               attivitaFotoEsistenti.length <
-                              8;
+                              6;
                           return (
                             <div
                               key={idx}
@@ -4543,45 +4870,8 @@ function FullCalendarPage() {
 export default FullCalendarPage;
 </file>
 
-<file path="package.json">
-{
-  "name": "geogiardini-2",
-  "private": true,
-  "version": "2.0.0",
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "vercel-build": "npm run build"
-  },
-  "dependencies": {
-    "@fullcalendar/core": "^6.1.20",
-    "@fullcalendar/daygrid": "^6.1.20",
-    "@fullcalendar/interaction": "^6.1.20",
-    "@fullcalendar/react": "^6.1.20",
-    "@fullcalendar/timegrid": "^6.1.20",
-    "@supabase/supabase-js": "^2.107.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "react-router-dom": "^6.16.0",
-    "recharts": "^3.8.1"
-  },
-  "devDependencies": {
-    "@types/react": "^18.3.3",
-    "@types/react-dom": "^18.3.0",
-    "@vitejs/plugin-react": "^4.3.1",
-    "autoprefixer": "^10.4.18",
-    "postcss": "^8.4.35",
-    "tailwindcss": "^3.4.1",
-    "typescript": "^5.7.0",
-    "vite": "^5.4.1"
-  }
-}
-</file>
-
 <file path="src/pages/AdminPage.tsx">
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../supabaseClient";
 
@@ -4595,10 +4885,9 @@ function ClientiModal({ onClose }: { onClose: () => void }) {
   const [clientiList, setClientiList] = useState<any[]>([]);
   const [editingClienteId, setEditingClienteId] = useState<string | null>(null);
   const [nomeCliente, setNomeCliente] = useState("");
-  const [indirizzoCliente, setIndirizzoCliente] = useState("");
-  const [telefonoCliente, setTelefonoCliente] = useState("");
   const [clienteCodice, setClienteCodice] = useState("");
   const [clienteAttivo, setClienteAttivo] = useState(false);
+  const [privato, setPrivato] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [statusType, setStatusType] = useState<"success" | "error" | null>(
@@ -4632,15 +4921,31 @@ function ClientiModal({ onClose }: { onClose: () => void }) {
         return;
       }
       setClientiList(
-        (data || []).map((cliente: any) => ({
-          ...cliente,
-          id: cliente.id?.toString?.() ?? "",
-          attivo:
-            cliente.attivo === 1 ||
-            cliente.attivo === "1" ||
-            cliente.attivo === true ||
-            cliente.attivo === "true"
-        }))
+        (data || [])
+          .filter(
+            (cliente: any) =>
+              !(
+                cliente.privato === true &&
+                cliente.created_by !==
+                  (typeof window !== "undefined"
+                    ? window.localStorage.getItem("loginUsername") || ""
+                    : "")
+              )
+          )
+          .map((cliente: any) => ({
+            ...cliente,
+            id: cliente.id?.toString?.() ?? "",
+            attivo:
+              cliente.attivo === 1 ||
+              cliente.attivo === "1" ||
+              cliente.attivo === true ||
+              cliente.attivo === "true",
+            privato:
+              cliente.privato === 1 ||
+              cliente.privato === "1" ||
+              cliente.privato === true ||
+              cliente.privato === "true"
+          }))
       );
     } catch (error) {
       console.error("Caricamento clienti fallito", error);
@@ -4653,13 +4958,9 @@ function ClientiModal({ onClose }: { onClose: () => void }) {
 
   const handleSaveCliente = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (
-      !nomeCliente.trim() ||
-      !indirizzoCliente.trim() ||
-      !clienteCodice.trim()
-    ) {
+    if (!nomeCliente.trim() || !clienteCodice.trim()) {
       setStatusType("error");
-      setStatusMessage("Nome, indirizzo e codice sono obbligatori.");
+      setStatusMessage("Nome e codice sono obbligatori.");
       clearStatusAfterDelay();
       return;
     }
@@ -4669,11 +4970,11 @@ function ClientiModal({ onClose }: { onClose: () => void }) {
     try {
       const payload = {
         nome: nomeCliente.trim(),
-        indirizzo: indirizzoCliente.trim(),
-        telefono: telefonoCliente.trim(),
         codice: clienteCodice.trim(),
-        attivo: clienteAttivo
+        attivo: clienteAttivo,
+        privato: privato
       };
+      payload.created_by = window.localStorage.getItem("loginUsername") || null;
       if (editingClienteId) {
         const { error } = await supabase
           .from("clienti")
@@ -4693,10 +4994,9 @@ function ClientiModal({ onClose }: { onClose: () => void }) {
       await fetchClienti();
       setEditingClienteId(null);
       setNomeCliente("");
-      setIndirizzoCliente("");
-      setTelefonoCliente("");
       setClienteCodice("");
       setClienteAttivo(false);
+      setPrivato(false);
       clearStatusAfterDelay();
     } catch (error) {
       console.error(error);
@@ -4723,8 +5023,6 @@ function ClientiModal({ onClose }: { onClose: () => void }) {
       if (editingClienteId === id) {
         setEditingClienteId(null);
         setNomeCliente("");
-        setIndirizzoCliente("");
-        setTelefonoCliente("");
       }
       clearStatusAfterDelay();
     } catch (error) {
@@ -4765,8 +5063,6 @@ function ClientiModal({ onClose }: { onClose: () => void }) {
   const handleSelectCliente = (cliente: any) => {
     setEditingClienteId(cliente.id);
     setNomeCliente(cliente.nome);
-    setIndirizzoCliente(cliente.indirizzo);
-    setTelefonoCliente(cliente.telefono);
     setClienteCodice(cliente.codice || "");
     setClienteAttivo(
       cliente.attivo === 1 ||
@@ -4774,15 +5070,15 @@ function ClientiModal({ onClose }: { onClose: () => void }) {
         cliente.attivo === true ||
         cliente.attivo === "true"
     );
+    setPrivato(cliente.privato === true);
   };
 
   const handleClearClienteForm = () => {
     setEditingClienteId(null);
     setNomeCliente("");
-    setIndirizzoCliente("");
-    setTelefonoCliente("");
     setClienteCodice("");
     setClienteAttivo(false);
+    setPrivato(false);
     setStatusMessage(null);
     setStatusType(null);
     nomeClienteRef.current?.blur();
@@ -4791,16 +5087,6 @@ function ClientiModal({ onClose }: { onClose: () => void }) {
       document.activeElement instanceof HTMLElement
     )
       document.activeElement.blur();
-  };
-
-  const buildTelUrl = (phone: string) => {
-    const cleaned = phone.trim().replace(/[^\d+]/g, "");
-    return cleaned ? `tel:${cleaned}` : "";
-  };
-
-  const handleTelefonoCall = () => {
-    const telUrl = buildTelUrl(telefonoCliente);
-    if (telUrl) window.location.href = telUrl;
   };
 
   return (
@@ -4844,57 +5130,17 @@ function ClientiModal({ onClose }: { onClose: () => void }) {
           </div>
           <div>
             <label className="pl-2 text-sm font-bold text-black block">
-              Indirizzo
+              Codice
             </label>
             <input
-              className="w-full h-10 px-4 rounded-lg border border-[#c2c9bb] bg-[#f8faf8] focus:ring-2 focus:ring-[#154212] focus:border-[#154212] outline-none text-sm text-black font-bold"
-              placeholder="Es. Via Roma 1"
+              className="w-3/4 h-10 px-4 rounded-lg border border-[#c2c9bb] bg-[#f8faf8] focus:ring-2 focus:ring-[#154212] focus:border-[#154212] outline-none text-sm text-black font-bold"
+              placeholder="Es. CLI-2024"
               type="text"
-              value={indirizzoCliente}
-              onChange={(e) => setIndirizzoCliente(e.target.value)}
+              value={clienteCodice}
+              onChange={(e) => setClienteCodice(e.target.value)}
             />
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="pl-2 text-xs font-bold text-black block">
-                Codice
-              </label>
-              <input
-                className="w-3/4 h-10 px-4 rounded-lg border border-[#c2c9bb] bg-[#f8faf8] focus:ring-2 focus:ring-[#154212] focus:border-[#154212] outline-none text-sm text-black font-bold"
-                placeholder="Es. CLI-2024"
-                type="text"
-                value={clienteCodice}
-                onChange={(e) => setClienteCodice(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="pl-2 text-xs font-bold text-black block">
-                Telefono
-              </label>
-              <div className="relative">
-                <input
-                  className="w-full h-10 pr-12 px-4 rounded-lg border border-[#c2c9bb] bg-[#f8faf8] focus:ring-2 focus:ring-[#154212] focus:border-[#154212] outline-none text-sm text-black font-bold"
-                  placeholder="Es. 345 123 4567"
-                  type="text"
-                  value={telefonoCliente}
-                  onChange={(e) => setTelefonoCliente(e.target.value)}
-                />
-                {telefonoCliente.trim() ? (
-                  <button
-                    type="button"
-                    onClick={handleTelefonoCall}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#25D366] text-white hover:bg-[#1DA851]"
-                    title="Chiama il cliente"
-                  >
-                    <span className="material-symbols-outlined text-base text-white">
-                      call
-                    </span>
-                  </button>
-                ) : null}
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 text-sm font-bold text-black mt-1 pl-2">
+          <div className="flex items-center gap-4 text-sm font-bold text-black mt-1 pl-2">
             <label
               className={`inline-flex items-center gap-2 ${clienteAttivo ? "text-emerald-950" : "text-red-600"}`}
             >
@@ -4915,6 +5161,15 @@ function ClientiModal({ onClose }: { onClose: () => void }) {
                 {clienteAttivo ? "Contatto Attivo" : "Contatto Non attivo"}
               </span>
             </label>
+            <label className="inline-flex items-center gap-2 text-black">
+              <input
+                type="checkbox"
+                className="h-4 w-4 accent-violet-600"
+                checked={privato}
+                onChange={(e) => setPrivato(e.target.checked)}
+              />
+              <span>Contatto Privato</span>
+            </label>
           </div>
 
           <div className="min-h-0">
@@ -4925,7 +5180,7 @@ function ClientiModal({ onClose }: { onClose: () => void }) {
               </p>
             </div>
             <div
-              className="overflow-y-auto rounded-2xl border-2 border-black bg-white p-2 space-y-2 mt-[10px] mb-3"
+              className="overflow-y-auto border border-black bg-white p-0 mt-[10px] mb-3"
               style={{ maxHeight: "245px" }}
             >
               {clientiList.length === 0 ? (
@@ -4945,7 +5200,7 @@ function ClientiModal({ onClose }: { onClose: () => void }) {
                         handleSelectCliente(cliente);
                       }
                     }}
-                    className={`w-full rounded-xl border p-0.5 text-left transition cursor-pointer ${
+                    className={`w-full border-b border-black last:border-b-0 py-2 px-0.5 min-h-[44px] text-left transition cursor-pointer ${
                       editingClienteId === cliente.id
                         ? "border-emerald-600 bg-emerald-600/20 text-black"
                         : "border-[#c2c9bb] bg-white hover:bg-[#eceeec]"
@@ -4965,23 +5220,23 @@ function ClientiModal({ onClose }: { onClose: () => void }) {
                           {cliente.nome}
                         </p>
                       </div>
-                      <button
-                        type="button"
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-red-100 text-red-600 hover:bg-red-200 transition-colors"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openDeleteConfirmation(
-                            "cliente",
-                            cliente.id,
-                            cliente.nome
-                          );
-                        }}
-                        aria-label={`Elimina ${cliente.nome}`}
-                      >
-                        <span className="material-symbols-outlined text-lg">
-                          delete
-                        </span>
-                      </button>
+                      <div className="flex items-center gap-1 shrink-0">
+                        {cliente.privato === true ? (
+                          <span
+                            className="material-symbols-outlined text-sm text-violet-600"
+                            title="Privato"
+                          >
+                            lock
+                          </span>
+                        ) : (
+                          <span
+                            className="material-symbols-outlined text-sm text-blue-500"
+                            title="Pubblico"
+                          >
+                            public
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))
@@ -5006,6 +5261,29 @@ function ClientiModal({ onClose }: { onClose: () => void }) {
               className="flex items-center justify-end gap-12"
               style={{ marginRight: "20px" }}
             >
+              {editingClienteId && (
+                <div className="flex flex-col items-center">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      openDeleteConfirmation(
+                        "cliente",
+                        editingClienteId,
+                        nomeCliente
+                      )
+                    }
+                    className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-violet-600 text-white transition hover:bg-violet-700"
+                    title="Elimina contatto"
+                  >
+                    <span className="material-symbols-outlined text-xl">
+                      delete
+                    </span>
+                  </button>
+                  <span className="mt-1 text-[0.65rem] font-semibold text-white">
+                    Elimina
+                  </span>
+                </div>
+              )}
               <div className="flex flex-col items-center">
                 <button
                   type="button"
@@ -6020,10 +6298,12 @@ function AttivitaModal({ onClose }: { onClose: () => void }) {
 
 function InserisciModal({
   onClose,
-  editData
+  editData,
+  onRecordSaved
 }: {
   onClose: () => void;
   editData?: any;
+  onRecordSaved?: () => void;
 }) {
   const today = new Date().toISOString().split("T")[0];
   const [dataInizio, setDataInizio] = useState(today);
@@ -6089,6 +6369,19 @@ function InserisciModal({
   // Pre-fill form when in edit mode
   useEffect(() => {
     if (editData) {
+      // Blocca modifica se privato di un altro admin
+      if (
+        editData.privato &&
+        editData.created_by &&
+        editData.created_by !==
+          (typeof window !== "undefined"
+            ? window.localStorage.getItem("loginUsername")
+            : "")
+      ) {
+        alert("Non puoi modificare un promemoria privato di un altro admin.");
+        onClose();
+        return;
+      }
       setDataInizio(editData.data_inizio || today);
       setDataInizioEdited(true);
       setDataFine(editData.data_fine || today);
@@ -6195,10 +6488,7 @@ function InserisciModal({
         stato,
         privato
       };
-      if (!editData?.id) {
-        payload.created_by =
-          window.localStorage.getItem("loginUsername") || null;
-      }
+      payload.created_by = window.localStorage.getItem("loginUsername") || null;
 
       let recordId: string;
       if (editData?.id) {
@@ -6236,6 +6526,9 @@ function InserisciModal({
       );
       resetForm();
       clearStatus();
+      // Notifica il padre per aggiornare il badge in tempo reale
+      if (onRecordSaved) onRecordSaved();
+      window.dispatchEvent(new CustomEvent("inserimento-salvato"));
       // Chiudi il modal dopo 2 secondi per far vedere il messaggio
       setTimeout(() => onClose(), 2000);
     } catch (err: any) {
@@ -6283,6 +6576,7 @@ function InserisciModal({
         .delete()
         .eq("id", editData.id);
       setShowDeleteConfirm(false);
+      window.dispatchEvent(new CustomEvent("inserimento-salvato"));
       onClose();
     } catch (err) {
       console.error("Errore eliminazione", err);
@@ -6466,7 +6760,7 @@ function InserisciModal({
             </div>
           </div>
 
-          {/* Griglia foto 4x2 */}
+          {/* Griglia foto 3x2 */}
           <div>
             <input
               ref={fileInputRef}
@@ -6478,9 +6772,9 @@ function InserisciModal({
               onChange={(e) => {
                 if (e.target.files) {
                   const total = nuoveFoto.length + e.target.files.length;
-                  if (total > 8) {
+                  if (total > 6) {
                     setStatusType("error");
-                    setStatusMessage("Massimo 8 foto.");
+                    setStatusMessage("Massimo 6 foto.");
                     clearStatus();
                     return;
                   }
@@ -6491,20 +6785,20 @@ function InserisciModal({
                 }
               }}
             />
-            <div className="flex items-start gap-6">
+            <div className="flex items-start gap-4">
               <div
-                className="grid justify-start gap-3 w-full p-2 bg-transparent border border-white"
-                style={{ gridTemplateColumns: "repeat(4, 60px)" }}
+                className="grid justify-start gap-3 p-2 bg-transparent border border-white shrink-0"
+                style={{ gridTemplateColumns: "repeat(3, 60px)" }}
               >
-                {Array.from({ length: 8 }).map((_, idx) => {
+                {Array.from({ length: 6 }).map((_, idx) => {
                   const fotoExistente = fotoEsistenti[idx];
                   const nuovaFoto = !fotoExistente
                     ? nuoveFoto[idx - fotoEsistenti.length]
                     : null;
                   const hasPhoto = !!fotoExistente || !!nuovaFoto;
-                  const isLast = idx === 7;
+                  const isLast = idx === 5;
                   const showPlus =
-                    isLast && nuoveFoto.length + fotoEsistenti.length < 8;
+                    isLast && nuoveFoto.length + fotoEsistenti.length < 6;
                   return (
                     <div
                       key={idx}
@@ -6557,8 +6851,8 @@ function InserisciModal({
                   );
                 })}
               </div>
-              <div className="flex flex-col gap-4">
-                <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer">
+              <div className="flex flex-row sm:flex-col gap-4 flex-wrap">
+                <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer whitespace-nowrap">
                   <input
                     type="radio"
                     name="stato"
@@ -6569,7 +6863,7 @@ function InserisciModal({
                   />
                   Promemoria
                 </label>
-                <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer">
+                <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer whitespace-nowrap">
                   <input
                     type="radio"
                     name="stato"
@@ -6580,7 +6874,7 @@ function InserisciModal({
                   />
                   Confermato
                 </label>
-                <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer">
+                <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer whitespace-nowrap">
                   <input
                     type="radio"
                     name="stato"
@@ -6591,7 +6885,7 @@ function InserisciModal({
                   />
                   Eseguito
                 </label>
-                <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer">
+                <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer whitespace-nowrap">
                   <input
                     type="checkbox"
                     checked={privato}
@@ -7552,6 +7846,200 @@ function ListaAttivitaModal({ onClose }: { onClose: () => void }) {
   );
 }
 
+// === Promemoria Modal ===
+
+function PromemoriaModal({ onClose }: { onClose: () => void }) {
+  const [list, setList] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editItem, setEditItem] = useState<any | null>(null);
+  const currentUsername =
+    typeof window !== "undefined"
+      ? window.localStorage.getItem("loginUsername") || ""
+      : "";
+
+  const fetchList = async () => {
+    setLoading(true);
+    try {
+      const { data } = await supabase
+        .from("inserimenti_attivita")
+        .select(
+          "*, localita!left(localita), attivita!left(descrizione, categoria_id, categorie!left(id, nome)), clienti!left(nome)"
+        )
+        .eq("stato", "promemoria")
+        .order("data_inizio", { ascending: false });
+      if (data) {
+        // Filtra: se privato=true e created_by !== currentUser, non mostrare
+        const filtered = data.filter(
+          (item: any) => !(item.privato && item.created_by !== currentUsername)
+        );
+        setList(filtered);
+      }
+    } catch (err) {
+      console.error("Errore caricamento promemoria", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchList();
+  }, []);
+
+  const formatDate = (d: string) => {
+    if (!d) return "-";
+    return new Date(d + "T00:00:00").toLocaleDateString("it-IT", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric"
+    });
+  };
+
+  if (editItem) {
+    return (
+      <InserisciModal
+        onClose={() => {
+          setEditItem(null);
+          fetchList();
+        }}
+        editData={editItem}
+        onRecordSaved={() => {
+          window.dispatchEvent(new CustomEvent("inserimento-salvato"));
+        }}
+      />
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/20 backdrop-blur-sm p-0 overflow-auto">
+      <section
+        className="w-full h-full max-w-none flex flex-col border border-[#c2c9bb] bg-[#f2f4f2] shadow-2xl"
+        style={{
+          backgroundImage: "url('/images/sfondo1.jpg')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat"
+        }}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 pb-2">
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-2xl text-[#2563eb]">
+              notifications
+            </span>
+            <h2 className="text-lg font-bold text-[#2563eb]">
+              Lista Promemoria
+            </h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-red-600 text-white hover:bg-red-700 transition"
+            title="Chiudi"
+          >
+            <span className="material-symbols-outlined text-lg">close</span>
+          </button>
+        </div>
+
+        {/* Contenuto scrollabile */}
+        <div
+          className="flex-1 px-4 pb-4 overflow-hidden flex flex-col mt-10"
+          style={{ maxHeight: "60vh" }}
+        >
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <svg
+                className="animate-spin h-8 w-8 text-[#2563eb]"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                  fill="none"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                />
+              </svg>
+            </div>
+          ) : list.length === 0 ? (
+            <div className="flex items-center justify-center py-12 text-gray-500 font-semibold">
+              Nessun promemoria presente.
+            </div>
+          ) : (
+            <div className="overflow-y-auto rounded-xl border border-[#c2c9bb] bg-white p-2 space-y-2">
+              {list.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setEditItem(item)}
+                  className="w-full text-left rounded-xl border border-[#c2c9bb] bg-white p-3 hover:bg-[#eceeec] transition cursor-pointer shadow-sm"
+                >
+                  <div className="grid grid-cols-2 gap-2">
+                    {/* Colonna sinistra */}
+                    <div className="text-left">
+                      <div className="text-xs font-bold text-gray-500">
+                        {formatDate(item.data_inizio)}
+                      </div>
+                      <div className="mt-0.5 text-sm font-bold text-[#191c1b]">
+                        {item.localita?.localita || "—"}
+                        {item.attivita?.descrizione ? (
+                          <span className="font-normal text-[#42493e]">
+                            {" "}
+                            — {item.attivita.descrizione}
+                            {item.clienti?.nome
+                              ? ` — ${item.clienti.nome}`
+                              : ""}
+                          </span>
+                        ) : item.clienti?.nome ? (
+                          ` — ${item.clienti.nome}`
+                        ) : (
+                          ""
+                        )}
+                      </div>
+                    </div>
+                    {/* Colonna destra */}
+                    <div className="text-right">
+                      <div className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
+                        <span className="material-symbols-outlined text-xs">
+                          schedule
+                        </span>
+                        Promemoria
+                      </div>
+                      <div className="mt-0.5">
+                        {item.aggiungi_al_planning ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] text-blue-600 font-semibold">
+                            <span className="material-symbols-outlined text-xs">
+                              calendar_month
+                            </span>
+                            Visibile in planning
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[10px] text-gray-400 font-semibold">
+                            <span className="material-symbols-outlined text-xs">
+                              calendar_month
+                            </span>
+                            Non in planning
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+    </div>
+  );
+}
+
 // === Admin Page ===
 
 export default function AdminPage({ onLogout }: AdminPageProps) {
@@ -7564,10 +8052,11 @@ export default function AdminPage({ onLogout }: AdminPageProps) {
     | "localita"
     | "inserisci"
     | "lista-attivita"
+    | "promemoria"
     | null
   >(null);
   const [now, setNow] = useState(new Date());
-  const [notificaCount, setNotificaCount] = useState(3);
+  const [notificaCount, setNotificaCount] = useState(0);
   const [chatCount, setChatCount] = useState(0);
 
   const actionButtonClasses = (action: string) =>
@@ -7582,27 +8071,25 @@ export default function AdminPage({ onLogout }: AdminPageProps) {
     return () => clearInterval(timer);
   }, []);
 
-  useEffect(() => {
-    const storedCount = window.localStorage.getItem("notificaCount");
-    if (storedCount) {
-      setNotificaCount(Number(storedCount));
+  const fetchNotificaCount = useCallback(async () => {
+    const { count } = await supabase
+      .from("inserimenti_attivita")
+      .select("*", { count: "exact", head: true })
+      .eq("stato", "promemoria");
+    if (count !== null) {
+      setNotificaCount(count);
     }
-
-    const fetchCount = async () => {
-      const { count } = await supabase
-        .from("notifiche")
-        .select("*", { count: "exact", head: true })
-        .eq("read", 0);
-      if (count !== null) {
-        setNotificaCount(count);
-        window.localStorage.setItem("notificaCount", String(count));
-      }
-    };
-
-    fetchCount();
-    const interval = setInterval(fetchCount, 30000);
-    return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    fetchNotificaCount();
+    const interval = setInterval(fetchNotificaCount, 30000);
+    window.addEventListener("inserimento-salvato", fetchNotificaCount);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("inserimento-salvato", fetchNotificaCount);
+    };
+  }, [fetchNotificaCount]);
 
   useEffect(() => {
     const fetchChatCount = async () => {
@@ -7652,20 +8139,37 @@ export default function AdminPage({ onLogout }: AdminPageProps) {
               className="flex flex-col items-start w-full pl-1"
               style={{ marginTop: "-0.5rem" }}
             >
-              <span
-                className="relative inline-flex items-center justify-center w-8 h-8 rounded-lg bg-green-600 text-white"
+              <div
+                className="flex items-center gap-2"
                 style={{ marginTop: "20px" }}
               >
-                <span className="material-symbols-outlined text-lg leading-none">
-                  notifications
-                </span>
-                <span
-                  className="absolute text-[12px] font-bold leading-none"
-                  style={{ top: "-3px", right: "-3px" }}
+                <button
+                  type="button"
+                  onClick={() => setModal("promemoria")}
+                  className="relative inline-flex items-center justify-center w-8 h-8 rounded-lg bg-green-600 text-white"
                 >
-                  {notificaCount}
-                </span>
-              </span>
+                  <span className="material-symbols-outlined text-lg leading-none">
+                    notifications
+                  </span>
+                  <span
+                    className="absolute text-[12px] font-bold leading-none"
+                    style={{ top: "-3px", right: "-3px" }}
+                  >
+                    {notificaCount}
+                  </span>
+                </button>
+                <div
+                  className="relative inline-flex items-center justify-center w-8 h-8 rounded-lg bg-blue-600 text-white"
+                  style={{ marginLeft: "18px" }}
+                >
+                  <span className="material-symbols-outlined text-lg leading-none">
+                    chat
+                  </span>
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                    8
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
           <h1
@@ -7689,7 +8193,10 @@ export default function AdminPage({ onLogout }: AdminPageProps) {
             className="relative left-[-20px] inline-flex flex-col items-center gap-1 rounded-full hover:bg-surface-container transition-colors active:scale-95 duration-150 p-0"
             aria-label="Logout"
           >
-            <span className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-surface">
+            <span
+              className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-surface"
+              style={{ position: "relative", top: "50px" }}
+            >
               <svg
                 className="w-6 h-6 text-on-surface-variant"
                 fill="none"
@@ -7704,7 +8211,10 @@ export default function AdminPage({ onLogout }: AdminPageProps) {
                 <path d="M21 12H9" />
               </svg>
             </span>
-            <span className="text-[0.65rem] font-semibold uppercase tracking-[0.02em] text-on-surface-variant">
+            <span
+              className="text-[0.65rem] font-semibold uppercase tracking-[0.02em] text-on-surface-variant"
+              style={{ position: "relative", top: "50px" }}
+            >
               Logout
             </span>
           </button>
@@ -7733,7 +8243,7 @@ export default function AdminPage({ onLogout }: AdminPageProps) {
               groups
             </span>
             <span className="font-label-lg text-label-lg">
-              Anagrafica Clienti
+              Anagrafica Contatti
             </span>
           </button>
           <button
@@ -7835,12 +8345,18 @@ export default function AdminPage({ onLogout }: AdminPageProps) {
       {modal === "clienti" && <ClientiModal onClose={() => setModal(null)} />}
       {modal === "localita" && <LocalitaModal onClose={() => setModal(null)} />}
       {modal === "inserisci" && (
-        <InserisciModal onClose={() => setModal(null)} />
+        <InserisciModal
+          onClose={() => setModal(null)}
+          onRecordSaved={fetchNotificaCount}
+        />
       )}
       {modal === "attivita" && <AttivitaModal onClose={() => setModal(null)} />}
       {modal === "report" && <ReportModal onClose={() => setModal(null)} />}
       {modal === "lista-attivita" && (
         <ListaAttivitaModal onClose={() => setModal(null)} />
+      )}
+      {modal === "promemoria" && (
+        <PromemoriaModal onClose={() => setModal(null)} />
       )}
     </div>
   );

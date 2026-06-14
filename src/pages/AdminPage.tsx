@@ -15,6 +15,9 @@ function ClientiModal({ onClose }: { onClose: () => void }) {
   const [clienteCodice, setClienteCodice] = useState("");
   const [clienteAttivo, setClienteAttivo] = useState(false);
   const [privato, setPrivato] = useState(false);
+  const [ruolo, setRuolo] = useState<"contatto" | "giardiniere" | "admin">(
+    "contatto"
+  );
   const [isSaving, setIsSaving] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [statusType, setStatusType] = useState<"success" | "error" | null>(
@@ -47,21 +50,27 @@ function ClientiModal({ onClose }: { onClose: () => void }) {
         console.error("Caricamento clienti fallito", error);
         return;
       }
+      const currentUser =
+        typeof window !== "undefined"
+          ? window.localStorage.getItem("loginUsername") || ""
+          : "";
       setClientiList(
         (data || [])
-          .filter(
-            (cliente: any) =>
-              !(
-                cliente.privato === true &&
-                cliente.created_by !==
-                  (typeof window !== "undefined"
-                    ? window.localStorage.getItem("loginUsername") || ""
-                    : "")
-              )
-          )
+          .filter((cliente: any) => {
+            const ruoloCliente = (cliente.ruolo || "contatto").toLowerCase();
+            if (
+              ruoloCliente === "contatto" &&
+              cliente.privato === true &&
+              cliente.created_by !== currentUser
+            ) {
+              return false;
+            }
+            return true;
+          })
           .map((cliente: any) => ({
             ...cliente,
             id: cliente.id?.toString?.() ?? "",
+            ruolo: cliente.ruolo || "contatto",
             attivo:
               cliente.attivo === 1 ||
               cliente.attivo === "1" ||
@@ -95,11 +104,12 @@ function ClientiModal({ onClose }: { onClose: () => void }) {
     setStatusMessage(null);
     setStatusType(null);
     try {
-      const payload = {
+      const payload: any = {
         nome: nomeCliente.trim(),
         codice: clienteCodice.trim(),
         attivo: clienteAttivo,
-        privato: privato
+        privato: ruolo === "contatto" ? privato : false,
+        ruolo: ruolo
       };
       payload.created_by = window.localStorage.getItem("loginUsername") || null;
       if (editingClienteId) {
@@ -124,6 +134,7 @@ function ClientiModal({ onClose }: { onClose: () => void }) {
       setClienteCodice("");
       setClienteAttivo(false);
       setPrivato(false);
+      setRuolo("contatto");
       clearStatusAfterDelay();
     } catch (error) {
       console.error(error);
@@ -198,6 +209,7 @@ function ClientiModal({ onClose }: { onClose: () => void }) {
         cliente.attivo === "true"
     );
     setPrivato(cliente.privato === true);
+    setRuolo(cliente.ruolo || "contatto");
   };
 
   const handleClearClienteForm = () => {
@@ -206,6 +218,7 @@ function ClientiModal({ onClose }: { onClose: () => void }) {
     setClienteCodice("");
     setClienteAttivo(false);
     setPrivato(false);
+    setRuolo("contatto");
     setStatusMessage(null);
     setStatusType(null);
     nomeClienteRef.current?.blur();
@@ -219,7 +232,7 @@ function ClientiModal({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/20 backdrop-blur-sm p-0 overflow-auto">
       <section
-        className="w-full h-full max-w-none flex flex-col rounded-none border border-[#c2c9bb] bg-[#f2f4f2] shadow-2xl p-4 overflow-y-auto"
+        className="w-full h-full max-w-none flex flex-col rounded-none border border-[#c2c9bb] bg-[#f2f4f2] shadow-2xl p-2 sm:p-4 overflow-y-auto"
         style={{
           backgroundImage: "url('/images/sfondo1.jpg')",
           backgroundSize: "cover",
@@ -235,37 +248,55 @@ function ClientiModal({ onClose }: { onClose: () => void }) {
             groups
           </span>
           <h3 className="text-xl font-semibold text-[#2563eb]">
-            {editingClienteId ? "Modifica Contatto" : "Nuovo Contatto"}
+            {editingClienteId ? "Modifica Utente" : "Anagrafica Utenti"}
           </h3>
         </div>
         <form
           className="flex flex-col h-full min-h-0 gap-4"
           onSubmit={handleSaveCliente}
         >
-          <div>
-            <label className="pl-2 text-sm font-bold text-black block">
-              Nome Contatto
-            </label>
-            <input
-              ref={nomeClienteRef}
-              className="w-full h-10 px-4 rounded-lg border border-[#c2c9bb] bg-[#f8faf8] focus:ring-2 focus:ring-[#154212] focus:border-[#154212] outline-none text-sm text-black font-bold"
-              placeholder="Es. Mario Rossi"
-              type="text"
-              value={nomeCliente}
-              onChange={(e) => setNomeCliente(e.target.value)}
-            />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="pl-2 text-sm font-bold text-black block">
+                Nome
+              </label>
+              <input
+                ref={nomeClienteRef}
+                className="w-full h-10 px-4 rounded-lg border border-[#c2c9bb] bg-[#f8faf8] focus:ring-2 focus:ring-[#154212] focus:border-[#154212] outline-none text-sm text-black font-bold"
+                placeholder="Es. Mario Rossi"
+                type="text"
+                value={nomeCliente}
+                onChange={(e) => setNomeCliente(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="pl-2 text-sm font-bold text-black block">
+                Codice
+              </label>
+              <input
+                className="w-full h-10 px-4 rounded-lg border border-[#c2c9bb] bg-[#f8faf8] focus:ring-2 focus:ring-[#154212] focus:border-[#154212] outline-none text-sm text-black font-bold"
+                placeholder="Es. CLI-2024"
+                type="text"
+                value={clienteCodice}
+                onChange={(e) => setClienteCodice(e.target.value)}
+              />
+            </div>
           </div>
-          <div>
+          <div className="mb-4 w-full max-w-full">
             <label className="pl-2 text-sm font-bold text-black block">
-              Codice
+              Ruolo
             </label>
-            <input
-              className="w-3/4 h-10 px-4 rounded-lg border border-[#c2c9bb] bg-[#f8faf8] focus:ring-2 focus:ring-[#154212] focus:border-[#154212] outline-none text-sm text-black font-bold"
-              placeholder="Es. CLI-2024"
-              type="text"
-              value={clienteCodice}
-              onChange={(e) => setClienteCodice(e.target.value)}
-            />
+            <select
+              className="w-full max-w-full h-10 px-2 sm:px-4 rounded-lg border border-[#c2c9bb] bg-[#f8faf8] focus:ring-2 focus:ring-[#154212] focus:border-[#154212] outline-none text-sm text-black font-bold"
+              value={ruolo}
+              onChange={(e) =>
+                setRuolo(e.target.value as "contatto" | "giardiniere" | "admin")
+              }
+            >
+              <option value="contatto">Contatto</option>
+              <option value="giardiniere">Giardiniere</option>
+              <option value="admin">Admin</option>
+            </select>
           </div>
           <div className="flex items-center gap-4 text-sm font-bold text-black mt-1 pl-2">
             <label
@@ -285,24 +316,36 @@ function ClientiModal({ onClose }: { onClose: () => void }) {
                     : { backgroundColor: "#dc2626", borderColor: "#b91c1c" }
                 }
               >
-                {clienteAttivo ? "Contatto Attivo" : "Contatto Non attivo"}
+                {clienteAttivo
+                  ? (ruolo === "giardiniere"
+                      ? "Giardiniere"
+                      : ruolo === "admin"
+                        ? "Admin"
+                        : "Contatto") + " Attivo"
+                  : (ruolo === "giardiniere"
+                      ? "Giardiniere"
+                      : ruolo === "admin"
+                        ? "Admin"
+                        : "Contatto") + " Non attivo"}
               </span>
             </label>
-            <label className="inline-flex items-center gap-2 text-black">
-              <input
-                type="checkbox"
-                className="h-4 w-4 accent-violet-600"
-                checked={privato}
-                onChange={(e) => setPrivato(e.target.checked)}
-              />
-              <span>Contatto Privato</span>
-            </label>
+            {ruolo === "contatto" && (
+              <label className="inline-flex items-center gap-2 text-black ml-8">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 accent-violet-600"
+                  checked={privato}
+                  onChange={(e) => setPrivato(e.target.checked)}
+                />
+                <span>Contatto Privato</span>
+              </label>
+            )}
           </div>
 
           <div className="min-h-0">
             <div className="flex justify-end pr-2">
               <p className="text-right text-sm italic font-bold text-black">
-                Contatti registrati:{" "}
+                Utenti registrati:{" "}
                 <span className="font-bold">{clientiList.length}</span>
               </p>
             </div>
@@ -312,61 +355,99 @@ function ClientiModal({ onClose }: { onClose: () => void }) {
             >
               {clientiList.length === 0 ? (
                 <p className="text-sm text-[#42493e] text-center py-6">
-                  Nessun cliente presente.
+                  Nessun utente presente.
                 </p>
               ) : (
-                clientiList.map((cliente) => (
-                  <div
-                    key={cliente.id}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => handleSelectCliente(cliente)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        handleSelectCliente(cliente);
-                      }
-                    }}
-                    className={`w-full border-b border-black last:border-b-0 py-2 px-0.5 min-h-[44px] text-left transition cursor-pointer ${
-                      editingClienteId === cliente.id
-                        ? "border-emerald-600 bg-emerald-600/20 text-black"
-                        : "border-[#c2c9bb] bg-white hover:bg-[#eceeec]"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="min-w-0">
-                        <p
-                          className={`text-sm truncate ${
-                            cliente.attivo
-                              ? editingClienteId === cliente.id
-                                ? "text-black"
-                                : "text-[#191c1b]"
-                              : "text-red-600 line-through decoration-red-500 decoration-2"
-                          }`}
-                        >
-                          {cliente.nome}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        {cliente.privato === true ? (
-                          <span
-                            className="material-symbols-outlined text-sm text-violet-600"
-                            title="Privato"
-                          >
-                            lock
-                          </span>
-                        ) : (
-                          <span
-                            className="material-symbols-outlined text-sm text-blue-500"
-                            title="Pubblico"
-                          >
-                            public
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))
+                (() => {
+                  const ordineRuolo: Record<string, number> = {
+                    admin: 0,
+                    giardiniere: 1,
+                    contatto: 2
+                  };
+                  const sorted = [...clientiList].sort(
+                    (a, b) =>
+                      (ordineRuolo[a.ruolo] ?? 2) - (ordineRuolo[b.ruolo] ?? 2)
+                  );
+                  return (
+                    <table
+                      className="w-full text-sm"
+                      style={{ borderCollapse: "collapse" }}
+                    >
+                      <thead className="sticky top-0 z-10 bg-white border-b border-black">
+                        <tr className="text-left">
+                          <th className="py-2 px-2 font-bold text-black text-xs uppercase w-1/2">
+                            Nome
+                          </th>
+                          <th className="py-2 px-2 font-bold text-black text-xs uppercase w-1/3">
+                            Ruolo
+                          </th>
+                          <th className="py-2 px-2 font-bold text-black text-xs uppercase w-1/6 text-center">
+                            Privato
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sorted.map((cliente) => {
+                          const ruoloBadge =
+                            cliente.ruolo === "giardiniere"
+                              ? {
+                                  label: "Giardiniere",
+                                  cls: "bg-green-100 text-green-800"
+                                }
+                              : cliente.ruolo === "admin"
+                                ? {
+                                    label: "Admin",
+                                    cls: "bg-purple-100 text-purple-800"
+                                  }
+                                : {
+                                    label: "Contatto",
+                                    cls: "bg-blue-100 text-blue-800"
+                                  };
+                          return (
+                            <tr
+                              key={cliente.id}
+                              role="button"
+                              tabIndex={0}
+                              onClick={() => handleSelectCliente(cliente)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === " ") {
+                                  e.preventDefault();
+                                  handleSelectCliente(cliente);
+                                }
+                              }}
+                              className={`border-b border-black last:border-b-0 cursor-pointer transition ${
+                                editingClienteId === cliente.id
+                                  ? "bg-emerald-600/20"
+                                  : "bg-white hover:bg-[#eceeec]"
+                              }`}
+                            >
+                              <td
+                                className={`py-2 px-2 ${cliente.attivo ? "" : "text-red-600 line-through decoration-red-500 decoration-2"}`}
+                              >
+                                {cliente.nome}
+                              </td>
+                              <td className="py-2 px-2">
+                                <span
+                                  className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${ruoloBadge.cls}`}
+                                >
+                                  {ruoloBadge.label}
+                                </span>
+                              </td>
+                              <td className="py-2 px-2 text-center">
+                                {cliente.ruolo === "contatto" &&
+                                cliente.privato === true ? (
+                                  <span title="Privato">🔒</span>
+                                ) : (
+                                  <span className="text-[#d1d5db]">—</span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  );
+                })()
               )}
             </div>
           </div>
@@ -556,9 +637,19 @@ function LocalitaModal({ onClose }: { onClose: () => void }) {
     if (data) setList(data);
     const { data: c } = await supabase
       .from("clienti")
-      .select("id, nome")
+      .select("id, nome, privato, created_by")
       .order("nome");
-    if (c) setClienti(c);
+    if (c) {
+      const currentUser =
+        typeof window !== "undefined"
+          ? window.localStorage.getItem("loginUsername") || ""
+          : "";
+      setClienti(
+        c.filter(
+          (cl: any) => !(cl.privato === true && cl.created_by !== currentUser)
+        )
+      );
+    }
   };
 
   useEffect(() => {
@@ -1481,12 +1572,25 @@ function InserisciModal({
         .from("attivita")
         .select("*, categorie(nome)")
         .order("descrizione"),
-      supabase.from("clienti").select("id, nome").order("nome")
+      supabase
+        .from("clienti")
+        .select("id, nome, privato, created_by")
+        .order("nome")
     ]);
     if (loc.data) setLocalitaList(loc.data);
     if (cat.data) setCategorieList(cat.data);
     if (att.data) setAttivitaList(att.data);
-    if (cli.data) setClientiList(cli.data);
+    if (cli.data) {
+      const currentUser =
+        typeof window !== "undefined"
+          ? window.localStorage.getItem("loginUsername") || ""
+          : "";
+      setClientiList(
+        cli.data.filter(
+          (c: any) => !(c.privato === true && c.created_by !== currentUser)
+        )
+      );
+    }
   };
 
   useEffect(() => {
@@ -1978,7 +2082,7 @@ function InserisciModal({
                   );
                 })}
               </div>
-              <div className="flex flex-row sm:flex-col gap-4 flex-wrap">
+              <div className="flex flex-col gap-2">
                 <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer whitespace-nowrap">
                   <input
                     type="radio"
@@ -2287,9 +2391,21 @@ function ReportModal({ onClose }: { onClose: () => void }) {
       .then(({ data }) => data && setLocalitaList(data));
     supabase
       .from("clienti")
-      .select("id, nome")
+      .select("id, nome, privato, created_by")
       .order("nome")
-      .then(({ data }) => data && setClientiList(data));
+      .then(({ data }) => {
+        if (data) {
+          const currentUser =
+            typeof window !== "undefined"
+              ? window.localStorage.getItem("loginUsername") || ""
+              : "";
+          setClientiList(
+            data.filter(
+              (c: any) => !(c.privato === true && c.created_by !== currentUser)
+            )
+          );
+        }
+      });
   }, []);
 
   const hasFilters =
@@ -3370,7 +3486,7 @@ export default function AdminPage({ onLogout }: AdminPageProps) {
               groups
             </span>
             <span className="font-label-lg text-label-lg">
-              Anagrafica Contatti
+              Anagrafica Utenti
             </span>
           </button>
           <button
