@@ -754,7 +754,8 @@ function LocalitaModal({ onClose }: { onClose: () => void }) {
   const handleDelete = async (id: string) => {
     setIsSaving(true);
     try {
-      await supabase.from("localita").delete().eq("id", id);
+      const { error } = await supabase.from("localita").delete().eq("id", id);
+      if (error) throw new Error(error.message);
       setStatusType("success");
       setStatusMessage("Località eliminata.");
       if (editingId === id) resetForm();
@@ -1080,6 +1081,7 @@ function AttivitaModal({ onClose }: { onClose: () => void }) {
     type: "attivita";
     id: string;
     label: string;
+    categoriaId?: string;
   } | null>(null);
   const statusTimeoutRef = useRef<number | null>(null);
 
@@ -1201,12 +1203,31 @@ function AttivitaModal({ onClose }: { onClose: () => void }) {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: string, categoriaId?: string) => {
     setIsSaving(true);
     try {
-      await supabase.from("attivita").delete().eq("id", id);
+      const { error } = await supabase.from("attivita").delete().eq("id", id);
+      if (error) throw new Error(error.message);
+
+      let catDeleted = false;
+      if (categoriaId) {
+        const { count, error: countErr } = await supabase
+          .from("attivita")
+          .select("*", { count: "exact", head: true })
+          .eq("categoria_id", categoriaId);
+        if (!countErr && count === 0) {
+          await supabase.from("categorie").delete().eq("id", categoriaId);
+          catDeleted = true;
+        }
+      }
+
       setStatusType("success");
-      setStatusMessage("Attività eliminata.");
+      setStatusMessage(
+        catDeleted
+          ? "Attività e categoria eliminate."
+          : "Attività eliminata. La categoria è condivisa con altre attività e non è stata cancellata."
+      );
+      if (selectedId === id) resetForm();
       await fetchData();
       clearStatus();
     } catch (err: any) {
@@ -1218,17 +1239,21 @@ function AttivitaModal({ onClose }: { onClose: () => void }) {
     }
   };
 
-  const openDeleteConfirm = (id: string, label: string) => {
-    setDeleteConfirmation({ type: "attivita", id, label });
+  const openDeleteConfirm = (
+    id: string,
+    label: string,
+    categoriaId?: string
+  ) => {
+    setDeleteConfirmation({ type: "attivita", id, label, categoriaId });
   };
   const cancelDelete = () => {
     setDeleteConfirmation(null);
   };
   const confirmDelete = async () => {
     if (!deleteConfirmation) return;
-    const { id } = deleteConfirmation;
+    const { id, categoriaId } = deleteConfirmation;
     setDeleteConfirmation(null);
-    await handleDelete(id);
+    await handleDelete(id, categoriaId);
   };
 
   const handleSelectItem = (item: any) => {
@@ -1439,11 +1464,11 @@ function AttivitaModal({ onClose }: { onClose: () => void }) {
                       );
                       if (item) {
                         const label = `${item.categorie?.nome || ""} - ${item.descrizione || ""}`;
-                        setDeleteConfirmation({
-                          type: "attivita",
-                          id: selectedId,
-                          label
-                        });
+                        openDeleteConfirm(
+                          selectedId,
+                          label,
+                          item.categoria_id?.toString()
+                        );
                       }
                     }}
                     className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-violet-600 text-white transition hover:bg-violet-700"
@@ -3457,12 +3482,16 @@ export default function AdminPage({ onLogout }: AdminPageProps) {
 
   useEffect(() => {
     const fetchChatCount = async () => {
-      const { count } = await supabase
-        .from("messaggi")
-        .select("*", { count: "exact", head: true })
-        .eq("letta", false);
-      if (count !== null) {
-        setChatCount(count);
+      try {
+        const { count } = await supabase
+          .from("messaggi")
+          .select("*", { count: "exact", head: true })
+          .eq("letta", false);
+        if (count !== null) {
+          setChatCount(count);
+        }
+      } catch {
+        // Tabella messaggi non ancora creata
       }
     };
     fetchChatCount();
