@@ -373,15 +373,24 @@ function ClientiModal({ onClose }: { onClose: () => void }) {
                       className="w-full text-sm"
                       style={{ borderCollapse: "collapse" }}
                     >
-                      <thead className="sticky top-0 z-10 bg-white border-b border-black">
+                      <thead className="sticky top-0 z-10 border-b border-black">
                         <tr className="text-left">
-                          <th className="py-2 px-2 font-bold text-black text-xs uppercase w-1/2">
+                          <th
+                            className="py-2 px-2 font-bold text-black text-xs uppercase w-1/2"
+                            style={{ backgroundColor: "#bae6fd" }}
+                          >
                             Nome
                           </th>
-                          <th className="py-2 px-2 font-bold text-black text-xs uppercase w-1/3">
+                          <th
+                            className="py-2 px-2 font-bold text-black text-xs uppercase w-1/3"
+                            style={{ backgroundColor: "#bae6fd" }}
+                          >
                             Ruolo
                           </th>
-                          <th className="py-2 px-2 font-bold text-black text-xs uppercase w-1/6 text-center">
+                          <th
+                            className="py-2 px-2 font-bold text-black text-xs uppercase w-1/6 text-center"
+                            style={{ backgroundColor: "#bae6fd" }}
+                          >
                             Privato
                           </th>
                         </tr>
@@ -644,9 +653,24 @@ function LocalitaModal({ onClose }: { onClose: () => void }) {
   const fetchData = async () => {
     const { data } = await supabase
       .from("localita")
-      .select("*, clienti(nome)")
+      .select("*, clienti(nome, privato, created_by)")
       .order("localita");
-    if (data) setList(data);
+    if (data) {
+      const currentUser =
+        typeof window !== "undefined"
+          ? window.localStorage.getItem("loginUsername") || ""
+          : "";
+      setList(
+        data.filter((item: any) => {
+          if (!item.cliente_id) return true;
+          const c = item.clienti;
+          if (!c) return true;
+          if (c.privato === false) return true;
+          if (c.privato === true && c.created_by === currentUser) return true;
+          return false;
+        })
+      );
+    }
     const { data: c } = await supabase
       .from("clienti")
       .select("id, nome, privato, created_by")
