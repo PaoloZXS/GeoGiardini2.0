@@ -668,7 +668,7 @@ function FullCalendarPage() {
           .order("descrizione", { ascending: true }),
         supabase
           .from("localita")
-          .select("id, localita")
+          .select("id, localita, privata, created_by")
           .order("localita", { ascending: true }),
         supabase
           .from("categorie")
@@ -725,7 +725,21 @@ function FullCalendarPage() {
           }))
           .filter((a: any) => a.descrizione)
       );
-      setLocalitaList(localitaData.data || []);
+      const currentUser =
+        typeof window !== "undefined"
+          ? window.localStorage.getItem("loginUsername") || ""
+          : "";
+      setLocalitaList(
+        (localitaData.data || []).filter((item: any) => {
+          const itemPrivata =
+            item.privata === 1 ||
+            item.privata === "1" ||
+            item.privata === true ||
+            item.privata === "true";
+          if (itemPrivata && item.created_by !== currentUser) return false;
+          return true;
+        })
+      );
       setCategorieList(categorieData.data || []);
       setInserimentiAttivita(inserimentiData.data || []);
       setCalendarKey((k) => k + 1);

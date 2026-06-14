@@ -1618,7 +1618,10 @@ function InserisciModal({
 
   const fetchAll = async () => {
     const [loc, cat, att, cli] = await Promise.all([
-      supabase.from("localita").select("id, localita").order("localita"),
+      supabase
+        .from("localita")
+        .select("id, localita, privata, created_by")
+        .order("localita"),
       supabase.from("categorie").select("*").order("nome"),
       supabase
         .from("attivita")
@@ -1629,7 +1632,23 @@ function InserisciModal({
         .select("id, nome, privato, created_by")
         .order("nome")
     ]);
-    if (loc.data) setLocalitaList(loc.data);
+    if (loc.data) {
+      const currentUser =
+        typeof window !== "undefined"
+          ? window.localStorage.getItem("loginUsername") || ""
+          : "";
+      setLocalitaList(
+        loc.data.filter((item: any) => {
+          const itemPrivata =
+            item.privata === 1 ||
+            item.privata === "1" ||
+            item.privata === true ||
+            item.privata === "true";
+          if (itemPrivata && item.created_by !== currentUser) return false;
+          return true;
+        })
+      );
+    }
     if (cat.data) setCategorieList(cat.data);
     if (att.data) setAttivitaList(att.data);
     if (cli.data) {
@@ -2470,9 +2489,27 @@ function ReportModal({ onClose }: { onClose: () => void }) {
       .then(({ data }) => data && setCategorieList(data));
     supabase
       .from("localita")
-      .select("id, localita")
+      .select("id, localita, privata, created_by")
       .order("localita")
-      .then(({ data }) => data && setLocalitaList(data));
+      .then(({ data }) => {
+        if (data) {
+          const currentUser =
+            typeof window !== "undefined"
+              ? window.localStorage.getItem("loginUsername") || ""
+              : "";
+          setLocalitaList(
+            data.filter((item: any) => {
+              const itemPrivata =
+                item.privata === 1 ||
+                item.privata === "1" ||
+                item.privata === true ||
+                item.privata === "true";
+              if (itemPrivata && item.created_by !== currentUser) return false;
+              return true;
+            })
+          );
+        }
+      });
     supabase
       .from("clienti")
       .select("id, nome, privato, created_by")
