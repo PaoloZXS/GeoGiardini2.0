@@ -293,9 +293,9 @@ function ClientiModal({ onClose }: { onClose: () => void }) {
                 setRuolo(e.target.value as "contatto" | "giardiniere" | "admin")
               }
             >
+              <option value="admin">Admin</option>
               <option value="contatto">Contatto</option>
               <option value="giardiniere">Giardiniere</option>
-              <option value="admin">Admin</option>
             </select>
           </div>
           <div className="flex items-center gap-4 text-sm font-bold text-black mt-1 pl-2">
@@ -436,7 +436,19 @@ function ClientiModal({ onClose }: { onClose: () => void }) {
                               <td className="py-2 px-2 text-center">
                                 {cliente.ruolo === "contatto" &&
                                 cliente.privato === true ? (
-                                  <span title="Privato">🔒</span>
+                                  <span
+                                    className="material-symbols-outlined text-base text-violet-600"
+                                    title="Privato"
+                                  >
+                                    lock
+                                  </span>
+                                ) : cliente.ruolo === "contatto" ? (
+                                  <span
+                                    className="material-symbols-outlined text-base text-blue-500"
+                                    title="Pubblico"
+                                  >
+                                    public
+                                  </span>
                                 ) : (
                                   <span className="text-[#d1d5db]">—</span>
                                 )}
