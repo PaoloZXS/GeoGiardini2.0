@@ -727,7 +727,7 @@ function InserisciAttivitaModal({
                 </div>
               )}
             </div>
-            <div className="flex gap-8" style={{ marginTop: "50px" }}>
+            <div className="flex gap-8" style={{ marginTop: "20px" }}>
               <div className="flex flex-col gap-2">
                 <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer whitespace-nowrap">
                   <input
@@ -800,8 +800,8 @@ function InserisciAttivitaModal({
           </div>
 
           {/* Checkbox */}
-          <div className="flex items-center gap-6 pl-2">
-            <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer">
+          <div className="flex flex-row gap-3 items-center whitespace-nowrap text-xs pl-2">
+            <label className="flex items-center gap-2 font-bold text-black cursor-pointer">
               <input
                 type="checkbox"
                 className="h-4 w-4 accent-[#154212]"
@@ -810,7 +810,7 @@ function InserisciAttivitaModal({
               />
               Foto visibili al Contatto
             </label>
-            <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer">
+            <label className="flex items-center gap-2 font-bold text-black cursor-pointer">
               <input
                 type="checkbox"
                 className="h-4 w-4 accent-[#154212]"
@@ -821,9 +821,9 @@ function InserisciAttivitaModal({
             </label>
           </div>
 
-          <div className="mt-auto bg-transparent pt-3 pb-3">
+          <div className="bg-transparent pt-0 pb-0 mt-12">
             <div
-              className="flex items-center justify-end gap-12"
+              className="flex items-center justify-end gap-8"
               style={{ marginRight: "20px" }}
             >
               <div className="flex flex-col items-center">
