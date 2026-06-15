@@ -821,7 +821,7 @@ function InserisciAttivitaModal({
             </label>
           </div>
 
-          <div className="bg-transparent pt-0 pb-0 mt-12">
+          <div className="bg-transparent pt-0 pb-0 mt-4">
             <div
               className="flex items-center justify-end gap-8"
               style={{ marginRight: "20px" }}

@@ -1467,7 +1467,7 @@ function AttivitaModal({ onClose }: { onClose: () => void }) {
               <span className="font-bold">{list.length}</span>
             </p>
             <div className="border rounded-lg border-[#e2e8f0] overflow-hidden">
-              <div className="overflow-y-auto" style={{ maxHeight: "400px" }}>
+              <div className="overflow-y-auto" style={{ maxHeight: "320px" }}>
                 <table
                   className="w-full text-sm"
                   style={{ borderCollapse: "collapse" }}
