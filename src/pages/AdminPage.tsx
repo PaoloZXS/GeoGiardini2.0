@@ -2890,7 +2890,9 @@ function ReportModal({ onClose }: { onClose: () => void }) {
             <option value="" className="text-[#9ca3af]">
               Contatto
             </option>
-            {clientiList.map((c) => (
+            {clientiList
+              .filter((c: any) => c.ruolo !== "giardiniere")
+              .map((c) => (
               <option key={c.id} value={c.id} className="text-black">
                 {c.nome}
               </option>
