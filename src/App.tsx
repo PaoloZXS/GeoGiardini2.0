@@ -3,6 +3,7 @@ import { HashRouter, Navigate, Route, Routes } from "react-router-dom";
 import LoginPage from "./pages/LoginPage";
 import AdminPage from "./pages/AdminPage";
 import ClientePage from "./pages/ClientePage";
+import GiardinierePage from "./pages/GiardinierePage";
 import FullCalendarPage from "./pages/FullCalendarPage";
 import WeatherPage from "./pages/WeatherPage";
 
@@ -15,7 +16,7 @@ function clearStoredAuth() {
 
 function App() {
   const [authenticatedRole, setAuthenticatedRole] = useState<
-    "admin" | "cliente" | null
+    "admin" | "giardiniere" | "cliente" | null
   >(null);
   const [authResolved, setAuthResolved] = useState(false);
   const [pushNotification, setPushNotification] = useState<string | null>(null);
@@ -36,6 +37,12 @@ function App() {
 
     if (stored === "admin") {
       setAuthenticatedRole("admin");
+      setAuthResolved(true);
+      return;
+    }
+
+    if (stored === "giardiniere" && storedUserId) {
+      setAuthenticatedRole("giardiniere");
       setAuthResolved(true);
       return;
     }
@@ -95,6 +102,8 @@ function App() {
   const homeElement =
     authenticatedRole === "admin" ? (
       <Navigate to="/admin" replace />
+    ) : authenticatedRole === "giardiniere" ? (
+      <Navigate to="/giardiniere" replace />
     ) : authenticatedRole === "cliente" ? (
       <Navigate to="/cliente" replace />
     ) : (
@@ -132,6 +141,16 @@ function App() {
           element={
             authenticatedRole === "admin" ? (
               <WeatherPage onBack={() => { window.location.hash = "#/admin"; }} />
+            ) : (
+              <Navigate to="/" replace />
+            )
+          }
+        />
+        <Route
+          path="/giardiniere"
+          element={
+            authenticatedRole === "giardiniere" ? (
+              <GiardinierePage onLogout={handleLogout} />
             ) : (
               <Navigate to="/" replace />
             )

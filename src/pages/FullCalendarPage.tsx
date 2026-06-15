@@ -423,7 +423,7 @@ function FullCalendarPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isNewAppointmentModal, setIsNewAppointmentModal] = useState(false);
   const [clientiList, setClientiList] = useState<
-    Array<{ id: string; nome: string }>
+    Array<{ id: string; nome: string; ruolo: string }>
   >([]);
   const [attivitaList, setAttivitaList] = useState<
     Array<{ id: string; descrizione: string; categoria_id: string }>
@@ -444,6 +444,7 @@ function FullCalendarPage() {
   const [attivitaAttivitaId, setAttivitaAttivitaId] = useState("");
   const [attivitaNote, setAttivitaNote] = useState("");
   const [attivitaClienteId, setAttivitaClienteId] = useState("");
+  const [attivitaGiardiniereIds, setAttivitaGiardiniereIds] = useState<string[]>([]);
   const [attivitaVisibile, setAttivitaVisibile] = useState(false);
   const [attivitaStato, setAttivitaStato] = useState<
     "promemoria" | "confermato" | "eseguito"
@@ -455,6 +456,8 @@ function FullCalendarPage() {
     useState(true);
   const [attivitaNuoveFoto, setAttivitaNuoveFoto] = useState<File[]>([]);
   const [attivitaFotoEsistenti, setAttivitaFotoEsistenti] = useState<any[]>([]);
+  const [attivitaGiardinieriOpen, setAttivitaGiardinieriOpen] = useState(false);
+  const attivitaGiardinieriRef = useRef<HTMLDivElement>(null);
   const [attivitaSaving, setAttivitaSaving] = useState(false);
   const [attivitaStatus, setAttivitaStatus] = useState<{
     type: "success" | "error";
@@ -660,7 +663,7 @@ function FullCalendarPage() {
           .order("data", { ascending: true }),
         supabase
           .from("clienti")
-          .select("id, nome, privato, created_by")
+          .select("id, nome, privato, created_by, ruolo")
           .order("nome", { ascending: true }),
         supabase
           .from("attivita")
@@ -711,7 +714,8 @@ function FullCalendarPage() {
           )
           .map((c: any) => ({
             id: c.id?.toString() ?? "",
-            nome: c.nome?.toString() ?? ""
+            nome: c.nome?.toString() ?? "",
+            ruolo: c.ruolo ?? "contatto"
           }))
           .filter((c: any) => c.id && c.nome)
       );
@@ -1035,6 +1039,7 @@ function FullCalendarPage() {
     setAttivitaAttivitaId("");
     setAttivitaNote("");
     setAttivitaClienteId("");
+    setAttivitaGiardiniereIds([]);
     setAttivitaVisibile(false);
     setAttivitaNuoveFoto([]);
     setAttivitaFotoEsistenti([]);
@@ -1067,6 +1072,7 @@ function FullCalendarPage() {
     setAttivitaAttivitaId("");
     setAttivitaNote("");
     setAttivitaClienteId("");
+    setAttivitaGiardiniereIds([]);
     setAttivitaVisibile(false);
     setAttivitaStato("promemoria");
     setAttivitaPrivato(false);
@@ -1084,6 +1090,17 @@ function FullCalendarPage() {
     setShowDeleteConfirm(false);
     setShowAttivitaForm(false);
   };
+
+  // Chiudi dropdown giardinieri al click fuori
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (attivitaGiardinieriRef.current && !attivitaGiardinieriRef.current.contains(e.target as Node)) {
+        setAttivitaGiardinieriOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
 
   const clearAttivitaStatus = () => {
     if (attivitaStatusTimeoutRef.current)
@@ -1139,6 +1156,7 @@ function FullCalendarPage() {
         attivita_id: attivitaAttivitaId,
         note: attivitaNote.trim() || null,
         cliente_id: attivitaClienteId || null,
+        giardiniere_ids: attivitaGiardiniereIds.length > 0 ? attivitaGiardiniereIds : null,
         visibile: attivitaVisibile,
         aggiungi_al_planning: true,
         stato: attivitaStato,
@@ -1843,6 +1861,7 @@ function FullCalendarPage() {
                   setAttivitaAttivitaId(item.attivita_id?.toString() || "");
                   setAttivitaNote(item.note || "");
                   setAttivitaClienteId(item.cliente_id?.toString() || "");
+                  setAttivitaGiardiniereIds(item.giardiniere_ids ? (Array.isArray(item.giardiniere_ids) ? item.giardiniere_ids.map((x: any) => String(x)) : []) : []);
                   setAttivitaVisibile(!!item.visibile);
                   setAttivitaStato(
                     (item.stato as "promemoria" | "confermato" | "eseguito") ||
@@ -1914,6 +1933,7 @@ function FullCalendarPage() {
                   setAttivitaAttivitaId(match.attivita_id?.toString() || "");
                   setAttivitaNote(match.note || "");
                   setAttivitaClienteId(match.cliente_id?.toString() || "");
+                  setAttivitaGiardiniereIds(match.giardiniere_ids ? (Array.isArray(match.giardiniere_ids) ? match.giardiniere_ids.map((x: any) => String(x)) : []) : []);
                   setAttivitaVisibile(!!match.visibile);
                   const { data: foto } = await supabase
                     .from("foto_attivita")
@@ -1938,6 +1958,7 @@ function FullCalendarPage() {
                   setAttivitaAttivitaId(att?.id?.toString() || "");
                   setAttivitaNote(appt.note || "");
                   setAttivitaClienteId(appt.cliente_id?.toString() || "");
+                  setAttivitaGiardiniereIds(appt.giardiniere_ids ? (Array.isArray(appt.giardiniere_ids) ? appt.giardiniere_ids.map((x: any) => String(x)) : []) : []);
                   setAttivitaVisibile(false);
                   setShowAttivitaForm(true);
                 }
@@ -2476,26 +2497,105 @@ function FullCalendarPage() {
                     />
                   </div>
 
-                  {/* Cliente */}
-                  <div>
-                    <label className="pl-2 text-sm font-bold text-black block">
-                      Contatto
-                    </label>
-                    <select
-                      className="w-full h-10 px-4 rounded-lg border border-[#c2c9bb] bg-[#f8faf8] focus:ring-2 focus:ring-[#154212] outline-none text-xs font-bold"
-                      value={attivitaClienteId}
-                      onChange={(e) => setAttivitaClienteId(e.target.value)}
-                      style={{ color: attivitaClienteId ? "black" : "#9ca3af" }}
-                    >
-                      <option value="" className="text-[#9ca3af]">
-                        Seleziona contatto
-                      </option>
-                      {clientiList.map((c: any) => (
-                        <option key={c.id} value={c.id} className="text-black">
-                          {c.nome}
+                  {/* Cliente + Giardiniere */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="pl-2 text-sm font-bold text-black block">
+                        Contatto
+                      </label>
+                      <select
+                        className="w-full h-10 px-4 rounded-lg border border-[#c2c9bb] bg-[#f8faf8] focus:ring-2 focus:ring-[#154212] outline-none text-xs font-bold"
+                        value={attivitaClienteId}
+                        onChange={(e) => setAttivitaClienteId(e.target.value)}
+                        style={{ color: attivitaClienteId ? "black" : "#9ca3af" }}
+                      >
+                        <option value="" className="text-[#9ca3af]">
+                          Seleziona contatto
                         </option>
-                      ))}
-                    </select>
+                        {clientiList
+                          .filter((c: any) => c.ruolo === "contatto")
+                          .map((c: any) => (
+                          <option key={c.id} value={c.id} className="text-black">
+                            {c.nome}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div ref={attivitaGiardinieriRef} className="relative">
+                      <label className="pl-2 text-sm font-bold text-black block">
+                        Giardinieri
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setAttivitaGiardinieriOpen(!attivitaGiardinieriOpen)}
+                        className="w-full h-10 px-4 rounded-lg border border-[#c2c9bb] bg-[#f8faf8] text-xs font-bold text-left truncate flex items-center justify-between gap-2"
+                        style={{ color: attivitaGiardiniereIds.length > 0 ? "black" : "#9ca3af" }}
+                      >
+                        <span className="truncate">
+                          {(() => {
+                            if (attivitaGiardiniereIds.length === 0) return "Seleziona giardinieri...";
+                            const tutti = clientiList.filter((c: any) => c.ruolo === "giardiniere");
+                            if (tutti.length > 0 && tutti.every((c: any) => attivitaGiardiniereIds.includes(c.id))) return "TUTTI";
+                            return tutti.filter((c: any) => attivitaGiardiniereIds.includes(c.id)).map((c: any) => c.nome).join(", ");
+                          })()}
+                        </span>
+                        <span className="shrink-0 text-xs">{attivitaGiardinieriOpen ? "▲" : "▼"}</span>
+                      </button>
+                      {attivitaGiardinieriOpen && (
+                        <div className="absolute z-50 mt-1 w-full rounded-lg border border-[#c2c9bb] bg-[#f8faf8] shadow-lg p-1 max-h-48 overflow-y-auto">
+                          {(() => {
+                            const giardinieriList = clientiList.filter((c: any) => c.ruolo === "giardiniere");
+                            const tuttiSelezionati = giardinieriList.length > 0 && giardinieriList.every((c) => attivitaGiardiniereIds.includes(c.id));
+                            return (
+                              <>
+                                <label className="flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer bg-[#fef9c3] hover:bg-[#fef08a] text-xs font-bold text-black border-b border-[#c2c9bb] mb-1">
+                                  <input
+                                    type="checkbox"
+                                    className="h-4 w-4 accent-[#154212]"
+                                    checked={tuttiSelezionati}
+                                    onChange={() => {
+                                      if (tuttiSelezionati) {
+                                        setAttivitaGiardiniereIds([]);
+                                      } else {
+                                        setAttivitaGiardiniereIds(giardinieriList.map((c) => c.id));
+                                      }
+                                      setAttivitaGiardinieriOpen(false);
+                                    }}
+                                  />
+                                  TUTTI
+                                </label>
+                                {giardinieriList.map((c: any) => {
+                                  const isChecked = attivitaGiardiniereIds.includes(c.id);
+                                  return (
+                                    <label
+                                      key={c.id}
+                                      className="flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer hover:bg-[#e2e8e2] text-xs font-bold text-black"
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        className="h-4 w-4 accent-[#154212]"
+                                        checked={isChecked}
+                                        onChange={() => {
+                                          setAttivitaGiardiniereIds(
+                                            isChecked
+                                              ? attivitaGiardiniereIds.filter((id) => id !== c.id)
+                                              : [...attivitaGiardiniereIds, c.id]
+                                          );
+                                        }}
+                                      />
+                                      {c.nome}
+                                    </label>
+                                  );
+                                })}
+                                {giardinieriList.length === 0 && (
+                                  <div className="px-3 py-2 text-xs text-[#9ca3af]">Nessun giardiniere disponibile</div>
+                                )}
+                              </>
+                            );
+                          })()}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Griglia foto 4x2 */}
@@ -2662,8 +2762,8 @@ function FullCalendarPage() {
                                 }
                               />
                               {attivitaVisibileGiardiniere
-                                ? "SI Giardinieri"
-                                : "NO Giardinieri"}
+                                ? "Si Invio ai Giardinieri"
+                                : "No Invio ai Giardinieri"}
                             </label>
                             <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer">
                               <input
@@ -2675,8 +2775,8 @@ function FullCalendarPage() {
                                 }
                               />
                               {attivitaVisibileContatto
-                                ? "SI Contatti"
-                                : "NO Contatti"}
+                                ? "Si Invio al Contatto"
+                                : "No Invio al Contatto"}
                             </label>
                           </>
                         )}
@@ -2693,7 +2793,7 @@ function FullCalendarPage() {
                         checked={attivitaVisibile}
                         onChange={(e) => setAttivitaVisibile(e.target.checked)}
                       />
-                      Foto visibile al Contatto
+                      Foto visibili al Contatto
                     </label>
                   </div>
 

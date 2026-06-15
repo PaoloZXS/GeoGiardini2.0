@@ -15,8 +15,8 @@ function ClientiModal({ onClose }: { onClose: () => void }) {
   const [clienteCodice, setClienteCodice] = useState("");
   const [clienteAttivo, setClienteAttivo] = useState(false);
   const [privato, setPrivato] = useState(false);
-  const [ruolo, setRuolo] = useState<"contatto" | "giardiniere" | "admin">(
-    "contatto"
+  const [ruolo, setRuolo] = useState<"" | "contatto" | "giardiniere" | "admin">(
+    ""
   );
   const [isSaving, setIsSaving] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -104,9 +104,72 @@ function ClientiModal({ onClose }: { onClose: () => void }) {
     setStatusMessage(null);
     setStatusType(null);
     try {
+      // Controllo duplicati (tabella clienti + admin fissi)
+      const nomeTrim = nomeCliente.trim();
+      const codiceTrim = clienteCodice.trim();
+
+      const adminFissi = [
+        { nome: "Angelo", codice: "A2026", ruolo: "admin" },
+        { nome: "Giulio", codice: "G2026", ruolo: "admin" }
+      ];
+
+      let stessoNomeRuolo = false;
+      let stessoCodice = false;
+
+      // Controllo admin fissi (solo per ruolo admin)
+      if (ruolo === "admin") {
+        for (const fisso of adminFissi) {
+          if (fisso.nome.toLowerCase() === nomeTrim.toLowerCase()) {
+            stessoNomeRuolo = true;
+          }
+          if (fisso.codice === codiceTrim) {
+            stessoCodice = true;
+          }
+        }
+      }
+
+      // Controllo tabella clienti
+      const { data: duplicati } = await supabase
+        .from("clienti")
+        .select("id, nome, codice, ruolo");
+
+      if (duplicati) {
+        for (const c of duplicati) {
+          if (editingClienteId && c.id === editingClienteId) continue;
+          if (!stessoNomeRuolo && c.nome?.toLowerCase() === nomeTrim.toLowerCase() && c.ruolo === ruolo) {
+            stessoNomeRuolo = true;
+          }
+          if (!stessoCodice && c.codice === codiceTrim) {
+            stessoCodice = true;
+          }
+        }
+      }
+
+      if (stessoNomeRuolo && stessoCodice) {
+        setStatusType("error");
+        setStatusMessage("Username già esistente per questo ruolo e password inutilizzabile. Cambia entrambi.");
+        clearStatusAfterDelay();
+        setIsSaving(false);
+        return;
+      }
+      if (stessoNomeRuolo) {
+        setStatusType("error");
+        setStatusMessage("Username già esistente per questo ruolo. Scegli un nome diverso.");
+        clearStatusAfterDelay();
+        setIsSaving(false);
+        return;
+      }
+      if (stessoCodice) {
+        setStatusType("error");
+        setStatusMessage("Impossibile usare questa password, modificarla.");
+        clearStatusAfterDelay();
+        setIsSaving(false);
+        return;
+      }
+
       const payload: any = {
-        nome: nomeCliente.trim(),
-        codice: clienteCodice.trim(),
+        nome: nomeTrim,
+        codice: codiceTrim,
         attivo: clienteAttivo,
         privato: ruolo === "contatto" ? privato : false,
         ruolo: ruolo
@@ -134,7 +197,7 @@ function ClientiModal({ onClose }: { onClose: () => void }) {
       setClienteCodice("");
       setClienteAttivo(false);
       setPrivato(false);
-      setRuolo("contatto");
+      setRuolo("");
       clearStatusAfterDelay();
     } catch (error) {
       console.error(error);
@@ -158,10 +221,7 @@ function ClientiModal({ onClose }: { onClose: () => void }) {
       setStatusType("success");
       setStatusMessage("Cliente eliminato con successo.");
       await fetchClienti();
-      if (editingClienteId === id) {
-        setEditingClienteId(null);
-        setNomeCliente("");
-      }
+      handleClearClienteForm();
       clearStatusAfterDelay();
     } catch (error) {
       console.error(error);
@@ -218,7 +278,7 @@ function ClientiModal({ onClose }: { onClose: () => void }) {
     setClienteCodice("");
     setClienteAttivo(false);
     setPrivato(false);
-    setRuolo("contatto");
+    setRuolo("");
     setStatusMessage(null);
     setStatusType(null);
     nomeClienteRef.current?.blur();
@@ -240,6 +300,19 @@ function ClientiModal({ onClose }: { onClose: () => void }) {
           backgroundRepeat: "no-repeat"
         }}
       >
+        {statusMessage && (
+          <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30">
+            <div
+              className={`text-center text-base font-bold py-4 px-8 rounded-2xl shadow-2xl max-w-[300px] mx-auto ${
+                statusType === "success"
+                  ? "bg-emerald-100 text-emerald-950 border-2 border-emerald-400"
+                  : "bg-red-100 text-red-700 border-2 border-red-400"
+              }`}
+            >
+              {statusMessage}
+            </div>
+          </div>
+        )}
         <div className="flex items-center justify-center gap-3 mb-3">
           <span
             className="material-symbols-outlined text-3xl text-[#2563eb]"
@@ -293,6 +366,7 @@ function ClientiModal({ onClose }: { onClose: () => void }) {
                 setRuolo(e.target.value as "contatto" | "giardiniere" | "admin")
               }
             >
+              <option value="" disabled className="text-[#9ca3af]">Scegliere un ruolo...</option>
               <option value="admin">Admin</option>
               <option value="contatto">Contatto</option>
               <option value="giardiniere">Giardiniere</option>
@@ -333,7 +407,7 @@ function ClientiModal({ onClose }: { onClose: () => void }) {
               <label className="inline-flex items-center gap-2 text-black ml-8">
                 <input
                   type="checkbox"
-                  className="h-4 w-4 accent-violet-600"
+                  className="h-4 w-4 accent-green-700"
                   checked={privato}
                   onChange={(e) => setPrivato(e.target.checked)}
                 />
@@ -360,9 +434,9 @@ function ClientiModal({ onClose }: { onClose: () => void }) {
               ) : (
                 (() => {
                   const ordineRuolo: Record<string, number> = {
-                    admin: 0,
+                    contatto: 0,
                     giardiniere: 1,
-                    contatto: 2
+                    admin: 2
                   };
                   const sorted = [...clientiList].sort(
                     (a, b) =>
@@ -444,20 +518,16 @@ function ClientiModal({ onClose }: { onClose: () => void }) {
                               </td>
                               <td className="py-2 px-2 text-center">
                                 {cliente.ruolo === "contatto" &&
-                                cliente.privato === true ? (
-                                  <span
-                                    className="material-symbols-outlined text-base text-violet-600"
-                                    title="Privato"
-                                  >
-                                    lock
-                                  </span>
-                                ) : cliente.ruolo === "contatto" ? (
-                                  <span
-                                    className="material-symbols-outlined text-base text-blue-500"
-                                    title="Pubblico"
-                                  >
-                                    public
-                                  </span>
+                                cliente.ruolo === "contatto" ? (
+                                  cliente.privato === true ? (
+                                    <span className="text-green-700 font-bold">
+                                      SI
+                                    </span>
+                                  ) : (
+                                    <span className="text-red-700 font-bold">
+                                      NO
+                                    </span>
+                                  )
                                 ) : (
                                   <span className="text-[#d1d5db]">—</span>
                                 )}
@@ -472,18 +542,6 @@ function ClientiModal({ onClose }: { onClose: () => void }) {
               )}
             </div>
           </div>
-
-          {statusMessage && (
-            <div
-              className={`text-center text-sm font-bold py-2 px-4 rounded-xl ${
-                statusType === "success"
-                  ? "bg-emerald-100 text-emerald-950 border border-emerald-300"
-                  : "bg-red-100 text-red-600 border border-red-300"
-              }`}
-            >
-              {statusMessage}
-            </div>
-          )}
 
           <div className="mt-auto bg-transparent pt-3 pb-3">
             <div
@@ -1608,6 +1666,7 @@ function InserisciModal({
   const [attivitaId, setAttivitaId] = useState("");
   const [note, setNote] = useState("");
   const [clienteId, setClienteId] = useState("");
+  const [giardiniereIds, setGiardiniereIds] = useState<string[]>([]);
   const [nuoveFoto, setNuoveFoto] = useState<File[]>([]);
   const [fotoEsistenti, setFotoEsistenti] = useState<any[]>([]);
   const [visibile, setVisibile] = useState(false);
@@ -1624,6 +1683,8 @@ function InserisciModal({
   const [categorieList, setCategorieList] = useState<any[]>([]);
   const [attivitaList, setAttivitaList] = useState<any[]>([]);
   const [clientiList, setClientiList] = useState<any[]>([]);
+  const [giardinieriOpen, setGiardinieriOpen] = useState(false);
+  const giardinieriRef = useRef<HTMLDivElement>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [statusType, setStatusType] = useState<"success" | "error" | null>(
@@ -1654,7 +1715,7 @@ function InserisciModal({
         .order("descrizione"),
       supabase
         .from("clienti")
-        .select("id, nome, privato, created_by")
+        .select("id, nome, privato, created_by, ruolo")
         .order("nome")
     ]);
     if (loc.data) {
@@ -1693,6 +1754,17 @@ function InserisciModal({
     fetchAll();
   }, []);
 
+  // Chiudi dropdown giardinieri al click fuori
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (giardinieriRef.current && !giardinieriRef.current.contains(e.target as Node)) {
+        setGiardinieriOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
   // Pre-fill form when in edit mode
   useEffect(() => {
     if (editData) {
@@ -1717,6 +1789,7 @@ function InserisciModal({
       setAttivitaId(editData.attivita_id || "");
       setNote(editData.note || "");
       setClienteId(editData.cliente_id || "");
+      setGiardiniereIds(editData.giardiniere_ids ? (Array.isArray(editData.giardiniere_ids) ? editData.giardiniere_ids.map((x: any) => String(x)) : []) : []);
       setVisibile(!!editData.visibile);
       setAggiungiPlanning(!!editData.aggiungi_al_planning);
       setStato(
@@ -1771,6 +1844,7 @@ function InserisciModal({
     setAttivitaId("");
     setNote("");
     setClienteId("");
+    setGiardiniereIds([]);
     setNuoveFoto([]);
     setFotoEsistenti([]);
     setVisibile(false);
@@ -1814,6 +1888,7 @@ function InserisciModal({
         attivita_id: attivitaId,
         note: note.trim() || null,
         cliente_id: clienteId || null,
+        giardiniere_ids: giardiniereIds.length > 0 ? giardiniereIds : null,
         visibile,
         aggiungi_al_planning: aggiungiPlanning,
         stato,
@@ -2069,8 +2144,8 @@ function InserisciModal({
             />
           </div>
 
-          {/* Cliente */}
-          <div className="grid grid-cols-2 gap-4">
+          {/* Cliente + Giardiniere */}
+          <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="pl-2 text-sm font-bold text-black block">
                 Contatto
@@ -2084,12 +2159,89 @@ function InserisciModal({
                 <option value="" className="text-[#9ca3af]">
                   Seleziona contatto
                 </option>
-                {clientiList.map((c) => (
+                {clientiList
+                  .filter((c: any) => c.ruolo === "contatto")
+                  .map((c) => (
                   <option key={c.id} value={c.id} className="text-black">
                     {c.nome}
                   </option>
                 ))}
               </select>
+            </div>
+            <div ref={giardinieriRef} className="relative">
+              <label className="pl-2 text-sm font-bold text-black block">
+                Giardinieri
+              </label>
+              <button
+                type="button"
+                onClick={() => setGiardinieriOpen(!giardinieriOpen)}
+                className="w-full h-10 px-4 rounded-lg border border-[#c2c9bb] bg-[#f8faf8] text-xs font-bold text-left truncate flex items-center justify-between gap-2"
+                style={{ color: giardiniereIds.length > 0 ? "black" : "#9ca3af" }}
+              >
+                <span className="truncate">
+                  {(() => {
+                    if (giardiniereIds.length === 0) return "Seleziona giardinieri...";
+                    const tutti = clientiList.filter((c: any) => c.ruolo === "giardiniere");
+                    if (tutti.length > 0 && tutti.every((c: any) => giardiniereIds.includes(c.id))) return "TUTTI";
+                    return tutti.filter((c: any) => giardiniereIds.includes(c.id)).map((c: any) => c.nome).join(", ");
+                  })()}
+                </span>
+                <span className="shrink-0 text-xs">{giardinieriOpen ? "▲" : "▼"}</span>
+              </button>
+              {giardinieriOpen && (
+                <div className="absolute z-50 mt-1 w-full rounded-lg border border-[#c2c9bb] bg-[#f8faf8] shadow-lg p-1 max-h-48 overflow-y-auto">
+                  {(() => {
+                    const giardinieriList = clientiList.filter((c: any) => c.ruolo === "giardiniere");
+                    const tuttiSelezionati = giardinieriList.length > 0 && giardinieriList.every((c) => giardiniereIds.includes(c.id));
+                    return (
+                      <>
+                        <label className="flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer bg-[#fef9c3] hover:bg-[#fef08a] text-xs font-bold text-black border-b border-[#c2c9bb] mb-1">
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 accent-[#154212]"
+                            checked={tuttiSelezionati}
+                            onChange={() => {
+                              if (tuttiSelezionati) {
+                                setGiardiniereIds([]);
+                              } else {
+                                setGiardiniereIds(giardinieriList.map((c) => c.id));
+                              }
+                              setGiardinieriOpen(false);
+                            }}
+                          />
+                          TUTTI
+                        </label>
+                        {giardinieriList.map((c) => {
+                          const isChecked = giardiniereIds.includes(c.id);
+                          return (
+                            <label
+                              key={c.id}
+                              className="flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer hover:bg-[#e2e8e2] text-xs font-bold text-black"
+                            >
+                              <input
+                                type="checkbox"
+                                className="h-4 w-4 accent-[#154212]"
+                                checked={isChecked}
+                                onChange={() => {
+                                  setGiardiniereIds(
+                                    isChecked
+                                      ? giardiniereIds.filter((id) => id !== c.id)
+                                      : [...giardiniereIds, c.id]
+                                  );
+                                }}
+                              />
+                              {c.nome}
+                            </label>
+                          );
+                        })}
+                        {giardinieriList.length === 0 && (
+                          <div className="px-3 py-2 text-xs text-[#9ca3af]">Nessun giardiniere disponibile</div>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
+              )}
             </div>
           </div>
 
@@ -2118,73 +2270,74 @@ function InserisciModal({
                 }
               }}
             />
-            <div className="flex items-start gap-4">
-              <div
-                className="grid justify-start gap-3 p-2 bg-transparent border border-white shrink-0"
-                style={{ gridTemplateColumns: "repeat(3, 60px)" }}
-              >
-                {Array.from({ length: 6 }).map((_, idx) => {
-                  const fotoExistente = fotoEsistenti[idx];
-                  const nuovaFoto = !fotoExistente
-                    ? nuoveFoto[idx - fotoEsistenti.length]
-                    : null;
-                  const hasPhoto = !!fotoExistente || !!nuovaFoto;
-                  const isLast = idx === 5;
-                  const showPlus =
-                    isLast && nuoveFoto.length + fotoEsistenti.length < 6;
-                  return (
-                    <div
-                      key={idx}
-                      className="relative group cursor-pointer border border-[#e5e7eb] flex items-center justify-center overflow-hidden"
-                      style={{
-                        width: "60px",
-                        height: "60px",
-                        backgroundColor: hasPhoto ? "transparent" : "#f9fafb"
-                      }}
-                      onClick={() => fileInputRef.current?.click()}
-                    >
-                      {hasPhoto ? (
-                        <>
-                          <img
-                            src={
-                              fotoExistente
-                                ? fotoExistente.foto_url
-                                : URL.createObjectURL(nuovaFoto!)
-                            }
-                            alt="Foto"
-                            className="w-full h-full object-cover"
-                          />
-                          <button
-                            type="button"
-                            className="absolute top-0 right-0 bg-red-600 text-white w-4 h-4 flex items-center justify-center text-[10px] leading-none opacity-0 group-hover:opacity-100 transition"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (fotoExistente)
-                                handleDeleteFoto(
-                                  fotoExistente.id,
-                                  fotoExistente.foto_url
-                                );
-                              else
-                                setNuoveFoto((prev) =>
-                                  prev.filter(
-                                    (_, i) => i !== idx - fotoEsistenti.length
-                                  )
-                                );
-                            }}
-                          >
-                            ×
-                          </button>
-                        </>
-                      ) : showPlus ? (
-                        <span className="material-symbols-outlined text-2xl text-[#9ca3af]">
-                          add
-                        </span>
-                      ) : null}
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="flex flex-col gap-2">
+            <div className="flex gap-3 p-2 bg-transparent border border-white shrink-0 overflow-x-auto">
+              {/* Foto esistenti */}
+              {fotoEsistenti.map((foto, idx) => (
+                <div
+                  key={`existing-${foto.id}`}
+                  className="relative group shrink-0 border border-[#e5e7eb] overflow-hidden"
+                  style={{ width: "60px", height: "60px" }}
+                >
+                  <img
+                    src={foto.foto_url}
+                    alt="Foto"
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      const img = e.target as HTMLImageElement;
+                      console.log("Foto URL errato:", img.src);
+                      img.style.display = "none";
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="absolute top-0 right-0 bg-red-600 text-white w-4 h-4 flex items-center justify-center text-[10px] leading-none opacity-0 group-hover:opacity-100 transition"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteFoto(foto.id, foto.foto_url);
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+              {/* Nuove foto (anteprima) */}
+              {nuoveFoto.map((file, idx) => (
+                <div
+                  key={`new-${idx}`}
+                  className="relative group shrink-0 border border-[#e5e7eb] overflow-hidden"
+                  style={{ width: "60px", height: "60px" }}
+                >
+                  <img
+                    src={URL.createObjectURL(file)}
+                    alt="Nuova foto"
+                    className="w-full h-full object-cover"
+                  />
+                  <button
+                    type="button"
+                    className="absolute top-0 right-0 bg-red-600 text-white w-4 h-4 flex items-center justify-center text-[10px] leading-none opacity-0 group-hover:opacity-100 transition"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setNuoveFoto((prev) => prev.filter((_, i) => i !== idx));
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+              {/* Pulsante aggiungi (se meno di 6 foto) */}
+              {fotoEsistenti.length + nuoveFoto.length < 6 && (
+                <div
+                  className="relative shrink-0 border border-[#e5e7eb] flex items-center justify-center cursor-pointer bg-[#f9fafb] hover:bg-[#eceeec] transition"
+                  style={{ width: "60px", height: "60px" }}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <span className="material-symbols-outlined text-2xl text-[#9ca3af]">
+                    add
+                  </span>
+                </div>
+              )}
+            </div>
+            <div className="flex flex-col gap-2">
                 <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer whitespace-nowrap">
                   <input
                     type="radio"
@@ -2239,8 +2392,8 @@ function InserisciModal({
                         }
                       />
                       {visibileGiardiniere
-                        ? "SI Giardinieri"
-                        : "NO Giardinieri"}
+                        ? "Si Invio ai Giardinieri"
+                        : "No Invio ai Giardinieri"}
                     </label>
                     <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer whitespace-nowrap">
                       <input
@@ -2249,13 +2402,12 @@ function InserisciModal({
                         checked={visibileContatto}
                         onChange={(e) => setVisibileContatto(e.target.checked)}
                       />
-                      {visibileContatto ? "SI Contatti" : "NO Contatti"}
+                      {visibileContatto ? "Si Invio al Contatto" : "No Invio al Contatto"}
                     </label>
                   </>
                 )}
               </div>
             </div>
-          </div>
 
           {/* Checkbox */}
           <div className="flex items-center gap-6 pl-2">
@@ -2266,7 +2418,7 @@ function InserisciModal({
                 checked={visibile}
                 onChange={(e) => setVisibile(e.target.checked)}
               />
-              Foto visibile al Contatto
+              Foto visibili al Contatto
             </label>
             <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer">
               <input
@@ -3025,7 +3177,7 @@ function ListaAttivitaModal({ onClose }: { onClose: () => void }) {
       const { data } = await supabase
         .from("inserimenti_attivita")
         .select(
-          "*, localita!left(localita), attivita!left(descrizione, categoria_id, categorie!left(id, nome)), clienti!left(nome)"
+          "*, localita(localita), attivita(descrizione, categoria_id, categorie(id, nome)), clienti!cliente_id(nome)"
         )
         .order("data_inizio", { ascending: false })
         .limit(200);
@@ -3252,7 +3404,7 @@ function PromemoriaModal({ onClose }: { onClose: () => void }) {
       const { data } = await supabase
         .from("inserimenti_attivita")
         .select(
-          "*, localita!left(localita), attivita!left(descrizione, categoria_id, categorie!left(id, nome)), clienti!left(nome)"
+          "*, localita(localita), attivita(descrizione, categoria_id, categorie(id, nome)), clienti!cliente_id(nome)"
         )
         .eq("stato", "promemoria")
         .order("data_inizio", { ascending: false });
@@ -3515,9 +3667,10 @@ export default function AdminPage({ onLogout }: AdminPageProps) {
 
   return (
     <div className="bg-background text-on-surface h-screen flex flex-col overflow-hidden admin-page-root">
-      <header className="w-full shrink-0 bg-transparent dark:bg-transparent flex items-center justify-between px-edge-margin pt-0 h-touch-target-min z-40">
-        <div className="flex items-center gap-sm">
-          <div className="relative inline-flex flex-col items-center">
+      <header className="w-full shrink-0 bg-transparent dark:bg-transparent flex flex-col px-edge-margin pt-0 h-touch-target-min z-40">
+        <div className="flex items-center justify-between w-full">
+          <div className="flex-1" />
+          <div className="flex items-center gap-sm">
             <img
               src="/leaf-512.png"
               alt="Logo GeoGiardini"
@@ -3528,62 +3681,24 @@ export default function AdminPage({ onLogout }: AdminPageProps) {
                 objectFit: "contain"
               }}
             />
-            <div
-              className="flex flex-col items-start w-full pl-1"
-              style={{ marginTop: "-0.5rem" }}
+            <h1
+              className="admin-page__title-emphasis"
+              style={{
+                fontStyle: "italic",
+                fontSize: "2rem",
+                lineHeight: 1.1,
+                color: "#2563eb",
+                fontWeight: 700
+              }}
             >
-              <div
-                className="flex items-center gap-2"
-                style={{ marginTop: "20px" }}
-              >
-                <button
-                  type="button"
-                  onClick={() => setModal("promemoria")}
-                  className="relative inline-flex items-center justify-center w-8 h-8 rounded-lg bg-green-600 text-white"
-                >
-                  <span className="material-symbols-outlined text-lg leading-none">
-                    notifications
-                  </span>
-                  <span
-                    className="absolute text-[12px] font-bold leading-none"
-                    style={{ top: "-3px", right: "-3px" }}
-                  >
-                    {notificaCount}
-                  </span>
-                </button>
-                <div
-                  className="relative inline-flex items-center justify-center w-8 h-8 rounded-lg bg-blue-600 text-white"
-                  style={{ marginLeft: "18px" }}
-                >
-                  <span className="material-symbols-outlined text-lg leading-none">
-                    chat
-                  </span>
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
-                    8
-                  </span>
-                </div>
-              </div>
-            </div>
+              GeoGiardini
+            </h1>
           </div>
-          <h1
-            className="admin-page__title-emphasis"
-            style={{
-              fontStyle: "italic",
-              fontSize: "2rem",
-              lineHeight: 1.1,
-              color: "#2563eb",
-              fontWeight: 700,
-              marginTop: "-40px"
-            }}
-          >
-            GeoGiardini
-          </h1>
-        </div>
-        <div className="flex items-center gap-md">
+          <div className="flex-1 flex items-center justify-end gap-md">
           <button
             type="button"
             onClick={onLogout}
-            className="relative left-[-20px] inline-flex flex-col items-center gap-1 rounded-full hover:bg-surface-container transition-colors active:scale-95 duration-150 p-0"
+            className="relative left-[-20px] inline-flex flex-col items-center gap-1 p-0"
             aria-label="Logout"
           >
             <span
@@ -3611,6 +3726,34 @@ export default function AdminPage({ onLogout }: AdminPageProps) {
               Logout
             </span>
           </button>
+        </div>
+        </div>
+        <div className="flex items-center gap-6 pt-1">
+          <button
+            type="button"
+            onClick={() => setModal("promemoria")}
+            className="relative inline-flex items-center justify-center w-8 h-8 rounded-lg bg-green-600 text-white"
+          >
+            <span className="material-symbols-outlined text-lg leading-none">
+              notifications
+            </span>
+            <span
+              className="absolute text-[12px] font-bold leading-none"
+              style={{ top: "-3px", right: "-3px" }}
+            >
+              {notificaCount}
+            </span>
+          </button>
+          <div
+            className="relative inline-flex items-center justify-center w-8 h-8 rounded-lg bg-blue-600 text-white"
+          >
+            <span className="material-symbols-outlined text-lg leading-none">
+              chat
+            </span>
+            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+              8
+            </span>
+          </div>
         </div>
       </header>
       <div className="admin-page__divider" />

@@ -3,14 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "../supabaseClient";
 
 interface LoginPageProps {
-  onLoginSuccess: (role: "admin" | "cliente") => void;
+  onLoginSuccess: (role: "admin" | "giardiniere" | "cliente") => void;
 }
 
 export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
   const navigate = useNavigate();
-  const [selectedRole, setSelectedRole] = useState<"admin" | "cliente">(
-    "admin"
-  );
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -23,47 +20,52 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
     setLoading(true);
 
     try {
-      if (selectedRole === "admin") {
-        const trimmedUser = username.trim();
-        const trimmedPass = password.trim();
-        if (
-          (trimmedUser === "Angelo" && trimmedPass === "A2026") ||
-          (trimmedUser.toLowerCase() === "giulio" && trimmedPass === "G2026")
-        ) {
-          window.localStorage.setItem("loginRole", "admin");
-          window.localStorage.setItem("loginUsername", trimmedUser);
-          window.localStorage.setItem(
-            "userId",
-            trimmedUser === "Angelo" ? "1" : "2"
-          );
-          onLoginSuccess("admin");
-          navigate("/admin");
-          return;
-        }
+      const trimmedUser = username.trim();
+      const trimmedPass = password.trim();
+
+      // 1) Controllo admin fissi (username case-insensitive, password case-sensitive)
+      if (
+        (trimmedUser.toLowerCase() === "angelo" && trimmedPass === "A2026") ||
+        (trimmedUser.toLowerCase() === "giulio" && trimmedPass === "G2026")
+      ) {
+        window.localStorage.setItem("loginRole", "admin");
+        window.localStorage.setItem("loginUsername", trimmedUser);
+        window.localStorage.setItem(
+          "userId",
+          trimmedUser === "Angelo" ? "1" : "2"
+        );
+        onLoginSuccess("admin");
+        navigate("/admin");
+        return;
+      }
+
+      // 2) Login tramite tabella clienti su Supabase (nome case-insensitive, codice case-sensitive)
+      const { data, error: queryError } = await supabase
+        .from("clienti")
+        .select("id, nome, ruolo")
+        .ilike("nome", username)
+        .eq("codice", password)
+        .single();
+
+      if (queryError || !data) {
         setError("Credenziali non valide");
         setLoading(false);
         return;
+      }
+
+      const ruolo = (data.ruolo || "contatto").toLowerCase();
+
+      window.localStorage.setItem("loginRole", ruolo);
+      window.localStorage.setItem("loginUsername", data.nome);
+      window.localStorage.setItem("userId", String(data.id));
+
+      if (ruolo === "admin") {
+        onLoginSuccess("admin");
+        navigate("/admin");
+      } else if (ruolo === "giardiniere") {
+        onLoginSuccess("giardiniere");
+        navigate("/giardiniere");
       } else {
-        // Cliente: login tramite tabella clienti su Supabase
-        const { data, error: queryError } = await supabase
-          .from("clienti")
-          .select("id, username, nome_cliente")
-          .eq("username", username)
-          .eq("codice", password)
-          .single();
-
-        if (queryError || !data) {
-          setError("Credenziali non valide");
-          setLoading(false);
-          return;
-        }
-
-        window.localStorage.setItem("loginRole", "cliente");
-        window.localStorage.setItem(
-          "loginUsername",
-          data.nome_cliente || data.username
-        );
-        window.localStorage.setItem("userId", String(data.id));
         onLoginSuccess("cliente");
       }
     } catch (err) {
@@ -107,38 +109,6 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
           </p>
         </div>
 
-        {/* Selettore ruolo */}
-        <div className="flex gap-3 mb-6">
-          <button
-            type="button"
-            onClick={() => {
-              setSelectedRole("admin");
-              setError("");
-            }}
-            className={`flex-1 py-3 px-4 rounded-xl font-semibold text-sm transition-all ${
-              selectedRole === "admin"
-                ? "bg-[#154212] text-white shadow-lg"
-                : "bg-white text-[#154212] border-2 border-[#c2c9bb]"
-            }`}
-          >
-            Amministratore
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setSelectedRole("cliente");
-              setError("");
-            }}
-            className={`flex-1 py-3 px-4 rounded-xl font-semibold text-sm transition-all ${
-              selectedRole === "cliente"
-                ? "bg-[#154212] text-white shadow-lg"
-                : "bg-white text-[#154212] border-2 border-[#c2c9bb]"
-            }`}
-          >
-            Cliente
-          </button>
-        </div>
-
         {/* Form */}
         <form
           onSubmit={handleLogin}
@@ -146,49 +116,37 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
         >
           <div>
             <label className="block text-sm font-bold text-black mb-1.5 ml-1">
-              {selectedRole === "admin" ? "Admin" : "Nome Cliente"}
+              Admin / Nome Cliente
             </label>
             <input
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder={
-                selectedRole === "admin"
-                  ? "Inserisci Admin"
-                  : "Inserisci Nome Cliente"
-              }
+              placeholder="Inserisci il tuo nome utente"
               className="input-field"
             />
           </div>
           <div>
             <label className="block text-sm font-bold text-black mb-1.5 ml-1">
-              {selectedRole === "admin" ? "Password" : "Codice"}
+              Password / Codice
             </label>
             <div className="relative">
               <input
-                type={
-                  selectedRole === "admin" && !showPassword
-                    ? "password"
-                    : "text"
-                }
+                type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder={
-                  selectedRole === "admin" ? "••••••••" : "Inserisci il codice"
-                }
+                placeholder="Inserisci la password o il codice"
                 className="input-field w-full pr-10"
               />
-              {selectedRole === "admin" && (
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center text-gray-500 hover:text-gray-700"
-                >
-                  <span className="material-symbols-outlined text-xl">
-                    {showPassword ? "visibility_off" : "visibility"}
-                  </span>
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center text-gray-500 hover:text-gray-700"
+              >
+                <span className="material-symbols-outlined text-xl">
+                  {showPassword ? "visibility_off" : "visibility"}
+                </span>
+              </button>
             </div>
           </div>
 
@@ -235,9 +193,7 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
         </form>
 
         <p className="text-center text-xs text-[#000080] font-bold mt-6">
-          {selectedRole === "admin"
-            ? "Accesso riservato all'amministratore."
-            : "Accedi per vedere i lavori svolti nel tuo giardino."}
+          Inserisci le tue credenziali per accedere.
         </p>
       </div>
     </div>
