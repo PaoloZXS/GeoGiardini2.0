@@ -688,19 +688,34 @@ function FullCalendarPage() {
       if (appuntamentiData.error)
         throw new Error(appuntamentiData.error.message);
 
+      // Confronto globale: se tutti i dati sono identici, salta l'aggiornamento
+      const tuttoJson = JSON.stringify([
+        giardinieriData.data,
+        appuntamentiData.data,
+        clientiData.data,
+        attivitaData.data,
+        localitaData.data,
+        categorieData.data,
+        inserimentiData.data
+      ]);
+      if (tuttoJson === prevFullDataRef.current) {
+        setIsLoading(false);
+        return;
+      }
+      prevFullDataRef.current = tuttoJson;
+
       setGiardinieri(giardinieriData.data || []);
-      setAppuntamenti(
-        (appuntamentiData.data || []).map((item: any) => ({
-          ...item,
-          giardinieri: Array.isArray(item.appuntamenti_giardinieri)
-            ? item.appuntamenti_giardinieri
-                .map((rel: any) => rel.giardinieri)
-                .filter(Boolean)
-            : Array.isArray(item.giardinieri)
-              ? item.giardinieri
-              : []
-        }))
-      );
+      const nuoviApp = (appuntamentiData.data || []).map((item: any) => ({
+        ...item,
+        giardinieri: Array.isArray(item.appuntamenti_giardinieri)
+          ? item.appuntamenti_giardinieri
+              .map((rel: any) => rel.giardinieri)
+              .filter(Boolean)
+          : Array.isArray(item.giardinieri)
+            ? item.giardinieri
+            : []
+      }));
+      setAppuntamenti(nuoviApp);
       await fetchHandledAppointmentIds();
 
       const currentUserCli =
@@ -769,6 +784,7 @@ function FullCalendarPage() {
   };
 
   const loadingRef = useRef(false);
+  const prevFullDataRef = useRef<string>("");
 
   useEffect(() => {
     loadData();
