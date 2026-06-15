@@ -46,6 +46,7 @@ ALTER TABLE inserimenti_attivita ADD COLUMN IF NOT EXISTS visibile_giardiniere B
 ALTER TABLE inserimenti_attivita ADD COLUMN IF NOT EXISTS visibile_contatto BOOLEAN DEFAULT TRUE;
 ALTER TABLE inserimenti_attivita DROP COLUMN IF EXISTS giardiniere_id;
 ALTER TABLE inserimenti_attivita ADD COLUMN IF NOT EXISTS giardiniere_ids JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE inserimenti_attivita ADD COLUMN IF NOT EXISTS eseguito BOOLEAN DEFAULT FALSE;
 
 -- Aggiungi colonne a tabella localita
 ALTER TABLE localita ADD COLUMN IF NOT EXISTS privata BOOLEAN DEFAULT FALSE;

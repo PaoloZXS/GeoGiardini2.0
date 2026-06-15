@@ -746,6 +746,15 @@ function FullCalendarPage() {
       );
       setCategorieList(categorieData.data || []);
       setInserimentiAttivita(inserimentiData.data || []);
+      console.log("inserimentiAttivita caricati:", inserimentiData.data?.length, "record");
+      if (inserimentiData.data) {
+        const filt = inserimentiData.data.filter((i: any) => i.data_inizio === "2026-06-16" && i.stato === "promemoria");
+        if (filt.length > 0) {
+          console.log("Record 2026-06-16 trovato:", filt[0]);
+        } else {
+          console.log("NESSUN record con data_inizio=2026-06-16 e stato=promemoria");
+        }
+      }
       setCalendarKey((k) => k + 1);
     } catch (err) {
       console.error("Errore caricamento dati calendario", err);
@@ -759,8 +768,17 @@ function FullCalendarPage() {
     }
   };
 
+  const loadingRef = useRef(false);
+
   useEffect(() => {
     loadData();
+    const interval = setInterval(() => {
+      if (!loadingRef.current) {
+        loadingRef.current = true;
+        loadData().finally(() => { loadingRef.current = false; });
+      }
+    }, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -1102,6 +1120,15 @@ function FullCalendarPage() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
+  // Ricarica dati quando un giardiniere salva modifiche
+  useEffect(() => {
+    const handleInserimentoSalvato = () => {
+      loadData();
+    };
+    window.addEventListener("inserimento-salvato", handleInserimentoSalvato);
+    return () => window.removeEventListener("inserimento-salvato", handleInserimentoSalvato);
+  }, []);
+
   const clearAttivitaStatus = () => {
     if (attivitaStatusTimeoutRef.current)
       window.clearTimeout(attivitaStatusTimeoutRef.current);
@@ -1162,7 +1189,8 @@ function FullCalendarPage() {
         stato: attivitaStato,
         privato: attivitaPrivato,
         visibile_giardiniere: attivitaVisibileGiardiniere,
-        visibile_contatto: attivitaVisibileContatto
+        visibile_contatto: attivitaVisibileContatto,
+        eseguito: attivitaStato === "eseguito"
       };
 
       if (!attivitaEditId) {
@@ -1210,6 +1238,8 @@ function FullCalendarPage() {
       });
       resetAttivitaForm();
       await loadData();
+      window.dispatchEvent(new CustomEvent("attivita-aggiornata"));
+      window.dispatchEvent(new CustomEvent("inserimento-salvato"));
       clearAttivitaStatus();
       // Chiudi il modal dopo 2 secondi per far vedere il messaggio
       setTimeout(() => resetAndClose(), 2000);
@@ -1367,6 +1397,8 @@ function FullCalendarPage() {
       }
 
       await loadData();
+      window.dispatchEvent(new CustomEvent("attivita-aggiornata"));
+      window.dispatchEvent(new CustomEvent("inserimento-salvato"));
       closeAppointmentModal();
     } catch (error) {
       setSaveAppuntamentoError(
@@ -1573,7 +1605,8 @@ function FullCalendarPage() {
             activity: attDescr,
             location: locName,
             stato: item.stato,
-            privato: item.privato
+            privato: item.privato,
+            categoria: item.attivita?.categorie?.nome || ""
           }
         });
       }
@@ -1732,34 +1765,39 @@ function FullCalendarPage() {
               margin: "0 auto 12px",
               padding: "8px 4px",
               display: "flex",
+              flexDirection: "column",
               alignItems: "center",
-              justifyContent: "center",
-              gap: "10px"
+              gap: "2px"
             }}
           >
-            <span
-              className="material-symbols-outlined"
-              style={{
-                fontSize: "2rem",
-                lineHeight: 1,
-                color: "#1976d2",
-                fontStyle: "normal"
-              }}
-            >
-              calendar_month
-            </span>
-            <h1
-              style={{
-                margin: 0,
-                color: "#1976d2",
-                fontSize: "1.8rem",
-                fontWeight: 800,
-                fontStyle: "italic",
-                lineHeight: 1.1
-              }}
-            >
-              Planning Interventi
-            </h1>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "10px" }}>
+              <span
+                className="material-symbols-outlined"
+                style={{
+                  fontSize: "2rem",
+                  lineHeight: 1,
+                  color: "#1976d2",
+                  fontStyle: "normal"
+                }}
+              >
+                calendar_month
+              </span>
+              <h1
+                style={{
+                  margin: 0,
+                  color: "#1976d2",
+                  fontSize: "1.8rem",
+                  fontWeight: 800,
+                  fontStyle: "italic",
+                  lineHeight: 1.1
+                }}
+              >
+                Planning Interventi
+              </h1>
+            </div>
+            <p style={{ margin: 0, color: "#1976d2", fontSize: "0.85rem", fontWeight: 600, fontStyle: "italic", alignSelf: "flex-start", paddingLeft: "90px" }}>
+              {localStorage.getItem("loginUsername") || "Admin"} — Administrator
+            </p>
           </div>
           <div
             style={{
@@ -1991,27 +2029,20 @@ function FullCalendarPage() {
                 });
               }}
               eventContent={(arg) => {
-                const fmt = (d) =>
-                  d?.toLocaleTimeString("it-IT", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    hour12: false
-                  }) || "";
-                const timeLabel = `${fmt(arg.event.start)} - ${fmt(arg.event.end)}`;
-                const cliente = String(arg.event.title).includes(" - ")
-                  ? String(arg.event.title).split(" - ").slice(1).join(" - ")
-                  : "";
-                const giardiniereName =
-                  arg.event.extendedProps.giardiniereName || "";
-                const activity = arg.event.extendedProps.activity || "";
+                const fmtDate = (d) =>
+                  d ? d.toLocaleDateString("it-IT", { day: "2-digit", month: "2-digit" }) : "";
+                const startStr = fmtDate(arg.event.start);
+                const endStr = fmtDate(arg.event.end);
+                const dateLabel = startStr === endStr ? startStr : `${startStr} - ${endStr}`;
                 const location = arg.event.extendedProps.location || "";
-                const secondaRiga = [location, activity]
-                  .filter(Boolean)
-                  .join(" - ");
+                const categoria = arg.event.extendedProps.categoria || "";
+                const activity = arg.event.extendedProps.activity || "";
+                const primaRiga = `${dateLabel}${location ? ` - ${location}` : ""}`;
+                const secondaRiga = [categoria, activity].filter(Boolean).join(" - ");
                 return {
                   html:
                     `<div style="font-size:0.75rem;line-height:1.2;display:flex;flex-direction:column;justify-content:center;overflow:hidden;">` +
-                    `<span style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;">${timeLabel}${cliente ? ` ${cliente}` : ""}</span>` +
+                    `<span style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;">${primaRiga}</span>` +
                     `<span style="font-size:0.7rem;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;">${secondaRiga}</span>` +
                     `</div>`
                 };

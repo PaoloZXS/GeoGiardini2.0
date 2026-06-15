@@ -32,6 +32,7 @@ const isTouchDevice =
   ("ontouchstart" in window || navigator.maxTouchPoints > 0);
 
 export default function GiardinierePage({ onLogout }: GiardinierePageProps) {
+  console.log("✅ GiardinierePage MOUNTED");
   const userId = window.localStorage.getItem("userId");
   const calendarRef = useRef<FullCalendar>(null);
   const [eventi, setEventi] = useState<any[]>([]);
@@ -40,28 +41,41 @@ export default function GiardinierePage({ onLogout }: GiardinierePageProps) {
   const [selectedEvent, setSelectedEvent] = useState<any | null>(null);
   const [detailNote, setDetailNote] = useState("");
   const [detailEseguito, setDetailEseguito] = useState(false);
+  const [statoOriginale, setStatoOriginale] = useState("");
   const [detailNuoveFoto, setDetailNuoveFoto] = useState<File[]>([]);
   const [detailFotoEsistenti, setDetailFotoEsistenti] = useState<any[]>([]);
   const [detailSaving, setDetailSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const loadEventi = useCallback(async () => {
-    if (!userId) return;
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
+    console.log("DEBUG - userId del giardiniere loggato:", userId);
     try {
       const { data } = await supabase
         .from("inserimenti_attivita")
         .select("*, localita(localita), attivita(descrizione, categoria_id, categorie(id, nome))")
-        .eq("visibile_giardiniere", true)
         .order("data_inizio", { ascending: false });
 
+      console.log("DEBUG - tutti i record ricevuti:", data?.length);
       if (data) {
+        const data16 = data.filter((i: any) => i.data_inizio && i.data_inizio.startsWith("2026-06-16"));
+        console.log("DEBUG - record 2026-06-16:", data16.length);
+        data16.forEach((r: any) => {
+          console.log("  → id:", r.id, "| giardiniere_ids:", JSON.stringify(r.giardiniere_ids), "| visibile_giardiniere:", r.visibile_giardiniere, "| aggiungi_al_planning:", r.aggiungi_al_planning, "| stato:", r.stato);
+        });
+
         const filtered = data.filter((item: any) => {
+          if (item.aggiungi_al_planning !== true) return false;
           const ids = item.giardiniere_ids;
           if (!ids || (Array.isArray(ids) && ids.length === 0)) return true;
           if (Array.isArray(ids) && ids.includes(userId)) return true;
           return false;
         });
+        console.log("DEBUG - dopo filtro (aggiungi_al_planning=true + giardiniere_ids):", filtered.length);
         setEventi(filtered);
       }
     } catch (err) {
@@ -71,8 +85,43 @@ export default function GiardinierePage({ onLogout }: GiardinierePageProps) {
     }
   }, [userId]);
 
+  const loadingRef = useRef(false);
+  const prevDataRef = useRef<string>("");
+
   useEffect(() => {
     loadEventi();
+    const interval = setInterval(async () => {
+      if (loadingRef.current) return;
+      loadingRef.current = true;
+      try {
+        const { data } = await supabase
+          .from("inserimenti_attivita")
+          .select("id, data_inizio, data_fine, stato, eseguito, visibile_giardiniere, giardiniere_ids, aggiungi_al_planning")
+          .order("data_inizio", { ascending: false });
+
+        const nuovoJson = JSON.stringify(data);
+        if (nuovoJson !== prevDataRef.current) {
+          prevDataRef.current = nuovoJson;
+          loadEventi();
+        }
+      } catch {
+        // silent
+      } finally {
+        loadingRef.current = false;
+      }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [loadEventi]);
+
+  // Ricarica eventi quando l'admin o altri salvano modifiche
+  useEffect(() => {
+    const ricarica = () => loadEventi();
+    window.addEventListener("attivita-aggiornata", ricarica);
+    window.addEventListener("inserimento-salvato", ricarica);
+    return () => {
+      window.removeEventListener("attivita-aggiornata", ricarica);
+      window.removeEventListener("inserimento-salvato", ricarica);
+    };
   }, [loadEventi]);
 
   const events = useMemo(() => {
@@ -83,21 +132,26 @@ export default function GiardinierePage({ onLogout }: GiardinierePageProps) {
       const attivitaDesc = item.attivita?.descrizione || "";
       const title = [localitaNome, attivitaDesc].filter(Boolean).join(" — ");
       const stato = item.stato || "promemoria";
-      const colorMap: Record<string, string> = {
-        promemoria: "#f59e0b",
-        confermato: "#3b82f6",
-        eseguito: "#10b981"
-      };
+      let bgColor: string;
+      if (item.eseguito === true) {
+        bgColor = "#10b981";
+      } else {
+        const colorMap: Record<string, string> = {
+          promemoria: "#f59e0b",
+          confermato: "#3b82f6"
+        };
+        bgColor = colorMap[stato] || "#6b7280";
+      }
       return {
         id: String(item.id),
         title: title || "Attività",
         start,
         end,
         allDay: true,
-        backgroundColor: colorMap[stato] || "#6b7280",
+        backgroundColor: bgColor,
         borderColor: "transparent",
         textColor: "#ffffff",
-        extendedProps: { stato, note: item.note || "" }
+        extendedProps: { stato, note: item.note || "", activity: attivitaDesc, location: localitaNome, categoria: item.attivita?.categorie?.nome || "" }
       };
     });
   }, [eventi]);
@@ -145,7 +199,8 @@ export default function GiardinierePage({ onLogout }: GiardinierePageProps) {
       if (data) {
         setSelectedEvent(data);
         setDetailNote(data.note || "");
-        setDetailEseguito(data.stato === "eseguito");
+        setDetailEseguito(data.eseguito === true);
+        setStatoOriginale(data.stato || "promemoria");
         setDetailNuoveFoto([]);
         // Carica foto esistenti
         const { data: foto } = await supabase
@@ -163,10 +218,11 @@ export default function GiardinierePage({ onLogout }: GiardinierePageProps) {
     if (!selectedEvent?.id) return;
     setDetailSaving(true);
     try {
-      const newStato = detailEseguito ? "eseguito" : selectedEvent.stato || "promemoria";
+      const newStato = detailEseguito ? "eseguito" : "confermato";
+      console.log("DEBUG save - detailEseguito:", detailEseguito, "| statoOriginale:", statoOriginale, "| newStato:", newStato);
       const { error: updateError } = await supabase
         .from("inserimenti_attivita")
-        .update({ note: detailNote.trim() || null, stato: newStato })
+        .update({ note: detailNote.trim() || null, stato: newStato, eseguito: detailEseguito })
         .eq("id", selectedEvent.id);
 
       if (updateError) {
@@ -332,34 +388,39 @@ export default function GiardinierePage({ onLogout }: GiardinierePageProps) {
           margin: "0 auto 12px",
           padding: "8px 4px",
           display: "flex",
+          flexDirection: "column",
           alignItems: "center",
-          justifyContent: "center",
-          gap: "10px"
+          gap: "2px"
         }}
       >
-        <span
-          className="material-symbols-outlined"
-          style={{
-            fontSize: "2rem",
-            lineHeight: 1,
-            color: "#1976d2",
-            fontStyle: "normal"
-          }}
-        >
-          calendar_month
-        </span>
-        <h1
-          style={{
-            margin: 0,
-            color: "#1976d2",
-            fontSize: "1.8rem",
-            fontWeight: 800,
-            fontStyle: "italic",
-            lineHeight: 1.1
-          }}
-        >
-          Planning Interventi
-        </h1>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "10px" }}>
+          <span
+            className="material-symbols-outlined"
+            style={{
+              fontSize: "2rem",
+              lineHeight: 1,
+              color: "#1976d2",
+              fontStyle: "normal"
+            }}
+          >
+            calendar_month
+          </span>
+          <h1
+            style={{
+              margin: 0,
+              color: "#1976d2",
+              fontSize: "1.8rem",
+              fontWeight: 800,
+              fontStyle: "italic",
+              lineHeight: 1.1
+            }}
+          >
+            Planning Interventi
+          </h1>
+        </div>
+        <p style={{ margin: 0, color: "#1976d2", fontSize: "0.85rem", fontWeight: 600, fontStyle: "italic", alignSelf: "flex-start", paddingLeft: "90px" }}>
+          {localStorage.getItem("loginUsername") || "Giardiniere"} — Operatore
+        </p>
       </div>
 
       {/* Calendario */}
@@ -418,17 +479,34 @@ export default function GiardinierePage({ onLogout }: GiardinierePageProps) {
               html: `<div style="display:flex;flex-direction:column;align-items:center;font-size:0.85rem;"><span>${weekday}</span><span style="font-weight:700;margin-top:4px;">${arg.date.getDate()}</span></div>`
             };
           }}
-          eventTimeDisplay={false}
           dayMaxEvents={true}
           dayMaxEventRows={true}
           eventOrder="title"
           height={450}
           eventClick={handleEventClick}
           eventContent={(arg) => {
-            const title = arg.event.title || "";
+            const fmtDate = (d) =>
+              d ? d.toLocaleDateString("it-IT", { day: "2-digit", month: "2-digit" }) : "";
+            const startStr = fmtDate(arg.event.start);
+            const endStr = fmtDate(arg.event.end);
+            const dateLabel = startStr === endStr ? startStr : `${startStr} ${endStr}`;
+            const location = arg.event.extendedProps.location || "";
+            const categoria = arg.event.extendedProps.categoria || "";
+            const activity = arg.event.extendedProps.activity || "";
+            const primaRiga = `${dateLabel}${location ? ` - ${location}` : ""}`;
+            const secondaRiga = [categoria, activity].filter(Boolean).join(" - ");
             return {
-              html: `<div style="font-size:0.75rem;line-height:1.2;display:flex;flex-direction:column;justify-content:center;overflow:hidden;padding:2px 4px;"><span style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${title}</span></div>`
+              html:
+                `<div style="font-size:0.75rem;line-height:1.2;display:flex;flex-direction:column;justify-content:center;overflow:hidden;">` +
+                `<span style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;">${primaRiga}</span>` +
+                `<span style="font-size:0.7rem;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;">${secondaRiga}</span>` +
+                `</div>`
             };
+          }}
+          eventTimeFormat={{
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: false
           }}
         />
       </div>
@@ -759,7 +837,7 @@ export default function GiardinierePage({ onLogout }: GiardinierePageProps) {
                 <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer">
                   <input
                     type="checkbox"
-                    className="h-4 w-4 accent-[#16a34a]"
+                    className="h-4 w-4 accent-[#2563eb]"
                     checked={detailEseguito}
                     onChange={() => setDetailEseguito(!detailEseguito)}
                   />
