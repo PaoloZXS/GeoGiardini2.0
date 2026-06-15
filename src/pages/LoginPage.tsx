@@ -116,26 +116,26 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
         >
           <div>
             <label className="block text-sm font-bold text-black mb-1.5 ml-1">
-              Admin / Nome Cliente
+              Contatto
             </label>
             <input
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="Inserisci il tuo nome utente"
+              placeholder="Inserisci il Contatto"
               className="input-field"
             />
           </div>
           <div>
             <label className="block text-sm font-bold text-black mb-1.5 ml-1">
-              Password / Codice
+              Codice
             </label>
             <div className="relative">
               <input
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Inserisci la password o il codice"
+                placeholder="Inserisci il codice"
                 className="input-field w-full pr-10"
               />
               <button

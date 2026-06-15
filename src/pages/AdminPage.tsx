@@ -2577,14 +2577,19 @@ function PromemoriaModal({ onClose }: { onClose: () => void }) {
               Lista Promemoria
             </h2>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-red-600 text-white hover:bg-red-700 transition"
-            title="Chiudi"
-          >
-            <span className="material-symbols-outlined text-lg">close</span>
-          </button>
+          <div className="flex flex-col items-center">
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-red-600 text-white hover:bg-red-700 transition"
+              title="Chiudi"
+            >
+              <span className="material-symbols-outlined text-lg">close</span>
+            </button>
+            <span className="mt-1 text-[0.65rem] font-semibold text-black">
+              Chiudi
+            </span>
+          </div>
         </div>
 
         {/* Contenuto scrollabile */}

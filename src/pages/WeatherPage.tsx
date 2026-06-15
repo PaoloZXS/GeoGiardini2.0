@@ -262,15 +262,20 @@ export default function WeatherPage({ onBack }: WeatherPageProps) {
       {/* Header fisso */}
       <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-sky-200 shadow-sm">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-          <button
-            onClick={onBack}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-sky-100 hover:bg-sky-200 transition shrink-0"
-            title="Chiudi"
-          >
-            <span className="material-symbols-outlined text-xl text-sky-800">
-              close
+          <div className="flex flex-col items-center">
+            <button
+              onClick={onBack}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-sky-100 hover:bg-sky-200 transition shrink-0"
+              title="Chiudi"
+            >
+              <span className="material-symbols-outlined text-xl text-sky-800">
+                close
+              </span>
+            </button>
+            <span className="mt-1 text-[0.65rem] font-semibold text-white">
+              Chiudi
             </span>
-          </button>
+          </div>
           <div className="text-center flex-1">
             <h1 className="text-xl font-bold text-sky-900">Meteo {CITY}</h1>
             {viewMode === "week" && (

@@ -57,15 +57,30 @@ export default function GiardinierePage({ onLogout }: GiardinierePageProps) {
     try {
       const { data } = await supabase
         .from("inserimenti_attivita")
-        .select("*, localita(localita), attivita(descrizione, categoria_id, categorie(id, nome))")
+        .select(
+          "*, localita(localita), attivita(descrizione, categoria_id, categorie(id, nome))"
+        )
         .order("data_inizio", { ascending: false });
 
       console.log("DEBUG - tutti i record ricevuti:", data?.length);
       if (data) {
-        const data16 = data.filter((i: any) => i.data_inizio && i.data_inizio.startsWith("2026-06-16"));
+        const data16 = data.filter(
+          (i: any) => i.data_inizio && i.data_inizio.startsWith("2026-06-16")
+        );
         console.log("DEBUG - record 2026-06-16:", data16.length);
         data16.forEach((r: any) => {
-          console.log("  → id:", r.id, "| giardiniere_ids:", JSON.stringify(r.giardiniere_ids), "| visibile_giardiniere:", r.visibile_giardiniere, "| aggiungi_al_planning:", r.aggiungi_al_planning, "| stato:", r.stato);
+          console.log(
+            "  → id:",
+            r.id,
+            "| giardiniere_ids:",
+            JSON.stringify(r.giardiniere_ids),
+            "| visibile_giardiniere:",
+            r.visibile_giardiniere,
+            "| aggiungi_al_planning:",
+            r.aggiungi_al_planning,
+            "| stato:",
+            r.stato
+          );
         });
 
         const filtered = data.filter((item: any) => {
@@ -75,7 +90,10 @@ export default function GiardinierePage({ onLogout }: GiardinierePageProps) {
           if (Array.isArray(ids) && ids.includes(userId)) return true;
           return false;
         });
-        console.log("DEBUG - dopo filtro (aggiungi_al_planning=true + giardiniere_ids):", filtered.length);
+        console.log(
+          "DEBUG - dopo filtro (aggiungi_al_planning=true + giardiniere_ids):",
+          filtered.length
+        );
         setEventi(filtered);
       }
     } catch (err) {
@@ -96,7 +114,9 @@ export default function GiardinierePage({ onLogout }: GiardinierePageProps) {
       try {
         const { data } = await supabase
           .from("inserimenti_attivita")
-          .select("id, data_inizio, data_fine, stato, eseguito, visibile_giardiniere, giardiniere_ids, aggiungi_al_planning")
+          .select(
+            "id, data_inizio, data_fine, stato, eseguito, visibile_giardiniere, giardiniere_ids, aggiungi_al_planning"
+          )
           .order("data_inizio", { ascending: false });
 
         const nuovoJson = JSON.stringify(data);
@@ -151,7 +171,13 @@ export default function GiardinierePage({ onLogout }: GiardinierePageProps) {
         backgroundColor: bgColor,
         borderColor: "transparent",
         textColor: "#ffffff",
-        extendedProps: { stato, note: item.note || "", activity: attivitaDesc, location: localitaNome, categoria: item.attivita?.categorie?.nome || "" }
+        extendedProps: {
+          stato,
+          note: item.note || "",
+          activity: attivitaDesc,
+          location: localitaNome,
+          categoria: item.attivita?.categorie?.nome || ""
+        }
       };
     });
   }, [eventi]);
@@ -192,7 +218,9 @@ export default function GiardinierePage({ onLogout }: GiardinierePageProps) {
     try {
       const { data } = await supabase
         .from("inserimenti_attivita")
-        .select("*, localita(localita), attivita(descrizione, categoria_id, categorie(id, nome)), clienti!cliente_id(nome)")
+        .select(
+          "*, localita(localita), attivita(descrizione, categoria_id, categorie(id, nome)), clienti!cliente_id(nome)"
+        )
         .eq("id", eventId)
         .single();
 
@@ -219,15 +247,29 @@ export default function GiardinierePage({ onLogout }: GiardinierePageProps) {
     setDetailSaving(true);
     try {
       const newStato = detailEseguito ? "eseguito" : "confermato";
-      console.log("DEBUG save - detailEseguito:", detailEseguito, "| statoOriginale:", statoOriginale, "| newStato:", newStato);
+      console.log(
+        "DEBUG save - detailEseguito:",
+        detailEseguito,
+        "| statoOriginale:",
+        statoOriginale,
+        "| newStato:",
+        newStato
+      );
       const { error: updateError } = await supabase
         .from("inserimenti_attivita")
-        .update({ note: detailNote.trim() || null, stato: newStato, eseguito: detailEseguito })
+        .update({
+          note: detailNote.trim() || null,
+          stato: newStato,
+          eseguito: detailEseguito
+        })
         .eq("id", selectedEvent.id);
 
       if (updateError) {
         console.error("Errore aggiornamento:", updateError);
-        alert("Errore salvataggio: " + (updateError.message || JSON.stringify(updateError)));
+        alert(
+          "Errore salvataggio: " +
+            (updateError.message || JSON.stringify(updateError))
+        );
         throw updateError;
       }
 
@@ -235,10 +277,16 @@ export default function GiardinierePage({ onLogout }: GiardinierePageProps) {
       for (const file of detailNuoveFoto) {
         const ext = file.name.split(".").pop();
         const fileName = `${selectedEvent.id}/${Date.now()}_${file.name}`;
-        await supabase.storage.from("foto").upload(fileName, file, { cacheControl: "3600", upsert: false });
-        const { data: urlData } = supabase.storage.from("foto").getPublicUrl(fileName);
+        await supabase.storage
+          .from("foto")
+          .upload(fileName, file, { cacheControl: "3600", upsert: false });
+        const { data: urlData } = supabase.storage
+          .from("foto")
+          .getPublicUrl(fileName);
         const fotoUrl = urlData?.publicUrl || fileName;
-        await supabase.from("foto_attivita").insert({ attivita_id: selectedEvent.id, foto_url: fotoUrl });
+        await supabase
+          .from("foto_attivita")
+          .insert({ attivita_id: selectedEvent.id, foto_url: fotoUrl });
       }
 
       setSelectedEvent(null);
@@ -265,7 +313,11 @@ export default function GiardinierePage({ onLogout }: GiardinierePageProps) {
   const removeDetailFotoEsistente = async (foto: any) => {
     try {
       const path = foto.foto_url?.split("/foto/").pop();
-      if (path) await supabase.storage.from("foto").remove([path]).catch(() => {});
+      if (path)
+        await supabase.storage
+          .from("foto")
+          .remove([path])
+          .catch(() => {});
       await supabase.from("foto_attivita").delete().eq("id", foto.id);
       setDetailFotoEsistenti((prev) => prev.filter((f) => f.id !== foto.id));
     } catch (err) {
@@ -288,9 +340,24 @@ export default function GiardinierePage({ onLogout }: GiardinierePageProps) {
           backgroundRepeat: "no-repeat"
         }}
       >
-        <svg className="animate-spin h-10 w-10 text-[#2563eb]" viewBox="0 0 24 24">
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+        <svg
+          className="animate-spin h-10 w-10 text-[#2563eb]"
+          viewBox="0 0 24 24"
+        >
+          <circle
+            className="opacity-25"
+            cx="12"
+            cy="12"
+            r="10"
+            stroke="currentColor"
+            strokeWidth="4"
+            fill="none"
+          />
+          <path
+            className="opacity-75"
+            fill="currentColor"
+            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+          />
         </svg>
       </div>
     );
@@ -393,7 +460,14 @@ export default function GiardinierePage({ onLogout }: GiardinierePageProps) {
           gap: "2px"
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "10px" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "10px"
+          }}
+        >
           <span
             className="material-symbols-outlined"
             style={{
@@ -418,7 +492,17 @@ export default function GiardinierePage({ onLogout }: GiardinierePageProps) {
             Planning Interventi
           </h1>
         </div>
-        <p style={{ margin: 0, color: "#1976d2", fontSize: "0.85rem", fontWeight: 600, fontStyle: "italic", alignSelf: "flex-start", paddingLeft: "90px" }}>
+        <p
+          style={{
+            margin: 0,
+            color: "#1976d2",
+            fontSize: "0.85rem",
+            fontWeight: 600,
+            fontStyle: "italic",
+            alignSelf: "flex-start",
+            paddingLeft: "90px"
+          }}
+        >
           {localStorage.getItem("loginUsername") || "Giardiniere"} — Operatore
         </p>
       </div>
@@ -430,7 +514,7 @@ export default function GiardinierePage({ onLogout }: GiardinierePageProps) {
           flexDirection: "column",
           width: "100%",
           maxWidth: "900px",
-          minHeight: "450px",
+          minHeight: "420px",
           maxHeight: "520px",
           margin: "40px auto 12px",
           padding: 0,
@@ -482,19 +566,27 @@ export default function GiardinierePage({ onLogout }: GiardinierePageProps) {
           dayMaxEvents={true}
           dayMaxEventRows={true}
           eventOrder="title"
-          height={450}
+          height={420}
           eventClick={handleEventClick}
           eventContent={(arg) => {
             const fmtDate = (d) =>
-              d ? d.toLocaleDateString("it-IT", { day: "2-digit", month: "2-digit" }) : "";
+              d
+                ? d.toLocaleDateString("it-IT", {
+                    day: "2-digit",
+                    month: "2-digit"
+                  })
+                : "";
             const startStr = fmtDate(arg.event.start);
             const endStr = fmtDate(arg.event.end);
-            const dateLabel = startStr === endStr ? startStr : `${startStr} ${endStr}`;
+            const dateLabel =
+              startStr === endStr ? startStr : `${startStr} ${endStr}`;
             const location = arg.event.extendedProps.location || "";
             const categoria = arg.event.extendedProps.categoria || "";
             const activity = arg.event.extendedProps.activity || "";
             const primaRiga = `${dateLabel}${location ? ` - ${location}` : ""}`;
-            const secondaRiga = [categoria, activity].filter(Boolean).join(" - ");
+            const secondaRiga = [categoria, activity]
+              .filter(Boolean)
+              .join(" - ");
             return {
               html:
                 `<div style="font-size:0.75rem;line-height:1.2;display:flex;flex-direction:column;justify-content:center;overflow:hidden;">` +
@@ -531,9 +623,7 @@ export default function GiardinierePage({ onLogout }: GiardinierePageProps) {
             lineHeight: 1.2
           }}
         >
-          {(calendarTitle || "Caricamento...")
-            .replace(/\s*\n\s*/g, " ")
-            .trim()}
+          {(calendarTitle || "Caricamento...").replace(/\s*\n\s*/g, " ").trim()}
         </h2>
       </div>
 
@@ -701,15 +791,39 @@ export default function GiardinierePage({ onLogout }: GiardinierePageProps) {
         }}
       >
         <span style={{ display: "flex", alignItems: "center", gap: "3px" }}>
-          <span style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: "#f59e0b", display: "inline-block" }} />
+          <span
+            style={{
+              width: 10,
+              height: 10,
+              borderRadius: 2,
+              backgroundColor: "#f59e0b",
+              display: "inline-block"
+            }}
+          />
           Promemoria
         </span>
         <span style={{ display: "flex", alignItems: "center", gap: "3px" }}>
-          <span style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: "#3b82f6", display: "inline-block" }} />
+          <span
+            style={{
+              width: 10,
+              height: 10,
+              borderRadius: 2,
+              backgroundColor: "#3b82f6",
+              display: "inline-block"
+            }}
+          />
           Confermato
         </span>
         <span style={{ display: "flex", alignItems: "center", gap: "3px" }}>
-          <span style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: "#10b981", display: "inline-block" }} />
+          <span
+            style={{
+              width: 10,
+              height: 10,
+              borderRadius: 2,
+              backgroundColor: "#10b981",
+              display: "inline-block"
+            }}
+          />
           Eseguito
         </span>
       </div>
@@ -747,7 +861,13 @@ export default function GiardinierePage({ onLogout }: GiardinierePageProps) {
               cursor: "pointer"
             }}
           >
-            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+            <svg
+              className="w-6 h-6 text-white"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              strokeWidth="2"
+            >
               <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
               <path d="M16 17l5-5-5-5" />
               <path d="M21 12H9" />
@@ -762,7 +882,7 @@ export default function GiardinierePage({ onLogout }: GiardinierePageProps) {
               letterSpacing: "0.02em"
             }}
           >
-            Esci
+            Logout
           </span>
         </div>
       </div>
@@ -782,8 +902,12 @@ export default function GiardinierePage({ onLogout }: GiardinierePageProps) {
             {/* Header */}
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-2xl text-[#2563eb]">description</span>
-                <h2 className="text-lg font-bold text-[#2563eb]">Dettaglio Attività</h2>
+                <span className="material-symbols-outlined text-2xl text-[#2563eb]">
+                  description
+                </span>
+                <h2 className="text-lg font-bold text-[#2563eb]">
+                  Dettaglio Attività
+                </h2>
               </div>
             </div>
 
@@ -791,39 +915,89 @@ export default function GiardinierePage({ onLogout }: GiardinierePageProps) {
               {/* Campi informativi (readonly) */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="pl-2 text-sm font-bold text-black block">Data Inizio</label>
-                  <input className="w-full h-10 px-4 rounded-lg border border-[#c2c9bb] bg-gray-100 text-xs font-bold text-gray-500" value={selectedEvent.data_inizio ? new Date(selectedEvent.data_inizio + "T00:00:00").toLocaleDateString("it-IT") : ""} readOnly />
+                  <label className="pl-2 text-sm font-bold text-black block">
+                    Data Inizio
+                  </label>
+                  <input
+                    className="w-full h-10 px-4 rounded-lg border border-[#c2c9bb] bg-gray-100 text-xs font-bold text-gray-500"
+                    value={
+                      selectedEvent.data_inizio
+                        ? new Date(
+                            selectedEvent.data_inizio + "T00:00:00"
+                          ).toLocaleDateString("it-IT")
+                        : ""
+                    }
+                    readOnly
+                  />
                 </div>
                 <div>
-                  <label className="pl-2 text-sm font-bold text-black block">Data Fine</label>
-                  <input className="w-full h-10 px-4 rounded-lg border border-[#c2c9bb] bg-gray-100 text-xs font-bold text-gray-500" value={selectedEvent.data_fine ? new Date(selectedEvent.data_fine + "T00:00:00").toLocaleDateString("it-IT") : ""} readOnly />
+                  <label className="pl-2 text-sm font-bold text-black block">
+                    Data Fine
+                  </label>
+                  <input
+                    className="w-full h-10 px-4 rounded-lg border border-[#c2c9bb] bg-gray-100 text-xs font-bold text-gray-500"
+                    value={
+                      selectedEvent.data_fine
+                        ? new Date(
+                            selectedEvent.data_fine + "T00:00:00"
+                          ).toLocaleDateString("it-IT")
+                        : ""
+                    }
+                    readOnly
+                  />
                 </div>
               </div>
 
               <div>
-                <label className="pl-2 text-sm font-bold text-black block">Località</label>
-                <input className="w-full h-10 px-4 rounded-lg border border-[#c2c9bb] bg-gray-100 text-xs font-bold text-gray-500" value={selectedEvent.localita?.localita || ""} readOnly />
+                <label className="pl-2 text-sm font-bold text-black block">
+                  Località
+                </label>
+                <input
+                  className="w-full h-10 px-4 rounded-lg border border-[#c2c9bb] bg-gray-100 text-xs font-bold text-gray-500"
+                  value={selectedEvent.localita?.localita || ""}
+                  readOnly
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="pl-2 text-sm font-bold text-black block">Soggetto</label>
-                  <input className="w-full h-10 px-4 rounded-lg border border-[#c2c9bb] bg-gray-100 text-xs font-bold text-gray-500" value={selectedEvent.attivita?.categorie?.nome || ""} readOnly />
+                  <label className="pl-2 text-sm font-bold text-black block">
+                    Soggetto
+                  </label>
+                  <input
+                    className="w-full h-10 px-4 rounded-lg border border-[#c2c9bb] bg-gray-100 text-xs font-bold text-gray-500"
+                    value={selectedEvent.attivita?.categorie?.nome || ""}
+                    readOnly
+                  />
                 </div>
                 <div>
-                  <label className="pl-2 text-sm font-bold text-black block">Azione</label>
-                  <input className="w-full h-10 px-4 rounded-lg border border-[#c2c9bb] bg-gray-100 text-xs font-bold text-gray-500" value={selectedEvent.attivita?.descrizione || ""} readOnly />
+                  <label className="pl-2 text-sm font-bold text-black block">
+                    Azione
+                  </label>
+                  <input
+                    className="w-full h-10 px-4 rounded-lg border border-[#c2c9bb] bg-gray-100 text-xs font-bold text-gray-500"
+                    value={selectedEvent.attivita?.descrizione || ""}
+                    readOnly
+                  />
                 </div>
               </div>
 
               <div>
-                <label className="pl-2 text-sm font-bold text-black block">Contatto</label>
-                <input className="w-full h-10 px-4 rounded-lg border border-[#c2c9bb] bg-gray-100 text-xs font-bold text-gray-500" value={selectedEvent.clienti?.nome || ""} readOnly />
+                <label className="pl-2 text-sm font-bold text-black block">
+                  Contatto
+                </label>
+                <input
+                  className="w-full h-10 px-4 rounded-lg border border-[#c2c9bb] bg-gray-100 text-xs font-bold text-gray-500"
+                  value={selectedEvent.clienti?.nome || ""}
+                  readOnly
+                />
               </div>
 
               {/* Note (editabile) */}
               <div>
-                <label className="pl-2 text-sm font-bold text-black block">Note</label>
+                <label className="pl-2 text-sm font-bold text-black block">
+                  Note
+                </label>
                 <textarea
                   className="w-full min-h-[80px] px-4 py-2 rounded-lg border border-[#c2c9bb] bg-white focus:ring-2 focus:ring-[#154212] outline-none text-xs text-black font-bold resize-none placeholder:text-[#9ca3af]"
                   value={detailNote}
@@ -833,7 +1007,10 @@ export default function GiardinierePage({ onLogout }: GiardinierePageProps) {
               </div>
 
               {/* Radio Eseguito (editabile) */}
-              <div className="flex justify-end">
+              <div
+                className="flex justify-end"
+                style={{ position: "relative", left: "-20px" }}
+              >
                 <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer">
                   <input
                     type="checkbox"
@@ -847,7 +1024,9 @@ export default function GiardinierePage({ onLogout }: GiardinierePageProps) {
 
               {/* Sezione foto */}
               <div>
-                <label className="pl-2 text-sm font-bold text-black block mb-2">Foto attività</label>
+                <label className="pl-2 text-sm font-bold text-black block mb-2">
+                  Foto attività
+                </label>
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -857,7 +1036,8 @@ export default function GiardinierePage({ onLogout }: GiardinierePageProps) {
                   className="hidden"
                   onChange={(e) => {
                     if (e.target.files) {
-                      const total = detailNuoveFoto.length + e.target.files.length;
+                      const total =
+                        detailNuoveFoto.length + e.target.files.length;
                       if (total > 6) {
                         alert("Massimo 6 foto.");
                         return;
@@ -939,7 +1119,10 @@ export default function GiardinierePage({ onLogout }: GiardinierePageProps) {
               </div>
 
               {/* Pulsanti azione */}
-              <div className="flex items-center justify-end gap-8 pt-2 pb-4" style={{ marginRight: "20px" }}>
+              <div
+                className="flex items-center justify-end gap-8 pt-2 pb-4"
+                style={{ marginRight: "20px" }}
+              >
                 <div className="flex flex-col items-center">
                   <button
                     className={`inline-flex h-11 w-11 items-center justify-center rounded-full text-white transition ${detailSaving ? "bg-[#154212]/70 cursor-not-allowed" : "bg-[#154212] hover:bg-[#154212]/90"}`}
@@ -948,12 +1131,29 @@ export default function GiardinierePage({ onLogout }: GiardinierePageProps) {
                     disabled={detailSaving}
                   >
                     {detailSaving ? (
-                      <svg className="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      <svg
+                        className="animate-spin h-5 w-5 text-white"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                          fill="none"
+                        />
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                        />
                       </svg>
                     ) : (
-                      <span className="material-symbols-outlined text-xl">save</span>
+                      <span className="material-symbols-outlined text-xl">
+                        save
+                      </span>
                     )}
                   </button>
                   <span className="mt-1 text-[0.65rem] font-semibold text-white">
@@ -967,7 +1167,9 @@ export default function GiardinierePage({ onLogout }: GiardinierePageProps) {
                     className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-red-600 text-white transition hover:bg-red-700"
                     title="Chiudi"
                   >
-                    <span className="material-symbols-outlined text-xl">close</span>
+                    <span className="material-symbols-outlined text-xl">
+                      close
+                    </span>
                   </button>
                   <span className="mt-1 text-[0.65rem] font-semibold text-white">
                     Chiudi
