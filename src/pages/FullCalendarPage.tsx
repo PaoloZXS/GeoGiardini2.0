@@ -13,6 +13,7 @@ import FullCalendar from "@fullcalendar/react";
 import interactionPlugin from "@fullcalendar/interaction";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import itLocale from "@fullcalendar/core/locales/it";
+import InserisciAttivitaModal from "../components/InserisciAttivitaModal";
 
 const COLOR_PALETTE = [
   "#0b79d0",
@@ -431,40 +432,10 @@ function FullCalendarPage() {
   const [localitaList, setLocalitaList] = useState<any[]>([]);
   const [categorieList, setCategorieList] = useState<any[]>([]);
   const [inserimentiAttivita, setInserimentiAttivita] = useState<any[]>([]);
-  // Stato form "Inserimento Attività"
-  const [showAttivitaForm, setShowAttivitaForm] = useState(false);
-  const [attivitaEditId, setAttivitaEditId] = useState<string | null>(null);
+  const [attivitaModalEditData, setAttivitaModalEditData] = useState<any>(null);
   const [linkedAppuntamentoId, setLinkedAppuntamentoId] = useState<
     string | null
   >(null);
-  const [attivitaDataInizio, setAttivitaDataInizio] = useState("");
-  const [attivitaDataFine, setAttivitaDataFine] = useState("");
-  const [attivitaLocalitaId, setAttivitaLocalitaId] = useState("");
-  const [attivitaCategoriaId, setAttivitaCategoriaId] = useState("");
-  const [attivitaAttivitaId, setAttivitaAttivitaId] = useState("");
-  const [attivitaNote, setAttivitaNote] = useState("");
-  const [attivitaClienteId, setAttivitaClienteId] = useState("");
-  const [attivitaGiardiniereIds, setAttivitaGiardiniereIds] = useState<string[]>([]);
-  const [attivitaVisibile, setAttivitaVisibile] = useState(false);
-  const [attivitaStato, setAttivitaStato] = useState<
-    "promemoria" | "confermato" | "eseguito"
-  >("promemoria");
-  const [attivitaPrivato, setAttivitaPrivato] = useState(false);
-  const [attivitaVisibileGiardiniere, setAttivitaVisibileGiardiniere] =
-    useState(true);
-  const [attivitaVisibileContatto, setAttivitaVisibileContatto] =
-    useState(true);
-  const [attivitaNuoveFoto, setAttivitaNuoveFoto] = useState<File[]>([]);
-  const [attivitaFotoEsistenti, setAttivitaFotoEsistenti] = useState<any[]>([]);
-  const [attivitaGiardinieriOpen, setAttivitaGiardinieriOpen] = useState(false);
-  const attivitaGiardinieriRef = useRef<HTMLDivElement>(null);
-  const [attivitaSaving, setAttivitaSaving] = useState(false);
-  const [attivitaStatus, setAttivitaStatus] = useState<{
-    type: "success" | "error";
-    message: string;
-  } | null>(null);
-  const attivitaFileInputRef = useRef<HTMLInputElement | null>(null);
-  const attivitaStatusTimeoutRef = useRef<number | null>(null);
   const navigate = useNavigate();
   const calendarRef = useRef<any>(null);
   const pointerStartX = useRef<number | null>(null);
@@ -761,13 +732,21 @@ function FullCalendarPage() {
       );
       setCategorieList(categorieData.data || []);
       setInserimentiAttivita(inserimentiData.data || []);
-      console.log("inserimentiAttivita caricati:", inserimentiData.data?.length, "record");
+      console.log(
+        "inserimentiAttivita caricati:",
+        inserimentiData.data?.length,
+        "record"
+      );
       if (inserimentiData.data) {
-        const filt = inserimentiData.data.filter((i: any) => i.data_inizio === "2026-06-16" && i.stato === "promemoria");
+        const filt = inserimentiData.data.filter(
+          (i: any) => i.data_inizio === "2026-06-16" && i.stato === "promemoria"
+        );
         if (filt.length > 0) {
           console.log("Record 2026-06-16 trovato:", filt[0]);
         } else {
-          console.log("NESSUN record con data_inizio=2026-06-16 e stato=promemoria");
+          console.log(
+            "NESSUN record con data_inizio=2026-06-16 e stato=promemoria"
+          );
         }
       }
       setCalendarKey((k) => k + 1);
@@ -791,7 +770,9 @@ function FullCalendarPage() {
     const interval = setInterval(() => {
       if (!loadingRef.current) {
         loadingRef.current = true;
-        loadData().finally(() => { loadingRef.current = false; });
+        loadData().finally(() => {
+          loadingRef.current = false;
+        });
       }
     }, 5000);
     return () => clearInterval(interval);
@@ -1066,75 +1047,38 @@ function FullCalendarPage() {
 
   const openNewAppointmentModal = () => {
     const today = formatLocalDate(new Date());
-    setAttivitaDataInizio(today);
-    setAttivitaDataFine(today);
-    setAttivitaLocalitaId("");
-    setAttivitaCategoriaId("");
-    setAttivitaAttivitaId("");
-    setAttivitaNote("");
-    setAttivitaClienteId("");
-    setAttivitaGiardiniereIds([]);
-    setAttivitaVisibile(false);
-    setAttivitaNuoveFoto([]);
-    setAttivitaFotoEsistenti([]);
-    setAttivitaStatus(null);
     setLinkedAppuntamentoId(null);
-    setShowAttivitaForm(true);
+    setAttivitaModalEditData({
+      data_inizio: today,
+      data_fine: today,
+      stato: "promemoria"
+    });
   };
 
   const closeAppointmentModal = () => {
     setSelectedAppointmentId(null);
     setShowDeleteConfirm(false);
     setIsNewAppointmentModal(false);
-    setShowAttivitaForm(false);
+    setAttivitaModalEditData(null);
+    setLinkedAppuntamentoId(null);
   };
 
   const dismissModal = () => {
     closeAppointmentModal();
   };
 
-  const filteredAttivitaForm = attivitaList.filter(
-    (a: any) => !attivitaCategoriaId || a.categoria_id === attivitaCategoriaId
-  );
-
   const resetAttivitaForm = () => {
-    const today = formatLocalDate(new Date());
-    setAttivitaDataInizio(today);
-    setAttivitaDataFine(today);
-    setAttivitaLocalitaId("");
-    setAttivitaCategoriaId("");
-    setAttivitaAttivitaId("");
-    setAttivitaNote("");
-    setAttivitaClienteId("");
-    setAttivitaGiardiniereIds([]);
-    setAttivitaVisibile(false);
-    setAttivitaStato("promemoria");
-    setAttivitaPrivato(false);
-    setAttivitaVisibileGiardiniere(true);
-    setAttivitaVisibileContatto(true);
-    setAttivitaNuoveFoto([]);
-    setAttivitaFotoEsistenti([]);
-    setAttivitaEditId(null);
+    setAttivitaModalEditData(null);
     setLinkedAppuntamentoId(null);
   };
 
   const resetAndClose = () => {
-    resetAttivitaForm();
-    setAttivitaStatus(null);
+    setSelectedAppointmentId(null);
     setShowDeleteConfirm(false);
-    setShowAttivitaForm(false);
+    setIsNewAppointmentModal(false);
+    setAttivitaModalEditData(null);
+    setLinkedAppuntamentoId(null);
   };
-
-  // Chiudi dropdown giardinieri al click fuori
-  useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      if (attivitaGiardinieriRef.current && !attivitaGiardinieriRef.current.contains(e.target as Node)) {
-        setAttivitaGiardinieriOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
 
   // Ricarica dati quando un giardiniere salva modifiche
   useEffect(() => {
@@ -1142,175 +1086,12 @@ function FullCalendarPage() {
       loadData();
     };
     window.addEventListener("inserimento-salvato", handleInserimentoSalvato);
-    return () => window.removeEventListener("inserimento-salvato", handleInserimentoSalvato);
+    return () =>
+      window.removeEventListener(
+        "inserimento-salvato",
+        handleInserimentoSalvato
+      );
   }, []);
-
-  const clearAttivitaStatus = () => {
-    if (attivitaStatusTimeoutRef.current)
-      window.clearTimeout(attivitaStatusTimeoutRef.current);
-    attivitaStatusTimeoutRef.current = window.setTimeout(() => {
-      setAttivitaStatus(null);
-      attivitaStatusTimeoutRef.current = null;
-    }, 2000);
-  };
-
-  const uploadFoto = async (
-    file: File,
-    attivitaId: string
-  ): Promise<string> => {
-    const fileName = `${attivitaId}/${Date.now()}_${file.name}`;
-    const { error: uploadError } = await supabase.storage
-      .from("foto")
-      .upload(fileName, file, { cacheControl: "3600", upsert: false });
-    if (uploadError) throw uploadError;
-    const { data: urlData } = supabase.storage
-      .from("foto")
-      .getPublicUrl(fileName);
-    return urlData?.publicUrl || "";
-  };
-
-  const handleDeleteFotoAttivita = async (fotoId: string, fotoUrl: string) => {
-    try {
-      const path = fotoUrl.split("/foto/").pop();
-      if (path) await supabase.storage.from("foto").remove([path]);
-      await supabase.from("foto_attivita").delete().eq("id", fotoId);
-      setAttivitaFotoEsistenti((prev) => prev.filter((f) => f.id !== fotoId));
-    } catch (err) {
-      console.error("Errore eliminazione foto", err);
-    }
-  };
-
-  const handleSaveAttivita = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!attivitaLocalitaId || !attivitaAttivitaId) {
-      setAttivitaStatus({
-        type: "error",
-        message: "Località e Attività sono obbligatorie."
-      });
-      clearAttivitaStatus();
-      return;
-    }
-    setAttivitaSaving(true);
-    try {
-      const payload: any = {
-        data_inizio: attivitaDataInizio || null,
-        data_fine: attivitaDataFine || null,
-        localita_id: attivitaLocalitaId,
-        attivita_id: attivitaAttivitaId,
-        note: attivitaNote.trim() || null,
-        cliente_id: attivitaClienteId || null,
-        giardiniere_ids: attivitaGiardiniereIds.length > 0 ? attivitaGiardiniereIds : null,
-        visibile: attivitaVisibile,
-        aggiungi_al_planning: true,
-        stato: attivitaStato,
-        privato: attivitaPrivato,
-        visibile_giardiniere: attivitaVisibileGiardiniere,
-        visibile_contatto: attivitaVisibileContatto,
-        eseguito: attivitaStato === "eseguito"
-      };
-
-      if (!attivitaEditId) {
-        payload.created_by =
-          (typeof window !== "undefined"
-            ? window.localStorage.getItem("loginUsername")
-            : null) || null;
-      }
-
-      let recordId: string;
-
-      if (attivitaEditId) {
-        // MODIFICA
-        const { error } = await supabase
-          .from("inserimenti_attivita")
-          .update(payload)
-          .eq("id", attivitaEditId);
-        if (error) throw new Error(error.message);
-        recordId = attivitaEditId;
-      } else {
-        // NUOVO
-        const { data: inserted, error } = await supabase
-          .from("inserimenti_attivita")
-          .insert(payload)
-          .select("id")
-          .single();
-        if (error) throw new Error(error.message);
-        recordId = inserted.id;
-      }
-
-      // Upload nuove foto
-      for (const file of attivitaNuoveFoto) {
-        const fotoUrl = await uploadFoto(file, recordId);
-        await supabase
-          .from("foto_attivita")
-          .insert({ attivita_id: recordId, foto_url: fotoUrl });
-      }
-      setAttivitaNuoveFoto([]);
-
-      setAttivitaStatus({
-        type: "success",
-        message: attivitaEditId
-          ? "Attività aggiornata con successo."
-          : "Attività inserita con successo."
-      });
-      resetAttivitaForm();
-      await loadData();
-      window.dispatchEvent(new CustomEvent("attivita-aggiornata"));
-      window.dispatchEvent(new CustomEvent("inserimento-salvato"));
-      clearAttivitaStatus();
-      // Chiudi il modal dopo 2 secondi per far vedere il messaggio
-      setTimeout(() => resetAndClose(), 2000);
-    } catch (err: any) {
-      setAttivitaStatus({
-        type: "error",
-        message: err.message || "Errore durante il salvataggio."
-      });
-      clearAttivitaStatus();
-    } finally {
-      setAttivitaSaving(false);
-    }
-  };
-
-  const handleDeleteAttivita = async () => {
-    if (!attivitaEditId && !linkedAppuntamentoId) return;
-    setAttivitaSaving(true);
-    try {
-      if (attivitaEditId) {
-        // Elimina foto collegate
-        const { data: fotoList } = await supabase
-          .from("foto_attivita")
-          .select("*")
-          .eq("attivita_id", attivitaEditId);
-        for (const foto of fotoList || []) {
-          const path = foto.foto_url?.split("/foto/").pop();
-          if (path)
-            await supabase.storage
-              .from("foto")
-              .remove([path])
-              .catch(() => {});
-        }
-        await supabase
-          .from("foto_attivita")
-          .delete()
-          .eq("attivita_id", attivitaEditId);
-        await supabase
-          .from("inserimenti_attivita")
-          .delete()
-          .eq("id", attivitaEditId);
-      }
-
-      setShowDeleteConfirm(false);
-      resetAndClose();
-      await loadData();
-    } catch (err: any) {
-      setAttivitaStatus({
-        type: "error",
-        message: err.message || "Errore durante l'eliminazione."
-      });
-      clearAttivitaStatus();
-    } finally {
-      setAttivitaSaving(false);
-    }
-  };
 
   const handleSaveAppuntamento = async () => {
     const isCreating = isNewAppointmentModal && !selectedAppointmentId;
@@ -1786,7 +1567,14 @@ function FullCalendarPage() {
               gap: "2px"
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "10px" }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "10px"
+              }}
+            >
               <span
                 className="material-symbols-outlined"
                 style={{
@@ -1811,7 +1599,17 @@ function FullCalendarPage() {
                 Planning Interventi
               </h1>
             </div>
-            <p style={{ margin: 0, color: "#1976d2", fontSize: "0.85rem", fontWeight: 600, fontStyle: "italic", alignSelf: "flex-start", paddingLeft: "90px" }}>
+            <p
+              style={{
+                margin: 0,
+                color: "#1976d2",
+                fontSize: "0.85rem",
+                fontWeight: 600,
+                fontStyle: "italic",
+                alignSelf: "flex-start",
+                paddingLeft: "90px"
+              }}
+            >
               {localStorage.getItem("loginUsername") || "Admin"} — Administrator
             </p>
           </div>
@@ -1890,10 +1688,6 @@ function FullCalendarPage() {
                 const appId = getAppointmentIdFromEvent(rawId);
                 if (!appId) return;
 
-                // Resetta tutti gli stati prima di caricare i nuovi dati
-                resetAttivitaForm();
-                setAttivitaEditId(null);
-
                 // Evento da inserimenti_attivita (id prefissato con "ins_")
                 if (appId.startsWith("ins_")) {
                   const insId = appId.replace("ins_", "");
@@ -1902,44 +1696,30 @@ function FullCalendarPage() {
                   );
                   if (!item) return;
 
+                  const editData = {
+                    id: item.id?.toString(),
+                    data_inizio: item.data_inizio || "",
+                    data_fine: item.data_fine || "",
+                    localita_id: item.localita_id?.toString() || "",
+                    attivita_id: item.attivita_id?.toString() || "",
+                    note: item.note || "",
+                    cliente_id: item.cliente_id?.toString() || "",
+                    giardiniere_ids: item.giardiniere_ids || [],
+                    visibile: !!item.visibile,
+                    stato: item.stato || "promemoria",
+                    privato: !!item.privato,
+                    visibile_giardiniere: item.visibile_giardiniere !== false,
+                    visibile_contatto: item.visibile_contatto !== false,
+                    attivita: item.attivita || null,
+                    aggiungi_al_planning: true,
+                    created_by: item.created_by || null
+                  };
                   setLinkedAppuntamentoId(null);
-                  setAttivitaEditId(insId);
-                  setAttivitaDataInizio(item.data_inizio || "");
-                  setAttivitaDataFine(item.data_fine || "");
-                  setAttivitaLocalitaId(item.localita_id?.toString() || "");
-                  setAttivitaCategoriaId(
-                    item.attivita?.categorie?.id?.toString() ||
-                      item.attivita?.categoria_id?.toString() ||
-                      ""
-                  );
-                  setAttivitaAttivitaId(item.attivita_id?.toString() || "");
-                  setAttivitaNote(item.note || "");
-                  setAttivitaClienteId(item.cliente_id?.toString() || "");
-                  setAttivitaGiardiniereIds(item.giardiniere_ids ? (Array.isArray(item.giardiniere_ids) ? item.giardiniere_ids.map((x: any) => String(x)) : []) : []);
-                  setAttivitaVisibile(!!item.visibile);
-                  setAttivitaStato(
-                    (item.stato as "promemoria" | "confermato" | "eseguito") ||
-                      "promemoria"
-                  );
-                  setAttivitaPrivato(!!item.privato);
-                  setAttivitaVisibileGiardiniere(
-                    item.visibile_giardiniere !== false
-                  );
-                  setAttivitaVisibileContatto(item.visibile_contatto !== false);
-                  // Carica foto esistenti
-                  const { data: foto } = await supabase
-                    .from("foto_attivita")
-                    .select("*")
-                    .eq("attivita_id", insId);
-                  setAttivitaFotoEsistenti(foto || []);
-                  setShowAttivitaForm(true);
+                  setAttivitaModalEditData(editData);
                   return;
                 }
 
                 // Evento da appuntamenti
-                setLinkedAppuntamentoId(appId);
-
-                // Cerca un inserimenti_attivita collegato per data + località/attività
                 const appt = appuntamenti.find(
                   (a) => a.id?.toString?.()?.trim?.() === appId
                 );
@@ -1974,27 +1754,26 @@ function FullCalendarPage() {
                 });
 
                 if (match) {
-                  const matchId = match.id?.toString() || null;
-                  setAttivitaEditId(matchId);
-                  setAttivitaDataInizio(match.data_inizio || "");
-                  setAttivitaDataFine(match.data_fine || "");
-                  setAttivitaLocalitaId(match.localita_id || "");
-                  setAttivitaCategoriaId(
-                    match.attivita?.categorie?.id?.toString() ||
-                      match.attivita?.categoria_id?.toString() ||
-                      ""
-                  );
-                  setAttivitaAttivitaId(match.attivita_id?.toString() || "");
-                  setAttivitaNote(match.note || "");
-                  setAttivitaClienteId(match.cliente_id?.toString() || "");
-                  setAttivitaGiardiniereIds(match.giardiniere_ids ? (Array.isArray(match.giardiniere_ids) ? match.giardiniere_ids.map((x: any) => String(x)) : []) : []);
-                  setAttivitaVisibile(!!match.visibile);
-                  const { data: foto } = await supabase
-                    .from("foto_attivita")
-                    .select("*")
-                    .eq("attivita_id", matchId);
-                  setAttivitaFotoEsistenti(foto || []);
-                  setShowAttivitaForm(true);
+                  const editData = {
+                    id: match.id?.toString(),
+                    data_inizio: match.data_inizio || "",
+                    data_fine: match.data_fine || "",
+                    localita_id: match.localita_id?.toString() || "",
+                    attivita_id: match.attivita_id?.toString() || "",
+                    note: match.note || "",
+                    cliente_id: match.cliente_id?.toString() || "",
+                    giardiniere_ids: match.giardiniere_ids || [],
+                    visibile: !!match.visibile,
+                    stato: match.stato || "promemoria",
+                    privato: !!match.privato,
+                    visibile_giardiniere: match.visibile_giardiniere !== false,
+                    visibile_contatto: match.visibile_contatto !== false,
+                    attivita: match.attivita || null,
+                    aggiungi_al_planning: true,
+                    created_by: match.created_by || null
+                  };
+                  setLinkedAppuntamentoId(appId);
+                  setAttivitaModalEditData(editData);
                 } else {
                   // Nessun collegamento: apri con dati precompilati
                   const loc = localitaList.find(
@@ -2003,18 +1782,29 @@ function FullCalendarPage() {
                   const att = attivitaList.find(
                     (a: any) => a.descrizione === appt.attivita
                   );
-                  setAttivitaDataInizio(
-                    appt.data || formatLocalDate(new Date())
-                  );
-                  setAttivitaDataFine(appt.end_date || appt.data || "");
-                  setAttivitaLocalitaId(loc?.id?.toString() || "");
-                  setAttivitaCategoriaId(att?.categoria_id || "");
-                  setAttivitaAttivitaId(att?.id?.toString() || "");
-                  setAttivitaNote(appt.note || "");
-                  setAttivitaClienteId(appt.cliente_id?.toString() || "");
-                  setAttivitaGiardiniereIds(appt.giardiniere_ids ? (Array.isArray(appt.giardiniere_ids) ? appt.giardiniere_ids.map((x: any) => String(x)) : []) : []);
-                  setAttivitaVisibile(false);
-                  setShowAttivitaForm(true);
+                  const appointmentDate =
+                    appt.data || formatLocalDate(new Date());
+                  const appointmentEndDate = appt.end_date || appt.data || "";
+                  const locId = loc?.id?.toString() || "";
+                  const attId = att?.id?.toString() || "";
+                  const giardiniereIds = appt.giardiniere_ids
+                    ? Array.isArray(appt.giardiniere_ids)
+                      ? appt.giardiniere_ids.map((x: any) => String(x))
+                      : []
+                    : [];
+                  const editData = {
+                    data_inizio: appointmentDate,
+                    data_fine: appointmentEndDate || appointmentDate,
+                    localita_id: locId,
+                    attivita_id: attId,
+                    note: appt.note || "",
+                    cliente_id: appt.cliente_id?.toString() || "",
+                    giardiniere_ids: giardiniereIds,
+                    aggiungi_al_planning: true,
+                    stato: "promemoria"
+                  };
+                  setLinkedAppuntamentoId(appId);
+                  setAttivitaModalEditData(editData);
                 }
               }}
               eventDidMount={(info) => {
@@ -2046,15 +1836,23 @@ function FullCalendarPage() {
               }}
               eventContent={(arg) => {
                 const fmtDate = (d) =>
-                  d ? d.toLocaleDateString("it-IT", { day: "2-digit", month: "2-digit" }) : "";
+                  d
+                    ? d.toLocaleDateString("it-IT", {
+                        day: "2-digit",
+                        month: "2-digit"
+                      })
+                    : "";
                 const startStr = fmtDate(arg.event.start);
                 const endStr = fmtDate(arg.event.end);
-                const dateLabel = startStr === endStr ? startStr : `${startStr} - ${endStr}`;
+                const dateLabel =
+                  startStr === endStr ? startStr : `${startStr} - ${endStr}`;
                 const location = arg.event.extendedProps.location || "";
                 const categoria = arg.event.extendedProps.categoria || "";
                 const activity = arg.event.extendedProps.activity || "";
                 const primaRiga = `${dateLabel}${location ? ` - ${location}` : ""}`;
-                const secondaRiga = [categoria, activity].filter(Boolean).join(" - ");
+                const secondaRiga = [categoria, activity]
+                  .filter(Boolean)
+                  .join(" - ");
                 return {
                   html:
                     `<div style="font-size:0.75rem;line-height:1.2;display:flex;flex-direction:column;justify-content:center;overflow:hidden;">` +
@@ -2378,566 +2176,16 @@ function FullCalendarPage() {
               </span>
             </div>
           </div>
-          {showAttivitaForm ? (
-            <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/20 backdrop-blur-sm p-0 overflow-auto">
-              <section
-                className="w-full h-full max-w-none flex flex-col rounded-none border border-[#c2c9bb] bg-[#f2f4f2] shadow-2xl p-4 overflow-y-auto"
-                style={{
-                  backgroundImage: "url('/images/sfondo1.jpg')",
-                  backgroundSize: "cover",
-                  backgroundPosition: "center",
-                  backgroundRepeat: "no-repeat"
-                }}
-              >
-                {attivitaStatus && (
-                  <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30">
-                    <div
-                      className={`text-center text-base font-bold py-4 px-8 rounded-2xl shadow-2xl ${
-                        attivitaStatus.type === "success"
-                          ? "bg-emerald-100 text-emerald-950 border-2 border-emerald-400"
-                          : "bg-red-100 text-red-700 border-2 border-red-400"
-                      }`}
-                    >
-                      {attivitaStatus.message}
-                    </div>
-                  </div>
-                )}
-                <div className="flex items-center justify-center gap-3 mb-3">
-                  <span className="material-symbols-outlined text-3xl text-[#2563eb]">
-                    playlist_add
-                  </span>
-                  <h3 className="text-xl font-semibold text-[#2563eb]">
-                    {attivitaEditId
-                      ? "Modifica Attività"
-                      : "Inserimento Attività"}
-                  </h3>
-                </div>
-                <form
-                  className="flex flex-col h-full min-h-0 gap-4"
-                  onSubmit={handleSaveAttivita}
-                >
-                  {/* Date */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="pl-2 text-sm font-bold text-black block">
-                        Data inizio
-                      </label>
-                      <input
-                        type="date"
-                        className="w-full h-10 px-4 rounded-lg border border-[#c2c9bb] bg-[#f8faf8] focus:ring-2 focus:ring-[#154212] outline-none text-xs font-bold"
-                        value={attivitaDataInizio}
-                        onChange={(e) => setAttivitaDataInizio(e.target.value)}
-                        onClick={(e) =>
-                          (e.target as HTMLInputElement).showPicker()
-                        }
-                      />
-                    </div>
-                    <div>
-                      <label className="pl-2 text-sm font-bold text-black block">
-                        Data fine
-                      </label>
-                      <input
-                        type="date"
-                        className="w-full h-10 px-4 rounded-lg border border-[#c2c9bb] bg-[#f8faf8] focus:ring-2 focus:ring-[#154212] outline-none text-xs font-bold"
-                        value={attivitaDataFine}
-                        onChange={(e) => setAttivitaDataFine(e.target.value)}
-                        onClick={(e) =>
-                          (e.target as HTMLInputElement).showPicker()
-                        }
-                      />
-                    </div>
-                  </div>
-
-                  {/* Località */}
-                  <div>
-                    <label className="pl-2 text-sm font-bold text-black block">
-                      Località
-                    </label>
-                    <select
-                      className="w-full h-10 px-4 rounded-lg border border-[#c2c9bb] bg-[#f8faf8] focus:ring-2 focus:ring-[#154212] outline-none text-xs font-bold"
-                      value={attivitaLocalitaId}
-                      onChange={(e) => setAttivitaLocalitaId(e.target.value)}
-                      style={{
-                        color: attivitaLocalitaId ? "black" : "#9ca3af"
-                      }}
-                    >
-                      <option value="" className="text-[#9ca3af]">
-                        Seleziona località...
-                      </option>
-                      {localitaList.map((l: any) => (
-                        <option key={l.id} value={l.id} className="text-black">
-                          {l.localita}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Categoria + Descrizione */}
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="pl-2 text-sm font-bold text-black block">
-                        Soggetto
-                      </label>
-                      <select
-                        className="w-full h-10 px-4 rounded-lg border border-[#c2c9bb] bg-[#f8faf8] focus:ring-2 focus:ring-[#154212] outline-none text-xs font-bold"
-                        value={attivitaCategoriaId}
-                        onChange={(e) => {
-                          setAttivitaCategoriaId(e.target.value);
-                          setAttivitaAttivitaId("");
-                        }}
-                        style={{
-                          color: attivitaCategoriaId ? "black" : "#9ca3af"
-                        }}
-                      >
-                        <option value="" className="text-[#9ca3af]">
-                          Seleziona Soggetto
-                        </option>
-                        {categorieList.map((c: any) => (
-                          <option
-                            key={c.id}
-                            value={c.id}
-                            className="text-black"
-                          >
-                            {c.nome}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="pl-2 text-sm font-bold text-black block">
-                        Azione
-                      </label>
-                      <select
-                        className="w-full h-10 px-4 rounded-lg border border-[#c2c9bb] bg-[#f8faf8] focus:ring-2 focus:ring-[#154212] outline-none text-xs font-bold"
-                        value={attivitaAttivitaId}
-                        onChange={(e) => setAttivitaAttivitaId(e.target.value)}
-                        style={{
-                          color: attivitaAttivitaId ? "black" : "#9ca3af"
-                        }}
-                      >
-                        <option value="" className="text-[#9ca3af]">
-                          Seleziona Azione...
-                        </option>
-                        {filteredAttivitaForm.map((a: any) => (
-                          <option
-                            key={a.id}
-                            value={a.id}
-                            className="text-black"
-                          >
-                            {a.descrizione}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Note */}
-                  <div>
-                    <label className="pl-2 text-sm font-bold text-black block">
-                      Note
-                    </label>
-                    <textarea
-                      className="w-full min-h-[60px] px-4 py-2 rounded-lg border border-[#c2c9bb] bg-[#f8faf8] focus:ring-2 focus:ring-[#154212] outline-none text-xs text-black font-bold resize-none placeholder:text-[#9ca3af]"
-                      placeholder="Note opzionali..."
-                      value={attivitaNote}
-                      onChange={(e) => setAttivitaNote(e.target.value)}
-                    />
-                  </div>
-
-                  {/* Cliente + Giardiniere */}
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="pl-2 text-sm font-bold text-black block">
-                        Contatto
-                      </label>
-                      <select
-                        className="w-full h-10 px-4 rounded-lg border border-[#c2c9bb] bg-[#f8faf8] focus:ring-2 focus:ring-[#154212] outline-none text-xs font-bold"
-                        value={attivitaClienteId}
-                        onChange={(e) => setAttivitaClienteId(e.target.value)}
-                        style={{ color: attivitaClienteId ? "black" : "#9ca3af" }}
-                      >
-                        <option value="" className="text-[#9ca3af]">
-                          Seleziona contatto
-                        </option>
-                        {clientiList
-                          .filter((c: any) => c.ruolo === "contatto")
-                          .map((c: any) => (
-                          <option key={c.id} value={c.id} className="text-black">
-                            {c.nome}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div ref={attivitaGiardinieriRef} className="relative">
-                      <label className="pl-2 text-sm font-bold text-black block">
-                        Giardinieri
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => setAttivitaGiardinieriOpen(!attivitaGiardinieriOpen)}
-                        className="w-full h-10 px-4 rounded-lg border border-[#c2c9bb] bg-[#f8faf8] text-xs font-bold text-left truncate flex items-center justify-between gap-2"
-                        style={{ color: attivitaGiardiniereIds.length > 0 ? "black" : "#9ca3af" }}
-                      >
-                        <span className="truncate">
-                          {(() => {
-                            if (attivitaGiardiniereIds.length === 0) return "Seleziona giardinieri...";
-                            const tutti = clientiList.filter((c: any) => c.ruolo === "giardiniere");
-                            if (tutti.length > 0 && tutti.every((c: any) => attivitaGiardiniereIds.includes(c.id))) return "TUTTI";
-                            return tutti.filter((c: any) => attivitaGiardiniereIds.includes(c.id)).map((c: any) => c.nome).join(", ");
-                          })()}
-                        </span>
-                        <span className="shrink-0 text-xs">{attivitaGiardinieriOpen ? "▲" : "▼"}</span>
-                      </button>
-                      {attivitaGiardinieriOpen && (
-                        <div className="absolute z-50 mt-1 w-full rounded-lg border border-[#c2c9bb] bg-[#f8faf8] shadow-lg p-1 max-h-48 overflow-y-auto">
-                          {(() => {
-                            const giardinieriList = clientiList.filter((c: any) => c.ruolo === "giardiniere");
-                            const tuttiSelezionati = giardinieriList.length > 0 && giardinieriList.every((c) => attivitaGiardiniereIds.includes(c.id));
-                            return (
-                              <>
-                                <label className="flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer bg-[#fef9c3] hover:bg-[#fef08a] text-xs font-bold text-black border-b border-[#c2c9bb] mb-1">
-                                  <input
-                                    type="checkbox"
-                                    className="h-4 w-4 accent-[#154212]"
-                                    checked={tuttiSelezionati}
-                                    onChange={() => {
-                                      if (tuttiSelezionati) {
-                                        setAttivitaGiardiniereIds([]);
-                                      } else {
-                                        setAttivitaGiardiniereIds(giardinieriList.map((c) => c.id));
-                                      }
-                                      setAttivitaGiardinieriOpen(false);
-                                    }}
-                                  />
-                                  TUTTI
-                                </label>
-                                {giardinieriList.map((c: any) => {
-                                  const isChecked = attivitaGiardiniereIds.includes(c.id);
-                                  return (
-                                    <label
-                                      key={c.id}
-                                      className="flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer hover:bg-[#e2e8e2] text-xs font-bold text-black"
-                                    >
-                                      <input
-                                        type="checkbox"
-                                        className="h-4 w-4 accent-[#154212]"
-                                        checked={isChecked}
-                                        onChange={() => {
-                                          setAttivitaGiardiniereIds(
-                                            isChecked
-                                              ? attivitaGiardiniereIds.filter((id) => id !== c.id)
-                                              : [...attivitaGiardiniereIds, c.id]
-                                          );
-                                        }}
-                                      />
-                                      {c.nome}
-                                    </label>
-                                  );
-                                })}
-                                {giardinieriList.length === 0 && (
-                                  <div className="px-3 py-2 text-xs text-[#9ca3af]">Nessun giardiniere disponibile</div>
-                                )}
-                              </>
-                            );
-                          })()}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Griglia foto 4x2 */}
-                  <div>
-                    <input
-                      ref={attivitaFileInputRef}
-                      type="file"
-                      accept="image/*"
-                      capture="environment"
-                      multiple
-                      className="hidden"
-                      onChange={(e) => {
-                        if (e.target.files) {
-                          const total =
-                            attivitaNuoveFoto.length + e.target.files.length;
-                          if (total > 6) {
-                            setAttivitaStatus({
-                              type: "error",
-                              message: "Massimo 6 foto."
-                            });
-                            clearAttivitaStatus();
-                            return;
-                          }
-                          setAttivitaNuoveFoto((prev) => [
-                            ...prev,
-                            ...Array.from(e.target.files!)
-                          ]);
-                        }
-                      }}
-                    />
-                    <div className="flex items-start gap-4">
-                      <div
-                        className="grid justify-start gap-3 p-2 bg-transparent border border-white shrink-0"
-                        style={{ gridTemplateColumns: "repeat(3, 60px)" }}
-                      >
-                        {Array.from({ length: 6 }).map((_, idx) => {
-                          const fotoExistente = attivitaFotoEsistenti[idx];
-                          const nuovaFoto = !fotoExistente
-                            ? attivitaNuoveFoto[
-                                idx - attivitaFotoEsistenti.length
-                              ]
-                            : null;
-                          const hasPhoto = !!fotoExistente || !!nuovaFoto;
-                          const isLast = idx === 5;
-                          const showPlus =
-                            isLast &&
-                            attivitaNuoveFoto.length +
-                              attivitaFotoEsistenti.length <
-                              6;
-                          return (
-                            <div
-                              key={idx}
-                              className="relative group cursor-pointer border border-[#e5e7eb] flex items-center justify-center overflow-hidden"
-                              style={{
-                                width: "60px",
-                                height: "60px",
-                                backgroundColor: hasPhoto
-                                  ? "transparent"
-                                  : "#f9fafb"
-                              }}
-                              onClick={() =>
-                                attivitaFileInputRef.current?.click()
-                              }
-                            >
-                              {hasPhoto ? (
-                                <>
-                                  <img
-                                    src={
-                                      fotoExistente
-                                        ? fotoExistente.foto_url
-                                        : URL.createObjectURL(nuovaFoto!)
-                                    }
-                                    alt="Foto"
-                                    className="w-full h-full object-cover"
-                                  />
-                                  <button
-                                    type="button"
-                                    className="absolute top-0 right-0 bg-red-600 text-white w-4 h-4 flex items-center justify-center text-[10px] leading-none opacity-0 group-hover:opacity-100 transition"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      if (fotoExistente)
-                                        handleDeleteFotoAttivita(
-                                          fotoExistente.id,
-                                          fotoExistente.foto_url
-                                        );
-                                      else
-                                        setAttivitaNuoveFoto((prev) =>
-                                          prev.filter(
-                                            (_, i) =>
-                                              i !==
-                                              idx - attivitaFotoEsistenti.length
-                                          )
-                                        );
-                                    }}
-                                  >
-                                    ✕
-                                  </button>
-                                </>
-                              ) : showPlus ? (
-                                <span className="material-symbols-outlined text-2xl text-[#9ca3af]">
-                                  add
-                                </span>
-                              ) : null}
-                            </div>
-                          );
-                        })}
-                      </div>
-                      <div className="flex gap-8" style={{ marginTop: "50px" }}>
-                        <div className="flex flex-col gap-2">
-                          <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer whitespace-nowrap">
-                            <input type="radio" name="attivitaStato" value="promemoria" checked={attivitaStato === "promemoria"} onChange={() => setAttivitaStato("promemoria")} className="h-4 w-4 accent-[#154212]" />
-                            Promemoria
-                          </label>
-                          <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer whitespace-nowrap">
-                            <input type="radio" name="attivitaStato" value="confermato" checked={attivitaStato === "confermato"} onChange={() => setAttivitaStato("confermato")} className="h-4 w-4 accent-[#154212]" />
-                            Confermato
-                          </label>
-                          <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer whitespace-nowrap">
-                            <input type="radio" name="attivitaStato" value="eseguito" checked={attivitaStato === "eseguito"} onChange={() => setAttivitaStato("eseguito")} className="h-4 w-4 accent-[#154212]" />
-                            Eseguito
-                          </label>
-                        </div>
-                        <div className="flex flex-col gap-2">
-                          <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer whitespace-nowrap">
-                            <input type="checkbox" checked={attivitaPrivato} onChange={(e) => setAttivitaPrivato(e.target.checked)} className="h-4 w-4 accent-[#154212]" />
-                            Privato
-                          </label>
-                          {attivitaStato === "promemoria" && (
-                            <>
-                              <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer whitespace-nowrap">
-                                <input type="checkbox" className="h-4 w-4 accent-[#154212]" checked={attivitaVisibileGiardiniere} onChange={(e) => setAttivitaVisibileGiardiniere(e.target.checked)} />
-                                {attivitaVisibileGiardiniere ? "Si Invio ai Giardinieri" : "No Invio ai Giardinieri"}
-                              </label>
-                              <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer whitespace-nowrap">
-                                <input type="checkbox" className="h-4 w-4 accent-[#154212]" checked={attivitaVisibileContatto} onChange={(e) => setAttivitaVisibileContatto(e.target.checked)} />
-                                {attivitaVisibileContatto ? "Si Invio al Contatto" : "No Invio al Contatto"}
-                              </label>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Checkbox */}
-                  <div className="flex items-center gap-6 pl-2">
-                    <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer">
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4 accent-[#154212]"
-                        checked={attivitaVisibile}
-                        onChange={(e) => setAttivitaVisibile(e.target.checked)}
-                      />
-                      Foto visibili al Contatto
-                    </label>
-                    <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer">
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4 accent-[#154212]"
-                        checked={true}
-                        disabled
-                      />
-                      Aggiungi al planning
-                    </label>
-                  </div>
-
-                  <div className="mt-auto bg-transparent pt-3 pb-3">
-                    <div
-                      className="flex items-center justify-end gap-12"
-                      style={{ marginRight: "20px" }}
-                    >
-                      {attivitaEditId ||
-                      (linkedAppuntamentoId && !attivitaEditId) ? (
-                        <div className="flex flex-col items-center">
-                          <button
-                            type="button"
-                            onClick={() => setShowDeleteConfirm(true)}
-                            className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-violet-600 text-white transition hover:bg-violet-700"
-                            title="Elimina"
-                          >
-                            <span className="material-symbols-outlined text-xl">
-                              delete
-                            </span>
-                          </button>
-                          <span className="mt-1 text-[0.65rem] font-semibold text-white">
-                            Elimina
-                          </span>
-                        </div>
-                      ) : null}
-                      <div className="flex flex-col items-center">
-                        <button
-                          type="button"
-                          onClick={resetAttivitaForm}
-                          className="inline-flex h-11 w-11 items-center justify-center rounded-full text-3xl leading-none transition focus:outline-none focus:ring-2 focus:ring-[#154212]"
-                          style={{ backgroundColor: "#f5e0b7" }}
-                          title="Pulisci campi"
-                        >
-                          <span className="material-symbols-outlined text-[22px] leading-none text-black">
-                            cleaning_services
-                          </span>
-                        </button>
-                        <span className="mt-1 text-[0.65rem] font-semibold text-white">
-                          Pulisci
-                        </span>
-                      </div>
-                      <div className="flex flex-col items-center">
-                        <button
-                          className={`inline-flex h-11 w-11 items-center justify-center rounded-full text-white transition ${
-                            attivitaSaving
-                              ? "bg-[#154212]/70 cursor-not-allowed"
-                              : "bg-[#154212] hover:bg-[#154212]/90"
-                          }`}
-                          type="submit"
-                          disabled={attivitaSaving}
-                        >
-                          {attivitaSaving ? (
-                            <svg
-                              className="animate-spin h-5 w-5 text-white"
-                              viewBox="0 0 24 24"
-                            >
-                              <circle
-                                className="opacity-25"
-                                cx="12"
-                                cy="12"
-                                r="10"
-                                stroke="currentColor"
-                                strokeWidth="4"
-                                fill="none"
-                              />
-                              <path
-                                className="opacity-75"
-                                fill="currentColor"
-                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                              />
-                            </svg>
-                          ) : (
-                            <span className="material-symbols-outlined text-xl">
-                              save
-                            </span>
-                          )}
-                        </button>
-                        <span className="mt-1 text-[0.65rem] font-semibold text-white">
-                          Salva
-                        </span>
-                      </div>
-                      <div className="flex flex-col items-center">
-                        <button
-                          className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-red-600 text-white transition hover:bg-red-700"
-                          type="button"
-                          onClick={resetAndClose}
-                        >
-                          <span className="material-symbols-outlined text-xl">
-                            close
-                          </span>
-                        </button>
-                        <span className="mt-1 text-[0.65rem] font-semibold text-white">
-                          Chiudi
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </form>
-                {showDeleteConfirm && (
-                  <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/60 p-4">
-                    <div className="w-full max-w-lg rounded-3xl border border-red-400/40 bg-white p-6 shadow-2xl">
-                      <p className="text-lg font-semibold text-black mb-2">
-                        Confermi eliminazione?
-                      </p>
-                      <p className="mb-4 text-sm text-gray-600">
-                        Questa azione eliminerà definitivamente l'attività e
-                        l'appuntamento collegato.
-                      </p>
-                      <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
-                        <button
-                          type="button"
-                          className="w-full sm:w-auto h-10 rounded-full border border-gray-300 bg-white text-black transition-colors hover:bg-gray-100 px-6 text-sm font-semibold"
-                          onClick={() => setShowDeleteConfirm(false)}
-                        >
-                          Annulla
-                        </button>
-                        <button
-                          type="button"
-                          className="w-full sm:w-auto h-10 rounded-full bg-red-600 text-white shadow-lg px-6 text-sm font-semibold hover:bg-red-700 disabled:opacity-60"
-                          onClick={handleDeleteAttivita}
-                          disabled={attivitaSaving}
-                        >
-                          {attivitaSaving ? "Eliminazione..." : "Elimina"}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </section>
-            </div>
-          ) : null}
+          {/* Modale Inserimento/Modifica Attività */}
+          {attivitaModalEditData !== null && (
+            <InserisciAttivitaModal
+              editData={attivitaModalEditData}
+              onClose={() => {
+                setAttivitaModalEditData(null);
+                setLinkedAppuntamentoId(null);
+              }}
+            />
+          )}
         </>
       )}
     </div>
