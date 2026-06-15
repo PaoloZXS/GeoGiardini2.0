@@ -739,7 +739,7 @@ function LocalitaModal({ onClose }: { onClose: () => void }) {
     }
     const { data: c } = await supabase
       .from("clienti")
-      .select("id, nome, privato, created_by")
+      .select("id, nome, privato, created_by, ruolo")
       .order("nome");
     if (c) {
       setClienti(
@@ -927,7 +927,9 @@ function LocalitaModal({ onClose }: { onClose: () => void }) {
               onChange={(e) => setClienteId(e.target.value)}
             >
               <option value="">Nessun contatto</option>
-              {clienti.map((c) => (
+              {clienti
+                .filter((c: any) => c.ruolo === "contatto")
+                .map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.nome}
                 </option>
@@ -2337,77 +2339,41 @@ function InserisciModal({
                 </div>
               )}
             </div>
-            <div className="flex flex-col gap-2">
+            <div className="flex gap-8" style={{ marginTop: "50px" }}>
+              <div className="flex flex-col gap-2">
                 <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer whitespace-nowrap">
-                  <input
-                    type="radio"
-                    name="stato"
-                    value="promemoria"
-                    checked={stato === "promemoria"}
-                    onChange={() => setStato("promemoria")}
-                    className="h-4 w-4 accent-[#154212]"
-                  />
+                  <input type="radio" name="stato" value="promemoria" checked={stato === "promemoria"} onChange={() => setStato("promemoria")} className="h-4 w-4 accent-[#154212]" />
                   Promemoria
                 </label>
                 <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer whitespace-nowrap">
-                  <input
-                    type="radio"
-                    name="stato"
-                    value="confermato"
-                    checked={stato === "confermato"}
-                    onChange={() => setStato("confermato")}
-                    className="h-4 w-4 accent-[#154212]"
-                  />
+                  <input type="radio" name="stato" value="confermato" checked={stato === "confermato"} onChange={() => setStato("confermato")} className="h-4 w-4 accent-[#154212]" />
                   Confermato
                 </label>
                 <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer whitespace-nowrap">
-                  <input
-                    type="radio"
-                    name="stato"
-                    value="eseguito"
-                    checked={stato === "eseguito"}
-                    onChange={() => setStato("eseguito")}
-                    className="h-4 w-4 accent-[#154212]"
-                  />
+                  <input type="radio" name="stato" value="eseguito" checked={stato === "eseguito"} onChange={() => setStato("eseguito")} className="h-4 w-4 accent-[#154212]" />
                   Eseguito
                 </label>
+              </div>
+              <div className="flex flex-col gap-2">
                 <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer whitespace-nowrap">
-                  <input
-                    type="checkbox"
-                    checked={privato}
-                    onChange={(e) => setPrivato(e.target.checked)}
-                    className="h-4 w-4 accent-[#154212]"
-                  />
+                  <input type="checkbox" checked={privato} onChange={(e) => setPrivato(e.target.checked)} className="h-4 w-4 accent-[#154212]" />
                   Privato
                 </label>
                 {stato === "promemoria" && (
                   <>
                     <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer whitespace-nowrap">
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4 accent-[#154212]"
-                        checked={visibileGiardiniere}
-                        onChange={(e) =>
-                          setVisibileGiardiniere(e.target.checked)
-                        }
-                      />
-                      {visibileGiardiniere
-                        ? "Si Invio ai Giardinieri"
-                        : "No Invio ai Giardinieri"}
+                      <input type="checkbox" className="h-4 w-4 accent-[#154212]" checked={visibileGiardiniere} onChange={(e) => setVisibileGiardiniere(e.target.checked)} />
+                      {visibileGiardiniere ? "Si Invio ai Giardinieri" : "No Invio ai Giardinieri"}
                     </label>
                     <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer whitespace-nowrap">
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4 accent-[#154212]"
-                        checked={visibileContatto}
-                        onChange={(e) => setVisibileContatto(e.target.checked)}
-                      />
+                      <input type="checkbox" className="h-4 w-4 accent-[#154212]" checked={visibileContatto} onChange={(e) => setVisibileContatto(e.target.checked)} />
                       {visibileContatto ? "Si Invio al Contatto" : "No Invio al Contatto"}
                     </label>
                   </>
                 )}
               </div>
             </div>
+          </div>
 
           {/* Checkbox */}
           <div className="flex items-center gap-6 pl-2">
@@ -2689,7 +2655,7 @@ function ReportModal({ onClose }: { onClose: () => void }) {
       });
     supabase
       .from("clienti")
-      .select("id, nome, privato, created_by")
+      .select("id, nome, privato, created_by, ruolo")
       .order("nome")
       .then(({ data }) => {
         if (data) {
@@ -2891,7 +2857,7 @@ function ReportModal({ onClose }: { onClose: () => void }) {
               Contatto
             </option>
             {clientiList
-              .filter((c: any) => c.ruolo !== "giardiniere")
+              .filter((c: any) => c.ruolo === "contatto")
               .map((c) => (
               <option key={c.id} value={c.id} className="text-black">
                 {c.nome}

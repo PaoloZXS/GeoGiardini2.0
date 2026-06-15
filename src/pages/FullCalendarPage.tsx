@@ -2750,83 +2750,39 @@ function FullCalendarPage() {
                           );
                         })}
                       </div>
-                      <div className="flex flex-col gap-2">
-                        <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer">
-                          <input
-                            type="radio"
-                            name="attivitaStato"
-                            value="promemoria"
-                            checked={attivitaStato === "promemoria"}
-                            onChange={() => setAttivitaStato("promemoria")}
-                            className="h-4 w-4 accent-[#154212]"
-                          />
-                          Promemoria
-                        </label>
-                        <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer">
-                          <input
-                            type="radio"
-                            name="attivitaStato"
-                            value="confermato"
-                            checked={attivitaStato === "confermato"}
-                            onChange={() => setAttivitaStato("confermato")}
-                            className="h-4 w-4 accent-[#154212]"
-                          />
-                          Confermato
-                        </label>
-                        <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer">
-                          <input
-                            type="radio"
-                            name="attivitaStato"
-                            value="eseguito"
-                            checked={attivitaStato === "eseguito"}
-                            onChange={() => setAttivitaStato("eseguito")}
-                            className="h-4 w-4 accent-[#154212]"
-                          />
-                          Eseguito
-                        </label>
-                        <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={attivitaPrivato}
-                            onChange={(e) =>
-                              setAttivitaPrivato(e.target.checked)
-                            }
-                            className="h-4 w-4 accent-[#154212]"
-                          />
-                          Privato
-                        </label>
-                        {attivitaStato === "promemoria" && (
-                          <>
-                            <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer">
-                              <input
-                                type="checkbox"
-                                className="h-4 w-4 accent-[#154212]"
-                                checked={attivitaVisibileGiardiniere}
-                                onChange={(e) =>
-                                  setAttivitaVisibileGiardiniere(
-                                    e.target.checked
-                                  )
-                                }
-                              />
-                              {attivitaVisibileGiardiniere
-                                ? "Si Invio ai Giardinieri"
-                                : "No Invio ai Giardinieri"}
-                            </label>
-                            <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer">
-                              <input
-                                type="checkbox"
-                                className="h-4 w-4 accent-[#154212]"
-                                checked={attivitaVisibileContatto}
-                                onChange={(e) =>
-                                  setAttivitaVisibileContatto(e.target.checked)
-                                }
-                              />
-                              {attivitaVisibileContatto
-                                ? "Si Invio al Contatto"
-                                : "No Invio al Contatto"}
-                            </label>
-                          </>
-                        )}
+                      <div className="flex gap-8" style={{ marginTop: "50px" }}>
+                        <div className="flex flex-col gap-2">
+                          <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer whitespace-nowrap">
+                            <input type="radio" name="attivitaStato" value="promemoria" checked={attivitaStato === "promemoria"} onChange={() => setAttivitaStato("promemoria")} className="h-4 w-4 accent-[#154212]" />
+                            Promemoria
+                          </label>
+                          <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer whitespace-nowrap">
+                            <input type="radio" name="attivitaStato" value="confermato" checked={attivitaStato === "confermato"} onChange={() => setAttivitaStato("confermato")} className="h-4 w-4 accent-[#154212]" />
+                            Confermato
+                          </label>
+                          <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer whitespace-nowrap">
+                            <input type="radio" name="attivitaStato" value="eseguito" checked={attivitaStato === "eseguito"} onChange={() => setAttivitaStato("eseguito")} className="h-4 w-4 accent-[#154212]" />
+                            Eseguito
+                          </label>
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer whitespace-nowrap">
+                            <input type="checkbox" checked={attivitaPrivato} onChange={(e) => setAttivitaPrivato(e.target.checked)} className="h-4 w-4 accent-[#154212]" />
+                            Privato
+                          </label>
+                          {attivitaStato === "promemoria" && (
+                            <>
+                              <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer whitespace-nowrap">
+                                <input type="checkbox" className="h-4 w-4 accent-[#154212]" checked={attivitaVisibileGiardiniere} onChange={(e) => setAttivitaVisibileGiardiniere(e.target.checked)} />
+                                {attivitaVisibileGiardiniere ? "Si Invio ai Giardinieri" : "No Invio ai Giardinieri"}
+                              </label>
+                              <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer whitespace-nowrap">
+                                <input type="checkbox" className="h-4 w-4 accent-[#154212]" checked={attivitaVisibileContatto} onChange={(e) => setAttivitaVisibileContatto(e.target.checked)} />
+                                {attivitaVisibileContatto ? "Si Invio al Contatto" : "No Invio al Contatto"}
+                              </label>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -2841,6 +2797,15 @@ function FullCalendarPage() {
                         onChange={(e) => setAttivitaVisibile(e.target.checked)}
                       />
                       Foto visibili al Contatto
+                    </label>
+                    <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 accent-[#154212]"
+                        checked={true}
+                        disabled
+                      />
+                      Aggiungi al planning
                     </label>
                   </div>
 
