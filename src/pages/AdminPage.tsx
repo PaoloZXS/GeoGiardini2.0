@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../supabaseClient";
 import InserisciAttivitaModal from "../components/InserisciAttivitaModal";
+import PushNotificationToggle from "../components/PushNotificationToggle";
+import { sendPushNotification } from "../utils/pushNotifications";
 
 interface AdminPageProps {
   onLogout: () => void;
@@ -3010,6 +3012,15 @@ export default function AdminPage({ onLogout }: AdminPageProps) {
     } catch {
       // BroadcastChannel non supportato
     }
+    // Invia notifica push a tutti gli admin (escluso il mittente) e ai giardinieri
+    const userId = window.localStorage.getItem("userId") || undefined;
+    sendPushNotification({
+      title: "📋 Nuova attività",
+      body: "È stata creata o modificata un'attività. Controlla il planning!",
+      excludeUserId: userId,
+      includeAdmins: true,
+      includeOtherGardeners: true
+    });
     fetchChatCount();
     fetchNotificaCount();
   }, [fetchChatCount, fetchNotificaCount]);
@@ -3058,6 +3069,9 @@ export default function AdminPage({ onLogout }: AdminPageProps) {
             </h1>
           </div>
           <div className="flex-1 flex items-center justify-end gap-md">
+            <div style={{ position: "relative", top: "50px" }}>
+              <PushNotificationToggle />
+            </div>
             <button
               type="button"
               onClick={onLogout}

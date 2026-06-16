@@ -477,3 +477,44 @@ tr:last-child td {
 tr:hover td {
   background: var(--surface-container-low);
 }
+
+/* Push notification toast */
+.push-toast {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  background: #154212;
+  color: white;
+  padding: 12px 24px;
+  border-radius: 9999px;
+  font-weight: 700;
+  font-size: 0.875rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+  animation: pushToastIn 0.3s ease-out, pushToastOut 0.3s ease-in 2.7s forwards;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+@keyframes pushToastIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+@keyframes pushToastOut {
+  from {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-20px);
+  }
+}

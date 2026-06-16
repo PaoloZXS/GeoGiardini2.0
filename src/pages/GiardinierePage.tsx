@@ -4,6 +4,8 @@ import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import itLocale from "@fullcalendar/core/locales/it";
+import PushNotificationToggle from "../components/PushNotificationToggle";
+import { sendPushNotification } from "../utils/pushNotifications";
 
 interface GiardinierePageProps {
   onLogout: () => void;
@@ -304,6 +306,19 @@ export default function GiardinierePage({ onLogout }: GiardinierePageProps) {
       } catch {
         // BroadcastChannel non supportato
       }
+
+      // Invia notifica push a tutti gli admin e agli altri giardinieri
+      const userId = window.localStorage.getItem("userId") || undefined;
+      const giardiniereNome = window.localStorage.getItem("loginUsername") || "Giardiniere";
+      const localitaNome = selectedEvent.localita?.localita || "";
+      const attivitaDesc = selectedEvent.attivita?.descrizione || "";
+      sendPushNotification({
+        title: `✅ Aggiornamento da ${giardiniereNome}`,
+        body: `Località: ${localitaNome} - Azione: ${attivitaDesc}`,
+        excludeUserId: userId,
+        includeAdmins: true,
+        includeOtherGardeners: true
+      });
     } catch (err) {
       console.error("Errore salvataggio", err);
     } finally {
@@ -839,7 +854,7 @@ export default function GiardinierePage({ onLogout }: GiardinierePageProps) {
         </span>
       </div>
 
-      {/* Pulsante Logout */}
+      {/* Pulsanti Logout e Notifiche Push */}
       <div
         style={{
           position: "fixed",
@@ -852,6 +867,7 @@ export default function GiardinierePage({ onLogout }: GiardinierePageProps) {
           gap: "16px"
         }}
       >
+        <PushNotificationToggle />
         <div
           style={{
             display: "flex",

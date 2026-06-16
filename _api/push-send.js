@@ -30,18 +30,68 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { title, body, excludeUserId, url } = req.body;
+    const {
+      title,
+      body,
+      url,
+      excludeUserId,
+      includeAdmins = false,
+      includeOtherGardeners = false,
+      recipientIds = []
+    } = req.body;
+
     if (!title || !body) {
       return res.status(400).json({ error: "Missing required fields: title, body" });
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Recupera tutte le subscription eccetto quella del mittente
-    let query = supabase.from("push_subscriptions").select("endpoint, keys, user_id");
-    if (excludeUserId) {
-      query = query.neq("user_id", excludeUserId);
+    // Costruisci lista destinatari (user_id)
+    const targetUserIds = new Set();
+
+    // 1) Se includeAdmins, recupera tutti gli admin dalla tabella clienti
+    if (includeAdmins) {
+      const { data: admins } = await supabase
+        .from("clienti")
+        .select("id")
+        .eq("ruolo", "admin");
+      if (admins) {
+        admins.forEach((a) => targetUserIds.add(String(a.id)));
+      }
     }
+
+    // 2) Se includeOtherGardeners, recupera tutti i giardinieri
+    if (includeOtherGardeners) {
+      const { data: gardeners } = await supabase
+        .from("clienti")
+        .select("id")
+        .eq("ruolo", "giardiniere");
+      if (gardeners) {
+        gardeners.forEach((g) => targetUserIds.add(String(g.id)));
+      }
+    }
+
+    // 3) Aggiungi eventuali recipientIds espliciti
+    if (Array.isArray(recipientIds) && recipientIds.length > 0) {
+      recipientIds.forEach((id) => targetUserIds.add(String(id)));
+    }
+
+    // 4) Rimuovi il mittente dalla lista
+    if (excludeUserId) {
+      targetUserIds.delete(String(excludeUserId));
+    }
+
+    // Se nessun destinatario, esci
+    if (targetUserIds.size === 0) {
+      return res.status(200).json({ sent: 0, total: 0, message: "No recipients" });
+    }
+
+    // Recupera le subscription filtrate per i destinatari
+    const userIdsArray = Array.from(targetUserIds);
+    let query = supabase
+      .from("push_subscriptions")
+      .select("endpoint, keys, user_id")
+      .in("user_id", userIdsArray);
 
     const { data: subscriptions, error } = await query;
     if (error) throw error;

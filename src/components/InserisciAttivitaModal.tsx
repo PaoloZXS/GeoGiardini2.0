@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "../supabaseClient";
+import { sendPushNotification } from "../utils/pushNotifications";
 
 function InserisciAttivitaModal({
   onClose,
@@ -299,6 +300,19 @@ function InserisciAttivitaModal({
       if (!existingNotifica || existingNotifica === 0) {
         await supabase.from("notifiche_attivita").insert({ attivita_id: recordId });
       }
+
+      // Invia notifica push agli admin (escluso il mittente) e ai giardinieri selezionati
+      const adminName = window.localStorage.getItem("loginUsername") || "Admin";
+      const localitaNome = localitaList.find((l: any) => l.id === localitaId)?.localita || "";
+      const attivitaDesc = attivitaList.find((a: any) => a.id === attivitaId)?.descrizione || "";
+      const currentUserId = window.localStorage.getItem("userId") || undefined;
+      sendPushNotification({
+        title: `📋 Nuova attività da ${adminName}`,
+        body: `Località: ${localitaNome} - Azione: ${attivitaDesc}`,
+        excludeUserId: currentUserId,
+        includeAdmins: true,
+        recipientIds: giardiniereIds.length > 0 ? giardiniereIds : undefined
+      });
 
       setStatusType("success");
       setStatusMessage(

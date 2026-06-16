@@ -7,6 +7,19 @@ import GiardinierePage from "./pages/GiardinierePage";
 import FullCalendarPage from "./pages/FullCalendarPage";
 import WeatherPage from "./pages/WeatherPage";
 
+// Registra il service worker all'avvio
+function registerServiceWorker() {
+  if (!("serviceWorker" in navigator)) return;
+  window.addEventListener("load", async () => {
+    try {
+      const registration = await navigator.serviceWorker.register("/sw.js");
+      console.log("ServiceWorker registered:", registration.scope);
+    } catch (err) {
+      console.error("ServiceWorker registration failed:", err);
+    }
+  });
+}
+
 function clearStoredAuth() {
   if (typeof window === "undefined") return;
   window.localStorage.removeItem("loginRole");
@@ -15,6 +28,11 @@ function clearStoredAuth() {
 }
 
 function App() {
+  // Registra il Service Worker all'avvio
+  useEffect(() => {
+    registerServiceWorker();
+  }, []);
+
   // GeoGiardini 2.0 — App principale
   const [authenticatedRole, setAuthenticatedRole] = useState<
     "admin" | "giardiniere" | "cliente" | null
