@@ -1,16 +1,19 @@
 import { useState, useEffect, useCallback } from "react";
 import { getVapidPublicKey, urlBase64ToUint8Array } from "../utils/pushNotifications";
 
-const SUBSCRIPTION_URL = import.meta.env.DEV 
-  ? "http://10.0.0.209:3000/api/push-subscriptions"  // PC locale
-  : "/api/push-subscriptions";
-
 export function usePushNotifications() {
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [permission, setPermission] = useState("default");
 
-  // 🔹 1. DEFINISCI subscribe PRIMA di usarlo
+  // Determina l'URL base per le API
+  const getApiBaseUrl = () => {
+    // In produzione (Vercel) usa URL relativo
+    if (import.meta.env.PROD) return '';
+    // In sviluppo usa localhost:3000
+    return 'http://10.0.0.209:3000';
+  };
+
   const subscribe = useCallback(async (): Promise<boolean> => {
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
       console.warn("Push notifications not supported");
@@ -45,7 +48,9 @@ export function usePushNotifications() {
 
       const userId = window.localStorage.getItem("userId");
       const subJSON = subscription.toJSON();
-      const res = await fetch(SUBSCRIPTION_URL, {
+      
+      const baseUrl = getApiBaseUrl();
+      const res = await fetch(`${baseUrl}/api/push-subscriptions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -68,7 +73,6 @@ export function usePushNotifications() {
     }
   }, []);
 
-  // 🔹 2. DEFINISCI unsubscribe
   const unsubscribe = useCallback(async (): Promise<boolean> => {
     if (!("serviceWorker" in navigator)) return false;
 
@@ -77,12 +81,12 @@ export function usePushNotifications() {
       const sub = await reg.pushManager.getSubscription();
 
       if (sub) {
-        await fetch(SUBSCRIPTION_URL, {
+        const baseUrl = getApiBaseUrl();
+        await fetch(`${baseUrl}/api/push-subscriptions`, {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ endpoint: sub.endpoint })
         }).catch(() => {});
-
         await sub.unsubscribe();
       }
 
@@ -94,21 +98,6 @@ export function usePushNotifications() {
     }
   }, []);
 
-  // 🔹 3. (Disabilitato) Auto-subscribe — gestito da App.tsx
-  // useEffect(() => {
-  //   const autoSubscribe = async () => {
-  //     const userId = localStorage.getItem("userId");
-  //     if (userId && "serviceWorker" in navigator) {
-  //       const perm = await Notification.requestPermission();
-  //       if (perm === "granted") {
-  //         await subscribe();
-  //       }
-  //     }
-  //   };
-  //   autoSubscribe();
-  // }, [subscribe]);
-
-  // 🔹 4. Verifica lo stato della subscription all'avvio
   useEffect(() => {
     const checkSubscription = async () => {
       if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
