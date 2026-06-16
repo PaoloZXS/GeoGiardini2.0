@@ -6,6 +6,7 @@ import ClientePage from "./pages/ClientePage";
 import GiardinierePage from "./pages/GiardinierePage";
 import FullCalendarPage from "./pages/FullCalendarPage";
 import WeatherPage from "./pages/WeatherPage";
+import { usePushNotifications } from "./hooks/usePushNotifications";
 
 // Registra il service worker all'avvio
 function registerServiceWorker() {
@@ -122,6 +123,18 @@ function App() {
       navigator.serviceWorker?.removeEventListener("message", handleSwMessage);
     };
   }, []);
+
+  // COMMENTA TUTTO QUESTO BLOCCO:
+  // const { subscribe } = usePushNotifications();
+  //
+  // useEffect(() => {
+  //   if (authenticatedRole) {
+  //     const registerPush = async () => {
+  //       await subscribe();
+  //     };
+  //     registerPush();
+  //   }
+  // }, [authenticatedRole, subscribe]);
 
   useEffect(() => {
     if ("Notification" in window && Notification.permission === "default") {

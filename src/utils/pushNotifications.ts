@@ -57,7 +57,9 @@ export async function sendPushNotification(
  */
 export async function getVapidPublicKey(): Promise<string | null> {
   try {
-    const res = await fetch("/api/vapid-public-key");
+    // In sviluppo usa localhost:3000, in produzione usa percorso relativo
+    const baseUrl = import.meta.env.DEV ? 'http://10.0.0.209:3000' : '';
+    const res = await fetch(`${baseUrl}/api/vapid-public-key`);
     const data = await res.json();
     return data.vapidPublicKey || null;
   } catch {
