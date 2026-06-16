@@ -2,7 +2,7 @@ const VAPID_PLACEHOLDER = "INSERISCI_VAPID_PUBLIC_KEY";
 
 async function fetchVapidPublicKey(): Promise<string> {
   try {
-    const response = await fetch("/api/vapid-public-key");
+    const response = await fetch("/_api/vapid-public-key");
     if (!response.ok) return VAPID_PLACEHOLDER;
     const payload = await response.json();
     return payload.vapidPublicKey || VAPID_PLACEHOLDER;
@@ -85,7 +85,7 @@ async function subscribeUser(userId: string, vapidPublicKey: string): Promise<vo
 async function saveSubscription(userId: string, subscription: PushSubscription): Promise<void> {
   try {
     const sub = subscription.toJSON();
-    await fetch("/api/push-subscriptions", {
+    await fetch("/_api/push-subscriptions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -106,7 +106,7 @@ export async function sendPushNotification(
   url?: string
 ): Promise<void> {
   try {
-    await fetch("/api/push-send", {
+    await fetch("/_api/push-send", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ title, body, excludeUserId, url })
