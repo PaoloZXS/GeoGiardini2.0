@@ -15,6 +15,7 @@ function clearStoredAuth() {
 }
 
 function App() {
+  // GeoGiardini 2.0 — App principale
   const [authenticatedRole, setAuthenticatedRole] = useState<
     "admin" | "giardiniere" | "cliente" | null
   >(null);
