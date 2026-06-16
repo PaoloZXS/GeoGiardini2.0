@@ -1,67 +1,62 @@
-const CACHE_NAME = "geogiardini-v4";
-const ASSETS_TO_CACHE = [
-  "/",
-  "/index.html",
-  "/favicon.svg",
-  "/manifest.json",
-  "/leaf-512.png"
-];
+const CACHE_NAME = "geogiardini-v5";
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS_TO_CACHE))
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(["/", "/index.html", "/manifest.json", "/leaf-512.png"]);
+    })
   );
 });
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
+    caches.keys().then((keys) => {
+      return Promise.all(
         keys.map((key) => {
           if (key !== CACHE_NAME) return caches.delete(key);
         })
-      )
-    )
+      );
+    })
   );
   self.clients.claim();
 });
 
+// 🔴 QUESTO È IL LISTENER PER LE NOTIFICHE PUSH
 self.addEventListener("push", (event) => {
-  const data = event.data?.json?.() ?? {};
-  const title = data.title || "GeoGiardini";
+  let data = {};
+  try {
+    data = event.data.json();
+  } catch {
+    data = { title: "GeoGiardini", body: "Nuova notifica" };
+  }
+
   const options = {
-    body: data.body || data.message || "",
+    body: data.body || "",
     icon: "/leaf-512.png",
     badge: "/leaf-512.png",
     requireInteraction: true,
-    vibrate: [120, 80, 120],
+    vibrate: [200, 100, 200],
     data: {
       url: data.url || "/",
-      ...data.data
-    }
+    },
   };
 
-  event.waitUntil(self.registration.showNotification(title, options));
+  event.waitUntil(
+    self.registration.showNotification(data.title || "GeoGiardini", options)
+  );
 });
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const targetUrl = event.notification.data?.url || "/";
+  const url = event.notification.data?.url || "/";
   event.waitUntil(
-    self.clients
-      .matchAll({ type: "window", includeUncontrolled: true })
-      .then((clients) => {
-        for (const client of clients) {
-          if ("focus" in client) return client.focus();
-        }
-        if (self.clients.openWindow) return self.clients.openWindow(targetUrl);
-      })
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+      if (clients.length > 0) {
+        clients[0].focus();
+      } else {
+        self.clients.openWindow(url);
+      }
+    })
   );
-});
-
-self.addEventListener("message", (event) => {
-  if (event.data && event.data.type === "SKIP_WAITING") {
-    self.skipWaiting();
-  }
 });
