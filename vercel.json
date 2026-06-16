@@ -3,10 +3,5 @@
   "outputDirectory": "dist",
   "devCommand": "npx vite",
   "installCommand": "npm install",
-  "functions": {
-    "_api/*.js": {
-      "runtime": "nodejs@20.x"
-    }
-  },
   "rewrites": [{ "source": "/api/(.*)", "destination": "/_api/$1" }]
 }
