@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "../supabaseClient";
-import { sendPushNotification } from "../utils/pushNotification";
 
 function InserisciAttivitaModal({
   onClose,
@@ -300,16 +299,6 @@ function InserisciAttivitaModal({
       if (!existingNotifica || existingNotifica === 0) {
         await supabase.from("notifiche_attivita").insert({ attivita_id: recordId });
       }
-
-      // Invia notifica push a tutti tranne il salvante
-      const currentUserId = window.localStorage.getItem("userId");
-      sendPushNotification(
-        "Attività aggiornata",
-        editData?.id
-          ? "Un'attività è stata modificata"
-          : "Una nuova attività è stata inserita",
-        currentUserId || undefined
-      );
 
       setStatusType("success");
       setStatusMessage(

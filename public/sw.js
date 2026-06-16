@@ -53,11 +53,9 @@ self.addEventListener("notificationclick", (event) => {
       .matchAll({ type: "window", includeUncontrolled: true })
       .then((clients) => {
         for (const client of clients) {
-          if (client.url.includes(targetUrl) || targetUrl === "/") {
-            return client.focus();
-          }
+          if ("focus" in client) return client.focus();
         }
-        return self.clients.openWindow(targetUrl);
+        if (self.clients.openWindow) return self.clients.openWindow(targetUrl);
       })
   );
 });

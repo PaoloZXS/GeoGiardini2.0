@@ -4,7 +4,6 @@ import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import itLocale from "@fullcalendar/core/locales/it";
-import { sendPushNotification } from "../utils/pushNotification";
 
 interface GiardinierePageProps {
   onLogout: () => void;
@@ -296,13 +295,6 @@ export default function GiardinierePage({ onLogout }: GiardinierePageProps) {
       loadEventi();
       // Notifica le altre pagine (admin, planning) per aggiornare i dati
       window.dispatchEvent(new CustomEvent("inserimento-salvato"));
-
-      // Invia notifica push a tutti tranne il giardiniere (admin)
-      sendPushNotification(
-        "Nuova attività eseguita",
-        "Un giardiniere ha completato un'attività",
-        userId || undefined
-      );
 
       // Broadcast su tutti i tab aperti (stesso browser) per aggiornare badge in tempo reale
       try {
