@@ -312,6 +312,15 @@ export default function GiardinierePage({ onLogout }: GiardinierePageProps) {
           );
         }
       }
+
+      // Broadcast su tutti i tab aperti (admin, giardiniere)
+      try {
+        const channel = new BroadcastChannel("geogiardini");
+        channel.postMessage({ type: "attivita-aggiornata" });
+        channel.close();
+      } catch {
+        // BroadcastChannel non supportato
+      }
     } catch (err) {
       console.error("Errore salvataggio", err);
     } finally {

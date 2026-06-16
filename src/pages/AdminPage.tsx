@@ -2986,6 +2986,33 @@ export default function AdminPage({ onLogout }: AdminPageProps) {
     return () => clearInterval(interval);
   }, [fetchChatCount]);
 
+  // Ascolta messaggi BroadcastChannel da altri tab (giardiniere)
+  useEffect(() => {
+    try {
+      const channel = new BroadcastChannel("geogiardini");
+      channel.onmessage = () => {
+        fetchChatCount();
+        fetchNotificaCount();
+      };
+      return () => channel.close();
+    } catch {
+      // BroadcastChannel non supportato
+    }
+  }, [fetchChatCount, fetchNotificaCount]);
+
+  // Ascolta messaggi dal service worker
+  useEffect(() => {
+    if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
+    const handler = (event: MessageEvent) => {
+      if (event.data?.type === "PUSH_RECEIVED") {
+        fetchChatCount();
+        fetchNotificaCount();
+      }
+    };
+    navigator.serviceWorker.addEventListener("message", handler);
+    return () => navigator.serviceWorker.removeEventListener("message", handler);
+  }, [fetchChatCount, fetchNotificaCount]);
+
   const handleActionClick = (actionId: string) => {
     setSelectedAction(actionId);
     if (actionId === "clienti") setModal("clienti");
