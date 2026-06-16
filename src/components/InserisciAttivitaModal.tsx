@@ -290,6 +290,16 @@ function InserisciAttivitaModal({
           .insert({ attivita_id: recordId, foto_url: fotoUrl });
       }
 
+      // Inserisce notifica per l'altro ruolo (solo se non esiste già non letta)
+      const { count: existingNotifica } = await supabase
+        .from("notifiche_attivita")
+        .select("*", { count: "exact", head: true })
+        .eq("attivita_id", recordId)
+        .eq("letta", false);
+      if (!existingNotifica || existingNotifica === 0) {
+        await supabase.from("notifiche_attivita").insert({ attivita_id: recordId });
+      }
+
       setStatusType("success");
       setStatusMessage(
         editData?.id
