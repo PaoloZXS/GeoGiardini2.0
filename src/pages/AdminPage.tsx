@@ -2692,6 +2692,228 @@ function PromemoriaModal({ onClose }: { onClose: () => void }) {
   );
 }
 
+// === Notifiche Modal ===
+
+function NotificheModal({
+  onClose,
+  onNotified
+}: {
+  onClose: () => void;
+  onNotified?: () => void;
+}) {
+  const [list, setList] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editItem, setEditItem] = useState<any | null>(null);
+  const [editingNotifica, setEditingNotifica] = useState<any | null>(null);
+
+  const fetchList = async () => {
+    setLoading(true);
+    try {
+      // Prende TUTTE le notifiche (senza filtro letta)
+      const { data } = await supabase
+        .from("notifiche_attivita")
+        .select(
+          "*, inserimenti_attivita(*, localita(*), attivita(*, categorie(*)), clienti(*))"
+        )
+        .order("created_at", { ascending: false });
+      if (data) setList(data);
+    } catch (err) {
+      console.error("Errore caricamento notifiche", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchList();
+    window.dispatchEvent(new CustomEvent("inserimento-salvato"));
+  }, []);
+
+  // Filtra solo quelle non lette per la visualizzazione
+  const notificheNonLette = list.filter((n) => n.letta !== true);
+
+  const formatDate = (d: string) => {
+    if (!d) return "-";
+    return new Date(d + "T00:00:00").toLocaleDateString("it-IT", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric"
+    });
+  };
+
+  const handleCardClick = (notifica: any) => {
+    // Non marca come letta: salva la notifica e apre il modale
+    setEditingNotifica(notifica);
+    setEditItem(notifica.inserimenti_attivita);
+  };
+
+  const handleSaveSuccess = async () => {
+    if (!editingNotifica) return;
+    // Solo dopo salvataggio confermato: marca come letta e rimuove dalla lista
+    await supabase
+      .from("notifiche_attivita")
+      .update({ letta: true })
+      .eq("id", editingNotifica.id);
+    setList((prev) => prev.filter((n) => n.id !== editingNotifica.id));
+    setEditingNotifica(null);
+    onNotified?.();
+  };
+
+  if (editItem) {
+    return (
+      <InserisciAttivitaModal
+        onClose={() => {
+          setEditItem(null);
+          setEditingNotifica(null);
+        }}
+        editData={editItem}
+        onSaveSuccess={handleSaveSuccess}
+        onRecordSaved={() => {
+          window.dispatchEvent(new CustomEvent("inserimento-salvato"));
+        }}
+      />
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/20 backdrop-blur-sm p-0 overflow-auto">
+      <section
+        className="w-full h-full max-w-none flex flex-col border border-[#c2c9bb] bg-[#f2f4f2] shadow-2xl"
+        style={{
+          backgroundImage: "url('/images/sfondo1.jpg')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat"
+        }}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 pb-2">
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-2xl text-[#2563eb]">
+              notifications
+            </span>
+            <h2 className="text-lg font-bold text-[#2563eb]">
+              Notifiche Attività
+            </h2>
+          </div>
+          <div className="flex flex-col items-center">
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-red-600 text-white hover:bg-red-700 transition"
+              title="Chiudi"
+            >
+              <span className="material-symbols-outlined text-lg">close</span>
+            </button>
+            <span className="mt-1 text-[0.65rem] font-semibold text-black">
+              Chiudi
+            </span>
+          </div>
+        </div>
+
+        {/* Contenuto scrollabile */}
+        <div
+          className="flex-1 px-4 pb-4 overflow-hidden flex flex-col mt-10"
+          style={{ maxHeight: "60vh" }}
+        >
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <svg
+                className="animate-spin h-8 w-8 text-[#2563eb]"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                  fill="none"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                />
+              </svg>
+            </div>
+          ) : notificheNonLette.length === 0 ? (
+            <div className="flex items-center justify-center py-12 text-gray-500 font-semibold">
+              Nessuna notifica presente.
+            </div>
+          ) : (
+            <div className="overflow-y-auto rounded-xl border border-[#c2c9bb] bg-white p-2 space-y-2">
+              {notificheNonLette.map((notifica) => (
+                <button
+                  key={notifica.id}
+                  type="button"
+                  onClick={() => handleCardClick(notifica)}
+                  className="w-full text-left rounded-xl border border-[#c2c9bb] bg-white p-3 hover:bg-[#eceeec] transition cursor-pointer shadow-sm"
+                >
+                  <div className="grid grid-cols-2 gap-2">
+                    {/* Colonna sinistra */}
+                    <div className="text-left">
+                      <div className="text-xs font-bold text-gray-500">
+                        {notifica.inserimenti_attivita
+                          ? formatDate(
+                              notifica.inserimenti_attivita.data_inizio
+                            )
+                          : "-"}
+                      </div>
+                      <div className="mt-0.5 text-sm font-bold text-[#191c1b]">
+                        {notifica.inserimenti_attivita?.localita
+                          ?.localita || "—"}
+                        {notifica.inserimenti_attivita?.attivita
+                          ?.descrizione ? (
+                          <span className="font-normal text-[#42493e]">
+                            {" "}
+                            —{" "}
+                            {notifica.inserimenti_attivita.attivita.descrizione}
+                            {notifica.inserimenti_attivita?.clienti?.nome
+                              ? ` — ${notifica.inserimenti_attivita.clienti.nome}`
+                              : ""}
+                          </span>
+                        ) : notifica.inserimenti_attivita?.clienti?.nome ? (
+                          ` — ${notifica.inserimenti_attivita.clienti.nome}`
+                        ) : (
+                          ""
+                        )}
+                      </div>
+                    </div>
+                    {/* Colonna destra */}
+                    <div className="text-right">
+                      <div className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-800">
+                        <span className="material-symbols-outlined text-xs">
+                          notifications
+                        </span>
+                        Notifica
+                      </div>
+                      <div className="mt-0.5 text-[10px] text-gray-400 font-semibold">
+                        {notifica.created_at
+                          ? new Date(
+                              notifica.created_at
+                            ).toLocaleDateString("it-IT", {
+                              day: "2-digit",
+                              month: "2-digit",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit"
+                            })
+                          : ""}
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+    </div>
+  );
+}
+
 // === Admin Page ===
 
 export default function AdminPage({ onLogout }: AdminPageProps) {
@@ -2705,6 +2927,7 @@ export default function AdminPage({ onLogout }: AdminPageProps) {
     | "inserisci"
     | "lista-attivita"
     | "promemoria"
+    | "notifiche"
     | null
   >(null);
   const [now, setNow] = useState(new Date());
@@ -2743,24 +2966,25 @@ export default function AdminPage({ onLogout }: AdminPageProps) {
     };
   }, [fetchNotificaCount]);
 
-  useEffect(() => {
-    const fetchChatCount = async () => {
-      try {
-        const { count } = await supabase
-          .from("messaggi")
-          .select("*", { count: "exact", head: true })
-          .eq("letta", false);
-        if (count !== null) {
-          setChatCount(count);
-        }
-      } catch {
-        // Tabella messaggi non ancora creata
+  const fetchChatCount = useCallback(async () => {
+    try {
+      const { count } = await supabase
+        .from("notifiche_attivita")
+        .select("*", { count: "exact", head: true })
+        .eq("letta", false);
+      if (count !== null) {
+        setChatCount(count);
       }
-    };
-    fetchChatCount();
-    const interval = setInterval(fetchChatCount, 30000);
-    return () => clearInterval(interval);
+    } catch {
+      // silent
+    }
   }, []);
+
+  useEffect(() => {
+    fetchChatCount();
+    const interval = setInterval(fetchChatCount, 10000);
+    return () => clearInterval(interval);
+  }, [fetchChatCount]);
 
   const handleActionClick = (actionId: string) => {
     setSelectedAction(actionId);
@@ -2855,14 +3079,20 @@ export default function AdminPage({ onLogout }: AdminPageProps) {
               {notificaCount}
             </span>
           </button>
-          <div className="relative inline-flex items-center justify-center w-8 h-8 rounded-lg bg-blue-600 text-white">
+          <button
+            type="button"
+            onClick={() => setModal("notifiche")}
+            className="relative inline-flex items-center justify-center w-8 h-8 rounded-lg bg-blue-600 text-white"
+          >
             <span className="material-symbols-outlined text-lg leading-none">
               chat
             </span>
-            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
-              8
-            </span>
-          </div>
+            {chatCount > 0 && (
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                {chatCount}
+              </span>
+            )}
+          </button>
         </div>
       </header>
       <div className="admin-page__divider" />
@@ -3002,6 +3232,15 @@ export default function AdminPage({ onLogout }: AdminPageProps) {
       )}
       {modal === "promemoria" && (
         <PromemoriaModal onClose={() => setModal(null)} />
+      )}
+      {modal === "notifiche" && (
+        <NotificheModal
+          onClose={() => {
+            setModal(null);
+            fetchChatCount();
+          }}
+          onNotified={fetchChatCount}
+        />
       )}
     </div>
   );

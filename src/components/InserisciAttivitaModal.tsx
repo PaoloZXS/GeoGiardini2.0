@@ -4,11 +4,13 @@ import { supabase } from "../supabaseClient";
 function InserisciAttivitaModal({
   onClose,
   editData,
-  onRecordSaved
+  onRecordSaved,
+  onSaveSuccess
 }: {
   onClose: () => void;
   editData?: any;
   onRecordSaved?: () => void;
+  onSaveSuccess?: () => void;
 }) {
   const today = new Date().toISOString().split("T")[0];
   const [dataInizio, setDataInizio] = useState(today);
@@ -298,6 +300,7 @@ function InserisciAttivitaModal({
       clearStatus();
       // Notifica il padre per aggiornare il badge in tempo reale
       if (onRecordSaved) onRecordSaved();
+      if (onSaveSuccess) onSaveSuccess();
       window.dispatchEvent(new CustomEvent("inserimento-salvato"));
       window.dispatchEvent(new CustomEvent("attivita-aggiornata"));
       // Chiudi il modal dopo 2 secondi per far vedere il messaggio
@@ -801,7 +804,7 @@ function InserisciAttivitaModal({
 
           {/* Checkbox */}
           <div className="flex flex-row gap-3 items-center whitespace-nowrap text-xs pl-2">
-            <label className="flex items-center gap-2 font-bold text-black cursor-pointer">
+            <label className="flex items-center gap-2 font-bold text-black cursor-pointer" style={{marginLeft:"-8px"}}>
               <input
                 type="checkbox"
                 className="h-4 w-4 accent-[#154212]"

@@ -153,7 +153,7 @@ export default function GiardinierePage({ onLogout }: GiardinierePageProps) {
       const title = [localitaNome, attivitaDesc].filter(Boolean).join(" — ");
       const stato = item.stato || "promemoria";
       let bgColor: string;
-      if (item.eseguito === true) {
+      if (item.stato === "eseguito") {
         bgColor = "#10b981";
       } else {
         const colorMap: Record<string, string> = {
@@ -227,7 +227,7 @@ export default function GiardinierePage({ onLogout }: GiardinierePageProps) {
       if (data) {
         setSelectedEvent(data);
         setDetailNote(data.note || "");
-        setDetailEseguito(data.eseguito === true);
+        setDetailEseguito(data.stato === "eseguito");
         setStatoOriginale(data.stato || "promemoria");
         setDetailNuoveFoto([]);
         // Carica foto esistenti
@@ -246,21 +246,11 @@ export default function GiardinierePage({ onLogout }: GiardinierePageProps) {
     if (!selectedEvent?.id) return;
     setDetailSaving(true);
     try {
-      const newStato = detailEseguito ? "eseguito" : "confermato";
-      console.log(
-        "DEBUG save - detailEseguito:",
-        detailEseguito,
-        "| statoOriginale:",
-        statoOriginale,
-        "| newStato:",
-        newStato
-      );
       const { error: updateError } = await supabase
         .from("inserimenti_attivita")
         .update({
           note: detailNote.trim() || null,
-          stato: newStato,
-          eseguito: detailEseguito
+          stato: detailEseguito ? "eseguito" : "confermato"
         })
         .eq("id", selectedEvent.id);
 
@@ -289,10 +279,41 @@ export default function GiardinierePage({ onLogout }: GiardinierePageProps) {
           .insert({ attivita_id: selectedEvent.id, foto_url: fotoUrl });
       }
 
+      // Inserisce notifica per l'admin (solo se non esiste già una notifica non letta)
+      const { count: notificaCount } = await supabase
+        .from("notifiche_attivita")
+        .select("*", { count: "exact", head: true })
+        .eq("attivita_id", selectedEvent.id)
+        .eq("letta", false);
+      if (!notificaCount || notificaCount === 0) {
+        await supabase
+          .from("notifiche_attivita")
+          .insert({ attivita_id: selectedEvent.id });
+      }
+
       setSelectedEvent(null);
       loadEventi();
       // Notifica le altre pagine (admin, planning) per aggiornare i dati
       window.dispatchEvent(new CustomEvent("inserimento-salvato"));
+
+      // Invia messaggio al service worker per notifica push
+      if ("Notification" in window) {
+        const perm = await Notification.requestPermission();
+        if (perm === "granted" && "serviceWorker" in navigator) {
+          const registration = await navigator.serviceWorker.ready;
+          registration.active?.postMessage({
+            type: "PUSH_RECEIVED",
+            data: {
+              title: "Nuova attività eseguita",
+              body: "Un giardiniere ha completato un'attività"
+            }
+          });
+        } else if (perm !== "granted") {
+          alert(
+            "Abilita le notifiche nelle impostazioni del browser per ricevere aggiornamenti."
+          );
+        }
+      }
     } catch (err) {
       console.error("Errore salvataggio", err);
     } finally {
@@ -1014,11 +1035,11 @@ export default function GiardinierePage({ onLogout }: GiardinierePageProps) {
                 <label className="flex items-center gap-2 text-sm font-bold text-black cursor-pointer">
                   <input
                     type="checkbox"
-                    className="h-4 w-4 accent-[#2563eb]"
+                    className="w-5 h-5 accent-[#2563eb] border-2 border-[#2563eb]"
                     checked={detailEseguito}
                     onChange={() => setDetailEseguito(!detailEseguito)}
                   />
-                  Attività Eseguita
+                  <span className="font-bold text-lg">Attività Eseguita</span>
                 </label>
               </div>
 
