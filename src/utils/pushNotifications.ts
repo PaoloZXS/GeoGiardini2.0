@@ -1,3 +1,7 @@
+// src/utils/pushNotifications.ts
+
+const VAPID_PLACEHOLDER = "INSERISCI_VAPID_PUBLIC_KEY";
+
 interface SendPushOptions {
   title: string;
   body: string;
@@ -9,11 +13,73 @@ interface SendPushOptions {
 }
 
 /**
+ * Determina l'URL base per le API in base all'ambiente.
+ * In DEV: usa percorso relativo, il proxy di Vite (vite.config.ts) inoltra a localhost:3000.
+ * In PROD: percorso relativo, Vercel gestisce le API.
+ */
+export function getApiBaseUrl(): string {
+  return "";
+}
+
+/**
+ * Salva una sottoscrizione push sul server (upsert).
+ * Ispirato dalla logica funzionante di CosaDaFare.
+ */
+export async function savePushSubscription(
+  userId: string,
+  groupName: string,
+  subscription: PushSubscription
+): Promise<boolean> {
+  try {
+    const baseUrl = getApiBaseUrl();
+    const subJSON = subscription.toJSON();
+    const res = await fetch(`${baseUrl}/api/push-subscriptions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_id: userId,
+        group_name: groupName,
+        endpoint: subscription.endpoint,
+        keys: subJSON.keys
+      })
+    });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      console.error(
+        "[Push] Errore salvataggio subscription:",
+        errData.error || res.statusText
+      );
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error("[Push] Errore salvataggio subscription:", err);
+    return false;
+  }
+}
+
+/**
+ * Elimina una sottoscrizione push dal server.
+ */
+export async function deletePushSubscription(
+  endpoint: string
+): Promise<boolean> {
+  try {
+    const baseUrl = getApiBaseUrl();
+    const res = await fetch(`${baseUrl}/api/push-subscriptions`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ endpoint })
+    });
+    return res.ok;
+  } catch (err) {
+    console.error("[Push] Errore cancellazione subscription:", err);
+    return false;
+  }
+}
+
+/**
  * Invia una notifica push tramite l'API endpoint.
- * excludeUserId: l'ID dell'utente mittente (non riceverà la notifica)
- * includeAdmins: se true, invia a tutti gli admin
- * includeOtherGardeners: se true, invia a tutti i giardinieri (escluso mittente)
- * recipientIds: array specifico di user_id a cui inviare
  */
 export async function sendPushNotification(
   titleOrOptions: string | SendPushOptions,
@@ -35,20 +101,28 @@ export async function sendPushNotification(
   }
 
   try {
-    const baseUrl = import.meta.env.DEV ? 'http://10.0.0.209:3000' : '';
-    const res = await fetch(`${baseUrl}/api/push-send`, {
+    const baseUrl = getApiBaseUrl();
+    const endpoint = `${baseUrl}/api/push-send`;
+
+    console.log("[Push] Invio notifica:", payload.title, "a", endpoint);
+
+    const res = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
     });
+
     if (!res.ok) {
       const errData = await res.json().catch(() => ({}));
-      console.error("Push send error:", errData.error || res.statusText);
+      console.error("[Push] Errore invio:", errData.error || res.statusText);
       return null;
     }
-    return await res.json();
+
+    const result = await res.json();
+    console.log("[Push] Notifica inviata:", result);
+    return result;
   } catch (err) {
-    console.error("Push send network error:", err);
+    console.error("[Push] Errore di rete:", err);
     return null;
   }
 }
@@ -58,19 +132,28 @@ export async function sendPushNotification(
  */
 export async function getVapidPublicKey(): Promise<string | null> {
   try {
-    // In sviluppo usa localhost:3000, in produzione usa percorso relativo
-    const baseUrl = import.meta.env.DEV ? 'http://10.0.0.209:3000' : '';
-    const res = await fetch(`${baseUrl}/api/vapid-public-key`);
+    const baseUrl = getApiBaseUrl();
+    const endpoint = `${baseUrl}/api/vapid-public-key`;
+
+    console.log("[Push] Recupero VAPID key da:", endpoint);
+
+    const res = await fetch(endpoint);
+    if (!res.ok) {
+      console.error("[Push] Errore VAPID:", res.status);
+      return null;
+    }
+
     const data = await res.json();
+    console.log("[Push] VAPID key ricevuta:", !!data.vapidPublicKey);
     return data.vapidPublicKey || null;
-  } catch {
+  } catch (err) {
+    console.error("[Push] Errore VAPID:", err);
     return null;
   }
 }
 
 /**
  * Converte una stringa base64 url-safe in un Uint8Array
- * (richiesto da PushManager.subscribe)
  */
 export function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);

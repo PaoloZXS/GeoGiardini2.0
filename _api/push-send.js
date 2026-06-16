@@ -25,7 +25,12 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  if (!supabaseUrl || !supabaseServiceKey || !vapidPublicKey || !vapidPrivateKey) {
+  if (
+    !supabaseUrl ||
+    !supabaseServiceKey ||
+    !vapidPublicKey ||
+    !vapidPrivateKey
+  ) {
     return res.status(500).json({ error: "Push notifications not configured" });
   }
 
@@ -41,7 +46,9 @@ export default async function handler(req, res) {
     } = req.body;
 
     if (!title || !body) {
-      return res.status(400).json({ error: "Missing required fields: title, body" });
+      return res
+        .status(400)
+        .json({ error: "Missing required fields: title, body" });
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -49,8 +56,9 @@ export default async function handler(req, res) {
     // Costruisci lista destinatari (user_id)
     const targetUserIds = new Set();
 
-    // 1) Se includeAdmins, recupera tutti gli admin dalla tabella clienti
+    // 1) Se includeAdmins, recupera tutti gli admin (clienti + hardcoded)
     if (includeAdmins) {
+      // Admin dalla tabella clienti
       const { data: admins } = await supabase
         .from("clienti")
         .select("id")
@@ -58,6 +66,9 @@ export default async function handler(req, res) {
       if (admins) {
         admins.forEach((a) => targetUserIds.add(String(a.id)));
       }
+      // Admin hardcoded (Angelo=1, Giulio=2) — non presenti in clienti
+      targetUserIds.add("1");
+      targetUserIds.add("2");
     }
 
     // 2) Se includeOtherGardeners, recupera tutti i giardinieri
@@ -83,7 +94,9 @@ export default async function handler(req, res) {
 
     // Se nessun destinatario, esci
     if (targetUserIds.size === 0) {
-      return res.status(200).json({ sent: 0, total: 0, message: "No recipients" });
+      return res
+        .status(200)
+        .json({ sent: 0, total: 0, message: "No recipients" });
     }
 
     // Recupera le subscription filtrate per i destinatari

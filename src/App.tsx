@@ -124,17 +124,16 @@ function App() {
     };
   }, []);
 
-  // COMMENTA TUTTO QUESTO BLOCCO:
-  // const { subscribe } = usePushNotifications();
-  //
-  // useEffect(() => {
-  //   if (authenticatedRole) {
-  //     const registerPush = async () => {
-  //       await subscribe();
-  //     };
-  //     registerPush();
-  //   }
-  // }, [authenticatedRole, subscribe]);
+  const { subscribe } = usePushNotifications();
+
+  useEffect(() => {
+    if (authenticatedRole) {
+      const registerPush = async () => {
+        await subscribe();
+      };
+      registerPush();
+    }
+  }, [authenticatedRole, subscribe]);
 
   useEffect(() => {
     if ("Notification" in window && Notification.permission === "default") {

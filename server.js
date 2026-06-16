@@ -1,8 +1,8 @@
-import express from 'express';
-import cors from 'cors';
-import { createClient } from '@supabase/supabase-js';
-import webpush from 'web-push';
-import dotenv from 'dotenv';
+import express from "express";
+import cors from "cors";
+import { createClient } from "@supabase/supabase-js";
+import webpush from "web-push";
+import dotenv from "dotenv";
 
 dotenv.config({ quiet: false });
 
@@ -22,66 +22,86 @@ const vapidPublicKey = process.env.VITE_VAPID_PUBLIC_KEY;
 const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
 
 webpush.setVapidDetails(
-  'mailto:admin@geogiardini.it',
+  "mailto:admin@geogiardini.it",
   vapidPublicKey,
   vapidPrivateKey
 );
 
 // Endpoint VAPID public key
-app.get('/api/vapid-public-key', (req, res) => {
-  console.log('📢 Leggo VITE_VAPID_PUBLIC_KEY dal .env');
+app.get("/api/vapid-public-key", (req, res) => {
+  console.log("📢 Leggo VITE_VAPID_PUBLIC_KEY dal .env");
   const vapidPublicKey = process.env.VITE_VAPID_PUBLIC_KEY || "";
-  console.log('🔑 Chiave:', vapidPublicKey ? '✅ TROVATA' : '❌ VUOTA');
+  console.log("🔑 Chiave:", vapidPublicKey ? "✅ TROVATA" : "❌ VUOTA");
   if (!vapidPublicKey) {
     return res.status(500).json({ error: "VAPID public key not configured" });
   }
   res.json({ vapidPublicKey });
 });
 
-// Endpoint per salvare subscription
-app.post('/api/push-subscriptions', async (req, res) => {
-  const { user_id, endpoint, keys } = req.body;
+// Endpoint per salvare subscription (con group_name per coerenza con CosaDaFare)
+app.post("/api/push-subscriptions", async (req, res) => {
+  const { user_id, group_name, endpoint, keys } = req.body;
   if (!user_id || !endpoint || !keys) {
-    return res.status(400).json({ error: 'Missing fields' });
+    return res.status(400).json({ error: "Missing fields" });
   }
 
   try {
-    const { data: existing } = await supabase
-      .from('push_subscriptions')
-      .select('id')
-      .eq('user_id', user_id)
+    const { data: existing, error: findError } = await supabase
+      .from("push_subscriptions")
+      .select("id")
+      .eq("user_id", user_id)
       .maybeSingle();
 
-    if (existing) {
-      await supabase
-        .from('push_subscriptions')
-        .update({ endpoint, keys, updated_at: new Date().toISOString() })
-        .eq('id', existing.id);
-    } else {
-      await supabase
-        .from('push_subscriptions')
-        .insert({ user_id, endpoint, keys });
+    if (findError) {
+      console.error("[Push] Errore ricerca subscription:", findError);
+      return res.status(500).json({ error: findError.message });
     }
 
+    const record = {
+      endpoint,
+      keys,
+      updated_at: new Date().toISOString()
+    };
+
+    let result;
+    if (existing) {
+      result = await supabase
+        .from("push_subscriptions")
+        .update(record)
+        .eq("id", existing.id);
+    } else {
+      result = await supabase
+        .from("push_subscriptions")
+        .insert({ ...record, user_id });
+    }
+
+    if (result.error) {
+      console.error("[Push] Errore salvataggio su Supabase:", result.error);
+      return res.status(500).json({ error: result.error.message });
+    }
+
+    console.log(
+      "[Push] Subscription salvata per user_id:",
+      user_id,
+      "endpoint:",
+      endpoint.substring(0, 50) + "..."
+    );
     res.json({ success: true });
   } catch (error) {
-    console.error('Error:', error);
+    console.error("[Push] Errore:", error);
     res.status(500).json({ error: error.message });
   }
 });
 
 // Endpoint per eliminare subscription
-app.delete('/api/push-subscriptions', async (req, res) => {
+app.delete("/api/push-subscriptions", async (req, res) => {
   const { endpoint } = req.body;
   if (!endpoint) {
-    return res.status(400).json({ error: 'Missing endpoint' });
+    return res.status(400).json({ error: "Missing endpoint" });
   }
 
   try {
-    await supabase
-      .from('push_subscriptions')
-      .delete()
-      .eq('endpoint', endpoint);
+    await supabase.from("push_subscriptions").delete().eq("endpoint", endpoint);
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -89,34 +109,46 @@ app.delete('/api/push-subscriptions', async (req, res) => {
 });
 
 // Endpoint per inviare notifiche
-app.post('/api/push-send', async (req, res) => {
-  const { title, body, url, excludeUserId, includeAdmins, includeOtherGardeners, recipientIds } = req.body;
+app.post("/api/push-send", async (req, res) => {
+  const {
+    title,
+    body,
+    url,
+    excludeUserId,
+    includeAdmins,
+    includeOtherGardeners,
+    recipientIds
+  } = req.body;
 
   if (!title || !body) {
-    return res.status(400).json({ error: 'Missing title or body' });
+    return res.status(400).json({ error: "Missing title or body" });
   }
 
   try {
     const targetUserIds = new Set();
 
     if (includeAdmins) {
+      // Admin dalla tabella clienti
       const { data: admins } = await supabase
-        .from('clienti')
-        .select('id')
-        .eq('ruolo', 'admin');
-      if (admins) admins.forEach(a => targetUserIds.add(String(a.id)));
+        .from("clienti")
+        .select("id")
+        .eq("ruolo", "admin");
+      if (admins) admins.forEach((a) => targetUserIds.add(String(a.id)));
+      // Admin hardcoded (Angelo=1, Giulio=2) — non presenti in clienti
+      targetUserIds.add("1");
+      targetUserIds.add("2");
     }
 
     if (includeOtherGardeners) {
       const { data: gardeners } = await supabase
-        .from('clienti')
-        .select('id')
-        .eq('ruolo', 'giardiniere');
-      if (gardeners) gardeners.forEach(g => targetUserIds.add(String(g.id)));
+        .from("clienti")
+        .select("id")
+        .eq("ruolo", "giardiniere");
+      if (gardeners) gardeners.forEach((g) => targetUserIds.add(String(g.id)));
     }
 
     if (recipientIds && recipientIds.length > 0) {
-      recipientIds.forEach(id => targetUserIds.add(String(id)));
+      recipientIds.forEach((id) => targetUserIds.add(String(id)));
     }
 
     if (excludeUserId) {
@@ -124,14 +156,30 @@ app.post('/api/push-send', async (req, res) => {
     }
 
     if (targetUserIds.size === 0) {
+      console.log("[Push] Nessun destinatario target");
       return res.json({ sent: 0, total: 0 });
     }
 
     const userIdsArray = Array.from(targetUserIds);
-    const { data: subscriptions } = await supabase
-      .from('push_subscriptions')
-      .select('endpoint, keys')
-      .in('user_id', userIdsArray);
+    console.log("[Push] Cerco subscription per user_ids:", userIdsArray);
+
+    const { data: subscriptions, error: subError } = await supabase
+      .from("push_subscriptions")
+      .select("endpoint, keys")
+      .in("user_id", userIdsArray);
+
+    if (subError) {
+      console.error("[Push] Errore query subscription:", subError);
+      return res.status(500).json({ error: subError.message });
+    }
+
+    console.log("[Push] Trovate", subscriptions?.length || 0, "subscription");
+    if (subscriptions && subscriptions.length > 0) {
+      console.log(
+        "[Push] Prima subscription endpoint:",
+        subscriptions[0].endpoint?.substring(0, 50) + "..."
+      );
+    }
 
     if (!subscriptions || subscriptions.length === 0) {
       return res.json({ sent: 0, total: 0 });
@@ -140,16 +188,16 @@ app.post('/api/push-send', async (req, res) => {
     const payload = JSON.stringify({
       title,
       body,
-      url: url || '/',
-      icon: '/leaf-512.png',
-      badge: '/leaf-512.png',
+      url: url || "/",
+      icon: "/leaf-512.png",
+      badge: "/leaf-512.png",
       requireInteraction: true,
       vibrate: [120, 80, 120]
     });
 
     let sent = 0;
     const results = await Promise.allSettled(
-      subscriptions.map(sub => {
+      subscriptions.map((sub) => {
         const pushSub = {
           endpoint: sub.endpoint,
           keys: sub.keys
@@ -157,23 +205,23 @@ app.post('/api/push-send', async (req, res) => {
         return webpush.sendNotification(pushSub, payload).catch(async (err) => {
           if (err.statusCode === 410) {
             await supabase
-              .from('push_subscriptions')
+              .from("push_subscriptions")
               .delete()
-              .eq('endpoint', sub.endpoint);
+              .eq("endpoint", sub.endpoint);
           }
           throw err;
         });
       })
     );
 
-    sent = results.filter(r => r.status === 'fulfilled').length;
+    sent = results.filter((r) => r.status === "fulfilled").length;
     res.json({ sent, total: subscriptions.length });
   } catch (error) {
-    console.error('Error:', error);
+    console.error("Error:", error);
     res.status(500).json({ error: error.message });
   }
 });
 
-app.listen(port, '0.0.0.0', () => {
+app.listen(port, "0.0.0.0", () => {
   console.log(`🚀 Server running on http://10.0.0.1:${port}`);
 });

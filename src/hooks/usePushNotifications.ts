@@ -1,122 +1,169 @@
+// src/hooks/usePushNotifications.ts
 import { useState, useEffect, useCallback } from "react";
-import { getVapidPublicKey, urlBase64ToUint8Array } from "../utils/pushNotifications";
+import {
+  getVapidPublicKey,
+  urlBase64ToUint8Array,
+  savePushSubscription,
+  deletePushSubscription
+} from "../utils/pushNotifications";
+
+/**
+ * Restituisce il groupName (ruolo) dell'utente loggato da localStorage.
+ * Ispirato dalla logica CosaDaFare che associa una subscription a un gruppo.
+ */
+function getUserGroup(): string {
+  return window.localStorage.getItem("loginRole") || "contatto";
+}
+
+function getUserId(): string | null {
+  return window.localStorage.getItem("userId");
+}
 
 export function usePushNotifications() {
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [permission, setPermission] = useState("default");
-
-  // Determina l'URL base per le API
-  const getApiBaseUrl = () => {
-    // In produzione (Vercel) usa URL relativo
-    if (import.meta.env.PROD) return '';
-    // In sviluppo usa localhost:3000
-    return 'http://10.0.0.209:3000';
-  };
+  const [error, setError] = useState<string | null>(null);
 
   const subscribe = useCallback(async (): Promise<boolean> => {
+    setError(null);
+
+    // 1) Verifica supporto browser
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
-      console.warn("Push notifications not supported");
+      const msg = "Il browser non supporta le notifiche push.";
+      console.warn("[Push]", msg);
+      setError(msg);
       return false;
     }
 
     try {
+      // 2) Richiedi permesso notifiche
       const perm = await Notification.requestPermission();
       setPermission(perm);
+
       if (perm !== "granted") {
-        console.warn("Notification permission denied");
+        const msg = "Permesso notifiche negato.";
+        console.warn("[Push]", msg);
+        setError(msg);
         return false;
       }
 
+      // 3) Ottieni il service worker
       const reg = await navigator.serviceWorker.ready;
+
+      // 4) Ottieni chiave VAPID (come in CosaDaFare push.js)
+      const vapidKey = await getVapidPublicKey();
+      if (!vapidKey) {
+        const msg = "Chiave VAPID non configurata. Contatta l'amministratore.";
+        console.error("[Push]", msg);
+        setError(msg);
+        return false;
+      }
+
+      // 5) Recupera userId e groupName
+      const userId = getUserId();
+      const groupName = getUserGroup();
+
+      if (!userId) {
+        const msg = "Utente non autenticato. Effettua il login.";
+        console.error("[Push]", msg);
+        setError(msg);
+        return false;
+      }
+
+      // 6) Rimuovi eventuale subscription esistente prima di crearne una nuova
       const existingSub = await reg.pushManager.getSubscription();
       if (existingSub) {
+        // Rimuovi anche dal server
+        await deletePushSubscription(existingSub.endpoint);
         await existingSub.unsubscribe();
       }
 
-      const vapidKey = await getVapidPublicKey();
-      if (!vapidKey) {
-        console.error("VAPID public key not available");
-        return false;
-      }
-
+      // 7) Crea nuova sottoscrizione
       const key = urlBase64ToUint8Array(vapidKey);
       const subscription = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: key
       });
 
-      const userId = window.localStorage.getItem("userId");
-      const subJSON = subscription.toJSON();
-      
-      const baseUrl = getApiBaseUrl();
-      const res = await fetch(`${baseUrl}/api/push-subscriptions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_id: userId,
-          endpoint: subscription.endpoint,
-          keys: subJSON.keys
-        })
-      });
+      console.log("[Push] Sottoscrizione creata:", subscription.endpoint);
 
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || "Failed to save subscription");
+      // 8) Salva sul server (con groupName = ruolo, come in CosaDaFare)
+      const saved = await savePushSubscription(userId, groupName, subscription);
+      if (!saved) {
+        throw new Error("Salvataggio subscription fallito.");
       }
 
+      console.log(
+        "[Push] Sottoscrizione salvata con successo per gruppo:",
+        groupName
+      );
       setIsSubscribed(true);
       return true;
     } catch (err) {
-      console.error("Push subscription failed:", err);
+      const msg =
+        err instanceof Error ? err.message : "Errore attivazione notifiche.";
+      console.error("[Push] Errore:", err);
+      setError(msg);
       return false;
     }
   }, []);
 
   const unsubscribe = useCallback(async (): Promise<boolean> => {
-    if (!("serviceWorker" in navigator)) return false;
+    setError(null);
+
+    if (!("serviceWorker" in navigator)) {
+      return false;
+    }
 
     try {
       const reg = await navigator.serviceWorker.ready;
       const sub = await reg.pushManager.getSubscription();
 
       if (sub) {
-        const baseUrl = getApiBaseUrl();
-        await fetch(`${baseUrl}/api/push-subscriptions`, {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ endpoint: sub.endpoint })
-        }).catch(() => {});
+        // Rimuovi dal server PRIMA (come in CosaDaFare)
+        await deletePushSubscription(sub.endpoint);
+        // Poi dal browser
         await sub.unsubscribe();
+        console.log("[Push] Sottoscrizione rimossa.");
       }
 
       setIsSubscribed(false);
       return true;
     } catch (err) {
-      console.error("Push unsubscribe failed:", err);
+      const msg =
+        err instanceof Error ? err.message : "Errore disattivazione notifiche.";
+      console.error("[Push] Unsubscribe failed:", err);
+      setError(msg);
       return false;
     }
   }, []);
 
+  // Controlla lo stato della sottoscrizione all'avvio
   useEffect(() => {
     const checkSubscription = async () => {
       if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
         setIsLoading(false);
         return;
       }
+
       setPermission(Notification.permission);
+
       try {
         const reg = await navigator.serviceWorker.ready;
         const sub = await reg.pushManager.getSubscription();
         setIsSubscribed(!!sub);
-      } catch {
-        // service worker non ready
+        console.log("[Push] Stato sottoscrizione:", !!sub);
+      } catch (err) {
+        console.error("[Push] Errore controllo sottoscrizione:", err);
+        setIsSubscribed(false);
       } finally {
         setIsLoading(false);
       }
     };
+
     checkSubscription();
   }, []);
 
-  return { isSubscribed, isLoading, permission, subscribe, unsubscribe };
+  return { isSubscribed, isLoading, permission, subscribe, unsubscribe, error };
 }

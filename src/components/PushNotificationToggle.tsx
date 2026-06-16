@@ -1,7 +1,7 @@
 import { usePushNotifications } from "../hooks/usePushNotifications";
 
 export default function PushNotificationToggle() {
-  const { isSubscribed, isLoading, permission, subscribe, unsubscribe } =
+  const { isSubscribed, isLoading, permission, subscribe, unsubscribe, error } =
     usePushNotifications();
 
   if (isLoading) {
@@ -13,7 +13,9 @@ export default function PushNotificationToggle() {
           className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-gray-400 text-white shadow-lg"
           style={{ border: "none", cursor: "not-allowed" }}
         >
-          <span className="material-symbols-outlined text-xl">notifications</span>
+          <span className="material-symbols-outlined text-xl">
+            notifications
+          </span>
         </button>
         <span
           style={{
@@ -33,24 +35,29 @@ export default function PushNotificationToggle() {
   const isDisabled = permission === "denied";
 
   const handleToggle = async () => {
-    // Se il permesso è già stato negato, mostra un messaggio
     if (permission === "denied") {
-      alert("Per attivare le notifiche, apri il sito nel browser Chrome e clicca sulla campanella, poi torna nella PWA.");
+      alert(
+        "Per attivare le notifiche, apri il sito nel browser Chrome e clicca sulla campanella, poi torna nella PWA."
+      );
       return;
     }
 
     if (isSubscribed) {
       await unsubscribe();
     } else {
-      // Chiedi il permesso PRIMA di fare qualsiasi altra cosa
-      const perm = await Notification.requestPermission();
-      if (perm !== "granted") {
-        alert("Per ricevere le notifiche, devi concedere il permesso. Apri il sito nel browser Chrome per farlo.");
-        return;
-      }
+      // Il permesso viene richiesto DENTRO subscribe(), come in CosaDaFare
       await subscribe();
     }
   };
+
+  // Messaggio di stato (ispirato a CosaDaFare che mostra testo sotto il pulsante)
+  const statusText = error
+    ? error
+    : isSubscribed
+      ? "Notifiche attive"
+      : isDisabled
+        ? "Notifiche bloccate"
+        : "Clicca per attivare le notifiche";
 
   return (
     <div
@@ -94,7 +101,7 @@ export default function PushNotificationToggle() {
         style={{
           fontSize: "0.65rem",
           fontWeight: 700,
-          color: "#000080",
+          color: error ? "#dc2626" : "#000080",
           textTransform: "uppercase",
           letterSpacing: "0.02em",
           whiteSpace: "nowrap"
@@ -102,6 +109,20 @@ export default function PushNotificationToggle() {
       >
         {isSubscribed ? "Notifiche ON" : isDisabled ? "Bloccate" : "Notifiche"}
       </span>
+      {/* Status text sotto il label, come in CosaDaFare push.js updatePushButtonState */}
+      {statusText && (
+        <span
+          style={{
+            fontSize: "0.6rem",
+            color: error ? "#dc2626" : "#4b5563",
+            textAlign: "center",
+            maxWidth: "120px",
+            lineHeight: "1.2"
+          }}
+        >
+          {statusText}
+        </span>
+      )}
     </div>
   );
 }

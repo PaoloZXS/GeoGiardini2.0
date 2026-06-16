@@ -20,9 +20,11 @@ export default async function handler(req, res) {
 
   try {
     if (req.method === "POST") {
-      const { user_id, endpoint, keys } = req.body;
+      const { user_id, group_name, endpoint, keys } = req.body;
       if (!user_id || !endpoint || !keys) {
-        return res.status(400).json({ error: "Missing required fields: user_id, endpoint, keys" });
+        return res
+          .status(400)
+          .json({ error: "Missing required fields: user_id, endpoint, keys" });
       }
 
       // Upsert: se esiste già per questo user_id, aggiorna
@@ -32,15 +34,21 @@ export default async function handler(req, res) {
         .eq("user_id", user_id)
         .maybeSingle();
 
+      const record = {
+        endpoint,
+        keys,
+        updated_at: new Date().toISOString()
+      };
+
       if (existing) {
         await supabase
           .from("push_subscriptions")
-          .update({ endpoint, keys, updated_at: new Date().toISOString() })
+          .update(record)
           .eq("id", existing.id);
       } else {
         await supabase
           .from("push_subscriptions")
-          .insert({ user_id, endpoint, keys });
+          .insert({ ...record, user_id });
       }
 
       return res.status(200).json({ success: true });

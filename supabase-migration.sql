@@ -51,3 +51,26 @@ ALTER TABLE inserimenti_attivita ADD COLUMN IF NOT EXISTS eseguito BOOLEAN DEFAU
 -- Aggiungi colonne a tabella localita
 ALTER TABLE localita ADD COLUMN IF NOT EXISTS privata BOOLEAN DEFAULT FALSE;
 ALTER TABLE localita ADD COLUMN IF NOT EXISTS created_by TEXT;
+
+-- ============================================
+-- NOTIFICHE PUSH (ispirato a CosaDaFare)
+-- ============================================
+
+-- Crea tabella push_subscriptions se non esiste
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+  id BIGSERIAL PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  group_name TEXT NOT NULL DEFAULT 'contatto',
+  endpoint TEXT NOT NULL UNIQUE,
+  keys JSONB NOT NULL DEFAULT '{}',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Indici per query veloci
+CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user_id ON push_subscriptions(user_id);
+CREATE INDEX IF NOT EXISTS idx_push_subscriptions_group_name ON push_subscriptions(group_name);
+
+-- Aggiungi group_name se la tabella esiste già (migrazione)
+ALTER TABLE push_subscriptions ADD COLUMN IF NOT EXISTS group_name TEXT NOT NULL DEFAULT 'contatto';
+ALTER TABLE push_subscriptions ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
