@@ -1,6 +1,4 @@
 {
-  "buildCommand": "node ./node_modules/vite/bin/vite.js build",
-  "outputDirectory": "dist",
-  "devCommand": "npx vite",
-  "installCommand": "npm install"
+  "framework": "vite",
+  "outputDirectory": "dist"
 }
