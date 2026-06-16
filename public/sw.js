@@ -64,22 +64,4 @@ self.addEventListener("message", (event) => {
   if (event.data && event.data.type === "SKIP_WAITING") {
     self.skipWaiting();
   }
-  if (event.data && event.data.type === "PUSH_RECEIVED") {
-    const { title, body } = event.data;
-    self.registration.showNotification(title || "GeoGiardini", {
-      body: body || "",
-      icon: "/leaf-512.png",
-      badge: "/leaf-512.png",
-      requireInteraction: true,
-      vibrate: [120, 80, 120]
-    });
-    // Forward to all clients EXCEPT the sender
-    self.clients.matchAll().then((clients) => {
-      clients.forEach((client) => {
-        if (client.id !== event.source?.id) {
-          client.postMessage(event.data);
-        }
-      });
-    });
-  }
 });

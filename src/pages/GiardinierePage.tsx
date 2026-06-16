@@ -296,24 +296,7 @@ export default function GiardinierePage({ onLogout }: GiardinierePageProps) {
       // Notifica le altre pagine (admin, planning) per aggiornare i dati
       window.dispatchEvent(new CustomEvent("inserimento-salvato"));
 
-      // Invia messaggio al service worker per notifica push
-      if ("Notification" in window) {
-        const perm = await Notification.requestPermission();
-        if (perm === "granted" && "serviceWorker" in navigator) {
-          const registration = await navigator.serviceWorker.ready;
-          registration.active?.postMessage({
-            type: "PUSH_RECEIVED",
-            title: "Nuova attività eseguita",
-            body: "Un giardiniere ha completato un'attività"
-          });
-        } else if (perm !== "granted") {
-          alert(
-            "Abilita le notifiche nelle impostazioni del browser per ricevere aggiornamenti."
-          );
-        }
-      }
-
-      // Broadcast su tutti i tab aperti (admin, giardiniere)
+      // Broadcast su tutti i tab aperti (stesso browser) per aggiornare badge in tempo reale
       try {
         const channel = new BroadcastChannel("geogiardini");
         channel.postMessage({ type: "attivita-aggiornata" });

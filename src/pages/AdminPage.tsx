@@ -3000,30 +3000,9 @@ export default function AdminPage({ onLogout }: AdminPageProps) {
     }
   }, [fetchChatCount, fetchNotificaCount]);
 
-  // Ascolta messaggi dal service worker
-  useEffect(() => {
-    if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
-    const handler = (event: MessageEvent) => {
-      if (event.data?.type === "PUSH_RECEIVED") {
-        fetchChatCount();
-        fetchNotificaCount();
-      }
-    };
-    navigator.serviceWorker.addEventListener("message", handler);
-    return () => navigator.serviceWorker.removeEventListener("message", handler);
-  }, [fetchChatCount, fetchNotificaCount]);
-
   const sendNotificationToGiardinieri = useCallback(async () => {
-    if (!("Notification" in window)) return;
-    const perm = await Notification.requestPermission();
-    if (perm === "granted" && "serviceWorker" in navigator) {
-      const registration = await navigator.serviceWorker.ready;
-      registration.active?.postMessage({
-        type: "PUSH_RECEIVED",
-        title: "Nuova attività assegnata",
-        body: "L'admin ha assegnato una nuova attività"
-      });
-    }
+    // Notifica i giardinieri via database (inserita da InserisciAttivitaModal)
+    // Aggiorna badge in tempo reale su altri tab (stesso browser)
     try {
       const channel = new BroadcastChannel("geogiardini");
       channel.postMessage({ type: "attivita-aggiornata" });
@@ -3031,7 +3010,9 @@ export default function AdminPage({ onLogout }: AdminPageProps) {
     } catch {
       // BroadcastChannel non supportato
     }
-  }, []);
+    fetchChatCount();
+    fetchNotificaCount();
+  }, [fetchChatCount, fetchNotificaCount]);
 
   const handleActionClick = (actionId: string) => {
     setSelectedAction(actionId);
