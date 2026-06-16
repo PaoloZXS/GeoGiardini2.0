@@ -2,6 +2,5 @@
   "buildCommand": "node ./node_modules/vite/bin/vite.js build",
   "outputDirectory": "dist",
   "devCommand": "npx vite",
-  "installCommand": "npm install",
-  "rewrites": [{ "source": "/api/(.*)", "destination": "/_api/$1" }]
+  "installCommand": "npm install"
 }
