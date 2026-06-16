@@ -3013,6 +3013,26 @@ export default function AdminPage({ onLogout }: AdminPageProps) {
     return () => navigator.serviceWorker.removeEventListener("message", handler);
   }, [fetchChatCount, fetchNotificaCount]);
 
+  const sendNotificationToGiardinieri = useCallback(async () => {
+    if (!("Notification" in window)) return;
+    const perm = await Notification.requestPermission();
+    if (perm === "granted" && "serviceWorker" in navigator) {
+      const registration = await navigator.serviceWorker.ready;
+      registration.active?.postMessage({
+        type: "PUSH_RECEIVED",
+        title: "Nuova attività assegnata",
+        body: "L'admin ha assegnato una nuova attività"
+      });
+    }
+    try {
+      const channel = new BroadcastChannel("geogiardini");
+      channel.postMessage({ type: "attivita-aggiornata" });
+      channel.close();
+    } catch {
+      // BroadcastChannel non supportato
+    }
+  }, []);
+
   const handleActionClick = (actionId: string) => {
     setSelectedAction(actionId);
     if (actionId === "clienti") setModal("clienti");
@@ -3250,6 +3270,7 @@ export default function AdminPage({ onLogout }: AdminPageProps) {
         <InserisciAttivitaModal
           onClose={() => setModal(null)}
           onRecordSaved={fetchNotificaCount}
+          onSaveSuccess={sendNotificationToGiardinieri}
         />
       )}
       {modal === "attivita" && <AttivitaModal onClose={() => setModal(null)} />}

@@ -73,9 +73,13 @@ self.addEventListener("message", (event) => {
       requireInteraction: true,
       vibrate: [120, 80, 120]
     });
-    // Forward to all clients
+    // Forward to all clients EXCEPT the sender
     self.clients.matchAll().then((clients) => {
-      clients.forEach((client) => client.postMessage(event.data));
+      clients.forEach((client) => {
+        if (client.id !== event.source?.id) {
+          client.postMessage(event.data);
+        }
+      });
     });
   }
 });
