@@ -1,4 +1,4 @@
 {
   "outputDirectory": "dist",
-  "buildCommand": "npx vite build"
+  "buildCommand": "npm run vercel-build"
 }
