@@ -1,4 +1,1 @@
-{
-  "outputDirectory": "dist",
-  "buildCommand": "npm run vercel-build"
-}
+{"buildCommand":"npm run build","outputDirectory":"dist"}
