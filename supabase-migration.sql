@@ -51,3 +51,16 @@ ALTER TABLE inserimenti_attivita ADD COLUMN IF NOT EXISTS eseguito BOOLEAN DEFAU
 -- Aggiungi colonne a tabella localita
 ALTER TABLE localita ADD COLUMN IF NOT EXISTS privata BOOLEAN DEFAULT FALSE;
 ALTER TABLE localita ADD COLUMN IF NOT EXISTS created_by TEXT;
+
+-- Crea tabella push_subscriptions per notifiche push
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+  id BIGSERIAL PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  endpoint TEXT NOT NULL,
+  keys JSONB NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user_id ON push_subscriptions(user_id);
+CREATE INDEX IF NOT EXISTS idx_push_subscriptions_endpoint ON push_subscriptions(endpoint);

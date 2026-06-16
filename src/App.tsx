@@ -6,6 +6,7 @@ import ClientePage from "./pages/ClientePage";
 import GiardinierePage from "./pages/GiardinierePage";
 import FullCalendarPage from "./pages/FullCalendarPage";
 import WeatherPage from "./pages/WeatherPage";
+import { initPushNotifications } from "./utils/pushNotification";
 
 function clearStoredAuth() {
   if (typeof window === "undefined") return;
@@ -57,6 +58,28 @@ function App() {
     setAuthenticatedRole(null);
     setAuthResolved(true);
   }, []);
+
+  // Registra service worker e inizializza push notification dopo il login
+  useEffect(() => {
+    if (typeof window === "undefined" || !authResolved) return;
+    const storedUserId = window.localStorage.getItem("userId");
+    const storedRole = window.localStorage.getItem("loginRole");
+
+    if (!storedUserId || !storedRole) return;
+
+    const setup = async () => {
+      if ("serviceWorker" in navigator) {
+        try {
+          await navigator.serviceWorker.register("/sw.js");
+          console.log("[SW] Service worker registrato");
+        } catch (err) {
+          console.error("[SW] Errore registrazione:", err);
+        }
+      }
+      await initPushNotifications(storedUserId);
+    };
+    setup();
+  }, [authResolved]);
 
   const handleLogout = () => {
     clearStoredAuth();
