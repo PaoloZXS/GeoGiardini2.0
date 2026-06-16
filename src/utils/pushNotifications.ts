@@ -35,7 +35,8 @@ export async function sendPushNotification(
   }
 
   try {
-    const res = await fetch("/api/push-send", {
+    const baseUrl = import.meta.env.DEV ? 'http://10.0.0.209:3000' : '';
+    const res = await fetch(`${baseUrl}/api/push-send`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)

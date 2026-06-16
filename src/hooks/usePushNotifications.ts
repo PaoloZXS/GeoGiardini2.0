@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { getVapidPublicKey, urlBase64ToUint8Array } from "../utils/pushNotifications";
 
-const SUBSCRIPTION_URL = "/api/push-subscriptions";
+const SUBSCRIPTION_URL = import.meta.env.DEV 
+  ? "http://10.0.0.209:3000/api/push-subscriptions"  // PC locale
+  : "/api/push-subscriptions";
 
 export function usePushNotifications() {
   const [isSubscribed, setIsSubscribed] = useState(false);
