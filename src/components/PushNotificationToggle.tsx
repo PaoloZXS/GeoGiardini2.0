@@ -33,9 +33,21 @@ export default function PushNotificationToggle() {
   const isDisabled = permission === "denied";
 
   const handleToggle = async () => {
+    // Se il permesso è già stato negato, mostra un messaggio
+    if (permission === "denied") {
+      alert("Per attivare le notifiche, apri il sito nel browser Chrome e clicca sulla campanella, poi torna nella PWA.");
+      return;
+    }
+
     if (isSubscribed) {
       await unsubscribe();
     } else {
+      // Chiedi il permesso PRIMA di fare qualsiasi altra cosa
+      const perm = await Notification.requestPermission();
+      if (perm !== "granted") {
+        alert("Per ricevere le notifiche, devi concedere il permesso. Apri il sito nel browser Chrome per farlo.");
+        return;
+      }
       await subscribe();
     }
   };
