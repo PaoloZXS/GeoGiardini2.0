@@ -71,6 +71,13 @@ function App() {
 
     const handleSwMessage = (event: MessageEvent) => {
       if (event.data?.type === "PUSH_RECEIVED") {
+        const { title, body } = event.data;
+        if ("Notification" in window && Notification.permission === "granted") {
+          new Notification(title || "GeoGiardini", {
+            body: body || "",
+            icon: "/leaf-512.png"
+          });
+        }
         setPushNotification("Nuova notifica ricevuta!");
         setTimeout(() => setPushNotification(null), 3000);
         window.localStorage.setItem("pushNotificationReceived", Date.now().toString());

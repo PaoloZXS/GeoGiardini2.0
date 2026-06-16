@@ -303,10 +303,8 @@ export default function GiardinierePage({ onLogout }: GiardinierePageProps) {
           const registration = await navigator.serviceWorker.ready;
           registration.active?.postMessage({
             type: "PUSH_RECEIVED",
-            data: {
-              title: "Nuova attività eseguita",
-              body: "Un giardiniere ha completato un'attività"
-            }
+            title: "Nuova attività eseguita",
+            body: "Un giardiniere ha completato un'attività"
           });
         } else if (perm !== "granted") {
           alert(
