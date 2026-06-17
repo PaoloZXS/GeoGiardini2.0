@@ -37,7 +37,7 @@ self.addEventListener("activate", (event) => {
 
 // Gestione notifiche push (semplificato come GeoList)
 self.addEventListener("push", (event) => {
-  const payload = event.data?.json?.() || {
+  const payload = event.data?.json() || {
     title: "GeoGiardini",
     body: "Nuova attività da verificare"
   };
