@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
+import { PushNotificationProvider } from "./contexts/PushNotificationContext";
 import "./index.css";
 
 // 🚀 GeoGiardini 2.0 - PWA per la gestione del verde
@@ -17,6 +18,8 @@ if ("serviceWorker" in navigator) {
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <App />
+    <PushNotificationProvider>
+      <App />
+    </PushNotificationProvider>
   </React.StrictMode>
 );

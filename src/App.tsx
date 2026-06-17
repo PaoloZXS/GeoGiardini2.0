@@ -6,7 +6,7 @@ import ClientePage from "./pages/ClientePage";
 import GiardinierePage from "./pages/GiardinierePage";
 import FullCalendarPage from "./pages/FullCalendarPage";
 import WeatherPage from "./pages/WeatherPage";
-import { usePushNotifications } from "./hooks/usePushNotifications";
+import { usePushNotificationContext } from "./contexts/PushNotificationContext";
 
 // Registra il service worker all'avvio
 function registerServiceWorker() {
@@ -124,7 +124,7 @@ function App() {
     };
   }, []);
 
-  const { subscribe } = usePushNotifications();
+  const { subscribe } = usePushNotificationContext();
 
   useEffect(() => {
     if (authenticatedRole) {

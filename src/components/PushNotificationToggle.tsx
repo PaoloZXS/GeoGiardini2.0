@@ -1,8 +1,8 @@
-import { usePushNotifications } from "../hooks/usePushNotifications";
+import { usePushNotificationContext } from "../contexts/PushNotificationContext";
 
 export default function PushNotificationToggle() {
   const { isSubscribed, isLoading, permission, subscribe, unsubscribe, error } =
-    usePushNotifications();
+    usePushNotificationContext();
 
   if (isLoading) {
     return (
