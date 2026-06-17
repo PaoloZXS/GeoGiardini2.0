@@ -6,6 +6,7 @@ import ClientePage from "./pages/ClientePage";
 import GiardinierePage from "./pages/GiardinierePage";
 import FullCalendarPage from "./pages/FullCalendarPage";
 import WeatherPage from "./pages/WeatherPage";
+import { savePushSubscription } from "./utils/pushNotifications";
 
 // Registra il service worker all'avvio
 function registerServiceWorker() {
@@ -122,6 +123,35 @@ function App() {
       navigator.serviceWorker?.removeEventListener("message", handleSwMessage);
     };
   }, []);
+
+  // Quando l'utente è autenticato, aggiorna la subscription push con il suo user_id
+  // (risolve: cambio utente su stesso dispositivo sovrascrive subscription)
+  useEffect(() => {
+    if (!authenticatedRole) return;
+
+    const updateSubscription = async () => {
+      try {
+        if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
+
+        const reg = await navigator.serviceWorker.ready;
+        const sub = await reg.pushManager.getSubscription();
+        const userId = window.localStorage.getItem("userId");
+        const groupName = window.localStorage.getItem("loginRole") || "contatto";
+
+        if (sub && userId) {
+          // Subscription esiste già → aggiorna l'user_id sul server
+          const saved = await savePushSubscription(userId, groupName, sub);
+          console.log("[Push] Subscription aggiornata per utente:", userId, saved ? "✅" : "❌");
+        }
+      } catch (err) {
+        console.warn("[Push] Errore aggiornamento subscription:", err);
+      }
+    };
+
+    // Piccolo ritardo per dare tempo al SW di essere pronto
+    const timer = setTimeout(updateSubscription, 1000);
+    return () => clearTimeout(timer);
+  }, [authenticatedRole]);
 
   if (!authResolved) return null;
 
