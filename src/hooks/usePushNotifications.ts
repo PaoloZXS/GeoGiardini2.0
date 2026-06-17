@@ -75,11 +75,17 @@ export function usePushNotifications() {
         return false;
       }
 
-      // 6) Rimuovi eventuale subscription esistente prima di crearne una nuova
+      // 6) Se esiste già una subscription, ri-salvala sul server (come GeoList refreshState)
+      //    e non ricrearla da capo — evita potenziali race condition
       const existingSub = await reg.pushManager.getSubscription();
       if (existingSub) {
-        // Rimuovi anche dal server
-        await deletePushSubscription(existingSub.endpoint);
+        const saved = await savePushSubscription(userId, groupName, existingSub);
+        if (saved) {
+          console.log("[Push] Subscription esistente ri-salvata");
+          setIsSubscribed(true);
+          return true;
+        }
+        // Se il salvataggio fallisce, procedi a ricrearla
         await existingSub.unsubscribe();
       }
 
@@ -92,7 +98,7 @@ export function usePushNotifications() {
 
       console.log("[Push] Sottoscrizione creata:", subscription.endpoint);
 
-      // 8) Salva sul server (con groupName = ruolo, come in CosaDaFare)
+      // 8) Salva sul server
       const saved = await savePushSubscription(userId, groupName, subscription);
       if (!saved) {
         throw new Error("Salvataggio subscription fallito.");
@@ -143,7 +149,8 @@ export function usePushNotifications() {
     }
   }, []);
 
-  // Controlla lo stato della sottoscrizione all'avvio
+  // Controlla lo stato della sottoscrizione all'avvio e la ri-salva sul server
+  // (come GeoList refreshState: assicura che il server abbia sempre l'endpoint aggiornato)
   useEffect(() => {
     const checkSubscription = async () => {
       if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
@@ -157,6 +164,18 @@ export function usePushNotifications() {
         const reg = await navigator.serviceWorker.ready;
         const sub = await reg.pushManager.getSubscription();
         setIsSubscribed(!!sub);
+
+        if (sub) {
+          // Rende la subscription sul server, così il server ha sempre
+          // l'endpoint più recente per questo dispositivo
+          const userId = getUserId();
+          const groupName = getUserGroup();
+          if (userId) {
+            await savePushSubscription(userId, groupName, sub);
+            console.log("[Push] Subscription ri-salvata sul server");
+          }
+        }
+
         console.log("[Push] Stato sottoscrizione:", !!sub);
       } catch (err) {
         console.error("[Push] Errore controllo sottoscrizione:", err);
