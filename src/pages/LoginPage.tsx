@@ -19,10 +19,10 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
     setError("");
     setLoading(true);
 
-    // Richiedi permesso notifiche SUBITO nel click (user gesture),
-    // così Chrome mostra il prompt (necessario da Chrome 64+)
+    // Richiedi permesso notifiche SUBITO nel click (user gesture) e ATTENDI risposta,
+    // così Chrome mostra il prompt e subscribe() trova già il permesso concesso
     if ("Notification" in window && Notification.permission === "default") {
-      Notification.requestPermission();
+      await Notification.requestPermission();
     }
 
     try {
