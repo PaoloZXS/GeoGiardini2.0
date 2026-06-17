@@ -123,6 +123,7 @@ export default async function handler(req, res) {
     });
 
     let sent = 0;
+    const errors = [];
     const results = await Promise.allSettled(
       subscriptions.map((sub) => {
         const pushSub = {
@@ -130,21 +131,29 @@ export default async function handler(req, res) {
           keys: sub.keys
         };
         return webpush.sendNotification(pushSub, payload).catch(async (err) => {
+          console.error("[Push] Errore invio a", sub.endpoint?.substring(0, 60) + "...", ":", err.statusCode, err.message);
           // Se subscription non più valida (410 Gone), elimina
           if (err.statusCode === 410) {
+            console.log("[Push] Subscription 410 GONE, elimino:", sub.endpoint?.substring(0, 60) + "...");
             await supabase
               .from("push_subscriptions")
               .delete()
               .eq("endpoint", sub.endpoint);
           }
+          errors.push({
+            endpoint: sub.endpoint?.substring(0, 60) + "...",
+            statusCode: err.statusCode,
+            message: err.message
+          });
           throw err;
         });
       })
     );
 
     sent = results.filter((r) => r.status === "fulfilled").length;
+    console.log("[Push] Risultato:", { sent, total: subscriptions.length, errors });
 
-    return res.status(200).json({ sent, total: subscriptions.length });
+    return res.status(200).json({ sent, total: subscriptions.length, errors: errors.length > 0 ? errors : undefined });
   } catch (error) {
     console.error("Push send error:", error);
     return res.status(500).json({ error: error.message });
