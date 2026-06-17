@@ -135,12 +135,6 @@ function App() {
     }
   }, [authenticatedRole, subscribe]);
 
-  useEffect(() => {
-    if ("Notification" in window && Notification.permission === "default") {
-      Notification.requestPermission();
-    }
-  }, []);
-
   if (!authResolved) return null;
 
   const homeElement =

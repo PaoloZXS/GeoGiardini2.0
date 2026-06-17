@@ -19,6 +19,12 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
     setError("");
     setLoading(true);
 
+    // Richiedi permesso notifiche SUBITO nel click (user gesture),
+    // così Chrome mostra il prompt (necessario da Chrome 64+)
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+
     try {
       const trimmedUser = username.trim();
       const trimmedPass = password.trim();
