@@ -6,7 +6,6 @@ import ClientePage from "./pages/ClientePage";
 import GiardinierePage from "./pages/GiardinierePage";
 import FullCalendarPage from "./pages/FullCalendarPage";
 import WeatherPage from "./pages/WeatherPage";
-import { usePushNotificationContext } from "./contexts/PushNotificationContext";
 
 // Registra il service worker all'avvio
 function registerServiceWorker() {
@@ -123,17 +122,6 @@ function App() {
       navigator.serviceWorker?.removeEventListener("message", handleSwMessage);
     };
   }, []);
-
-  const { subscribe } = usePushNotificationContext();
-
-  useEffect(() => {
-    if (authenticatedRole) {
-      const registerPush = async () => {
-        await subscribe();
-      };
-      registerPush();
-    }
-  }, [authenticatedRole, subscribe]);
 
   if (!authResolved) return null;
 
