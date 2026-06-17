@@ -1,5 +1,5 @@
 // public/sw.js
-const CACHE_NAME = "geogiardini-v9"; // 🔄 aggiornato
+const CACHE_NAME = "geogiardini-v10";
 const STATIC_CACHE_URLS = [
   "/",
   "/index.html",
