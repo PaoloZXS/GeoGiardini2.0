@@ -27,14 +27,16 @@ export default async function handler(req, res) {
           .json({ error: "Missing required fields: user_id, endpoint, keys" });
       }
 
-      // Upsert: se esiste già per questo user_id, aggiorna
+      // Upsert per endpoint (univoco per dispositivo), non per user_id,
+      // così lo stesso utente può ricevere notifiche su più dispositivi
       const { data: existing } = await supabase
         .from("push_subscriptions")
         .select("id")
-        .eq("user_id", user_id)
+        .eq("endpoint", endpoint)
         .maybeSingle();
 
       const record = {
+        user_id,
         endpoint,
         keys,
         updated_at: new Date().toISOString()
@@ -48,7 +50,7 @@ export default async function handler(req, res) {
       } else {
         await supabase
           .from("push_subscriptions")
-          .insert({ ...record, user_id });
+          .insert(record);
       }
 
       return res.status(200).json({ success: true });

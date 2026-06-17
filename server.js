@@ -46,10 +46,12 @@ app.post("/api/push-subscriptions", async (req, res) => {
   }
 
   try {
+    // Upsert per endpoint (univoco per dispositivo), non per user_id,
+    // così lo stesso utente può ricevere notifiche su più dispositivi
     const { data: existing, error: findError } = await supabase
       .from("push_subscriptions")
       .select("id")
-      .eq("user_id", user_id)
+      .eq("endpoint", endpoint)
       .maybeSingle();
 
     if (findError) {
@@ -58,6 +60,7 @@ app.post("/api/push-subscriptions", async (req, res) => {
     }
 
     const record = {
+      user_id,
       endpoint,
       keys,
       updated_at: new Date().toISOString()
@@ -72,7 +75,7 @@ app.post("/api/push-subscriptions", async (req, res) => {
     } else {
       result = await supabase
         .from("push_subscriptions")
-        .insert({ ...record, user_id });
+        .insert(record);
     }
 
     if (result.error) {
