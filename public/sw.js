@@ -35,28 +35,27 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-// Gestione notifiche push - CORRETTA (con event.waitUntil obbligatorio per SW)
+// Gestione notifiche push
 self.addEventListener("push", (event) => {
   console.log("[SW] Push notification ricevuta");
 
+  // IMPORTANTE: mantieni il SW attivo più a lungo possibile
   event.waitUntil(
     (async () => {
+      // Estrai i dati
       let data = {};
-
       try {
-        // Prova a parsare il payload JSON
         if (event.data) {
           data = event.data.json();
         }
       } catch (error) {
-        console.error("[SW] Errore parsing push data:", error);
+        console.error("[SW] Errore parsing:", error);
         data = {
           title: "GeoGiardini",
           body: "Nuova attività da verificare"
         };
       }
 
-      // Assicurati che title e body esistano
       const title = data.title || "GeoGiardini";
       const body = data.body || "Hai una nuova notifica";
 
@@ -64,34 +63,32 @@ self.addEventListener("push", (event) => {
         body: body,
         icon: "/leaf-512.png",
         badge: "/leaf-512.png",
-        requireInteraction: true,
+        requireInteraction: true, // La notifica rimane fino a interazione utente
         vibrate: [200, 100, 200],
-        data: {
-          url: data.url || "/",
-          timestamp: Date.now()
-        },
-        actions: [
-          {
-            action: "open",
-            title: "Apri"
-          },
-          {
-            action: "close",
-            title: "Chiudi"
-          }
-        ]
+        data: { url: data.url || "/" }
       };
 
-      console.log("[SW] Mostra notifica:", title, body);
+      // Mostra la notifica
+      await self.registration.showNotification(title, options);
 
-      try {
-        await self.registration.showNotification(title, options);
-        console.log("[SW] Notifica mostrata con successo");
-      } catch (error) {
-        console.error("[SW] Errore nel mostrare la notifica:", error);
+      // AGGIUNTA: Sync per mantenere vivo il SW
+      if (self.sync) {
+        await self.registration.sync.register("push-sync");
       }
+
+      console.log("[SW] Notifica mostrata con successo");
     })()
   );
+});
+
+// Aggiunto: mantiene il SW attivo anche in background
+self.addEventListener("sync", (event) => {
+  if (event.tag === "push-sync") {
+    event.waitUntil(
+      // Non fa nulla, ma mantiene il SW attivo
+      Promise.resolve()
+    );
+  }
 });
 
 // Gestione click sulla notifica
