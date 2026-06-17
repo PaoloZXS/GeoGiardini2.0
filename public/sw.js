@@ -35,60 +35,22 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-// Gestione notifiche push
+// Gestione notifiche push (semplificato come GeoList)
 self.addEventListener("push", (event) => {
-  console.log("[SW] Push notification ricevuta");
+  const payload = event.data?.json?.() || {
+    title: "GeoGiardini",
+    body: "Nuova attività da verificare"
+  };
 
-  // IMPORTANTE: mantieni il SW attivo più a lungo possibile
-  event.waitUntil(
-    (async () => {
-      // Estrai i dati
-      let data = {};
-      try {
-        if (event.data) {
-          data = event.data.json();
-        }
-      } catch (error) {
-        console.error("[SW] Errore parsing:", error);
-        data = {
-          title: "GeoGiardini",
-          body: "Nuova attività da verificare"
-        };
-      }
+  const title = payload.title || "GeoGiardini";
+  const options = {
+    body: payload.body || "Hai una nuova notifica",
+    icon: "/leaf-512.png",
+    badge: "/leaf-512.png",
+    data: { url: payload.url || "/" }
+  };
 
-      const title = data.title || "GeoGiardini";
-      const body = data.body || "Hai una nuova notifica";
-
-      const options = {
-        body: body,
-        icon: "/leaf-512.png",
-        badge: "/leaf-512.png",
-        requireInteraction: true, // La notifica rimane fino a interazione utente
-        vibrate: [200, 100, 200],
-        data: { url: data.url || "/" }
-      };
-
-      // Mostra la notifica
-      await self.registration.showNotification(title, options);
-
-      // AGGIUNTA: Sync per mantenere vivo il SW
-      if (self.sync) {
-        await self.registration.sync.register("push-sync");
-      }
-
-      console.log("[SW] Notifica mostrata con successo");
-    })()
-  );
-});
-
-// Aggiunto: mantiene il SW attivo anche in background
-self.addEventListener("sync", (event) => {
-  if (event.tag === "push-sync") {
-    event.waitUntil(
-      // Non fa nulla, ma mantiene il SW attivo
-      Promise.resolve()
-    );
-  }
+  event.waitUntil(self.registration.showNotification(title, options));
 });
 
 // Gestione click sulla notifica

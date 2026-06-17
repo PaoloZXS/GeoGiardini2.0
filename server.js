@@ -188,15 +188,7 @@ app.post("/api/push-send", async (req, res) => {
       return res.json({ sent: 0, total: 0 });
     }
 
-    const payload = JSON.stringify({
-      title,
-      body,
-      url: url || "/",
-      icon: "/leaf-512.png",
-      badge: "/leaf-512.png",
-      requireInteraction: true,
-      vibrate: [120, 80, 120]
-    });
+    const payload = JSON.stringify({ title, body, url: url || "/" });
 
     let sent = 0;
     const results = await Promise.allSettled(
