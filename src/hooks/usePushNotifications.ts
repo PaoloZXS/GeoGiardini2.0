@@ -75,17 +75,10 @@ export function usePushNotifications() {
         return false;
       }
 
-      // 6) Se esiste già una subscription, ri-salvala sul server (come GeoList refreshState)
-      //    e non ricrearla da capo — evita potenziali race condition
+      // 6) Rimuovi eventuale subscription esistente prima di crearne una nuova
+      //    (sempre fresh, così evitiamo endpoint scaduti/invalidi)
       const existingSub = await reg.pushManager.getSubscription();
       if (existingSub) {
-        const saved = await savePushSubscription(userId, groupName, existingSub);
-        if (saved) {
-          console.log("[Push] Subscription esistente ri-salvata");
-          setIsSubscribed(true);
-          return true;
-        }
-        // Se il salvataggio fallisce, procedi a ricrearla
         await existingSub.unsubscribe();
       }
 
@@ -149,8 +142,7 @@ export function usePushNotifications() {
     }
   }, []);
 
-  // Controlla lo stato della sottoscrizione all'avvio e la ri-salva sul server
-  // (come GeoList refreshState: assicura che il server abbia sempre l'endpoint aggiornato)
+  // Controlla lo stato della sottoscrizione all'avvio
   useEffect(() => {
     const checkSubscription = async () => {
       if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
@@ -164,18 +156,6 @@ export function usePushNotifications() {
         const reg = await navigator.serviceWorker.ready;
         const sub = await reg.pushManager.getSubscription();
         setIsSubscribed(!!sub);
-
-        if (sub) {
-          // Rende la subscription sul server, così il server ha sempre
-          // l'endpoint più recente per questo dispositivo
-          const userId = getUserId();
-          const groupName = getUserGroup();
-          if (userId) {
-            await savePushSubscription(userId, groupName, sub);
-            console.log("[Push] Subscription ri-salvata sul server");
-          }
-        }
-
         console.log("[Push] Stato sottoscrizione:", !!sub);
       } catch (err) {
         console.error("[Push] Errore controllo sottoscrizione:", err);
