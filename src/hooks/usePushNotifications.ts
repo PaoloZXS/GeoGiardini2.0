@@ -37,8 +37,12 @@ export function usePushNotifications() {
     }
 
     try {
-      // 2) Richiedi permesso notifiche
-      const perm = await Notification.requestPermission();
+      // 2) Richiedi permesso notifiche solo se non già concesso
+      // (può essere già stato richiesto nel click di login o del toggle)
+      let perm = Notification.permission;
+      if (perm === "default") {
+        perm = await Notification.requestPermission();
+      }
       setPermission(perm);
 
       if (perm !== "granted") {

@@ -44,10 +44,20 @@ export default function PushNotificationToggle() {
 
     if (isSubscribed) {
       await unsubscribe();
-    } else {
-      // Il permesso viene richiesto DENTRO subscribe(), come in CosaDaFare
-      await subscribe();
+      return;
     }
+
+    // Richiedi permesso SUBITO nel click (gesto utente diretto)
+    // Chrome richiede che requestPermission sia chiamato sincronamente in un click
+    if ("Notification" in window && Notification.permission === "default") {
+      const perm = await Notification.requestPermission();
+      if (perm !== "granted") {
+        // Se l'utente rifiuta, non procedere con subscribe
+        return;
+      }
+    }
+
+    await subscribe();
   };
 
   // Messaggio di stato (ispirato a CosaDaFare che mostra testo sotto il pulsante)
