@@ -25,6 +25,11 @@ jobs:
       - name: 🤖 Setup Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: 📦 Installa Android SDK 34
+        run: |
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" 2>&1 || true
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "build-tools;34.0.0" 2>&1 || true
+
       - name: ⚡ Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -40,12 +45,18 @@ jobs:
       - name: 🔄 Sincronizza Capacitor
         run: npx cap sync
 
+      - name: � Diagnostica Gradle
+        run: |
+          cd android
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          ls -la $ANDROID_HOME/platforms/ 2>&1 || echo "No platforms dir"
+          ls -la $ANDROID_HOME/build-tools/ 2>&1 || echo "No build-tools dir"
+          ./gradlew --version
+
       - name: 📱 Build APK Android
         run: |
           cd android
-          # Se google-services.json non esiste, il build funziona lo stesso
-          # (solo senza notifiche FCM, che vanno configurate dopo)
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug 2>&1
 
       - name: 📤 Carica APK come artifact
         uses: actions/upload-artifact@v4
