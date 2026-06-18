@@ -106,38 +106,40 @@ async function subscribeNative(
   setPermission: (v: string) => void
 ): Promise<boolean> {
   try {
-    const OneSignalModule = await import("@onesignal/capacitor-plugin");
-    const OneSignal = OneSignalModule.default;
+    const mod = await import("@onesignal/capacitor-plugin");
+    const OneSignal = mod.default;
     const appId = getOneSignalAppId();
 
     if (!appId) {
-      setError("OneSignal non configurato (manca VITE_ONESIGNAL_APP_ID).");
+      setError("OneSignal non configurato.");
       return false;
     }
 
     // Inizializza OneSignal
-    await OneSignal.initialize(appId);
+    await OneSignal.initialize({ appId });
 
-    // Collega l'utente
-    await OneSignal.setExternalUserId(userId);
+    // Collega l'utente al nostro sistema
+    await OneSignal.login({ externalId: userId });
 
-    // Imposta tag per il gruppo (admin/giardiniere/cliente)
-    await OneSignal.User.addTag("group", groupName);
-    await OneSignal.User.addTag("username", window.localStorage.getItem("loginUsername") || "");
+    // Tag per filtro gruppi
+    await OneSignal.addTags({
+      tags: {
+        group: groupName,
+        username: window.localStorage.getItem("loginUsername") || ""
+      }
+    });
 
     // Attiva le notifiche
-    await OneSignal.disablePush(false);
+    await OneSignal.optInPushSubscription();
 
-    // Ottieni lo stato per confermare
-    const state = await OneSignal.getDeviceState();
-    const subscribed = state?.isPushEnabled || false;
+    // Ottieni ID OneSignal per salvarlo
+    const { onesignalId } = await OneSignal.getOnesignalId();
+    const { optedIn } = await OneSignal.getPushSubscriptionOptedIn();
 
-    setIsSubscribed(subscribed);
-    setPermission(subscribed ? "granted" : "denied");
+    setIsSubscribed(optedIn);
+    setPermission(optedIn ? "granted" : "denied");
 
-    if (subscribed) {
-      // Salva user_id e onesignal_id sul server
-      const onesignalId = state?.userId || "";
+    if (optedIn && onesignalId) {
       await fetch("/api/push-subscriptions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -150,7 +152,7 @@ async function subscribeNative(
       }).catch(() => {});
     }
 
-    return subscribed;
+    return optedIn;
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Errore attivazione OneSignal.";
     console.error("[OneSignal] Errore:", err);
@@ -166,8 +168,8 @@ async function unsubscribeNative(
   try {
     const mod = await import("@onesignal/capacitor-plugin");
     const OneSignal = mod.default;
-    await OneSignal.disablePush(true);
-    await OneSignal.setExternalUserId("");
+    await OneSignal.optOutPushSubscription();
+    await OneSignal.logout();
     setIsSubscribed(false);
     return true;
   } catch (err) {
@@ -220,9 +222,9 @@ export function usePushNotifications() {
           const OneSignal = mod.default;
           const appId = getOneSignalAppId();
           if (appId) {
-            await OneSignal.initialize(appId);
-            const state = await OneSignal.getDeviceState();
-            setIsSubscribed(state?.isPushEnabled || false);
+            await OneSignal.initialize({ appId });
+            const { optedIn } = await OneSignal.getPushSubscriptionOptedIn();
+            setIsSubscribed(optedIn);
           }
         } catch {
           setIsSubscribed(false);
