@@ -20,7 +20,7 @@ export default async function handler(req, res) {
 
   try {
     if (req.method === "POST") {
-      const { user_id, group_name, endpoint, keys, fcm_token, platform } = req.body;
+      const { user_id, group_name, endpoint, keys, onesignal_id, platform } = req.body;
       if (!user_id) {
         return res
           .status(400)
@@ -58,18 +58,17 @@ export default async function handler(req, res) {
         return res.status(200).json({ success: true, platform: "web" });
       }
 
-      // ── Sottoscrizione Android nativa (FCM) ──
-      if (fcm_token) {
-        // Upsert per fcm_token
+      // ── Sottoscrizione Android nativa (OneSignal) ──
+      if (onesignal_id) {
         const { data: existing } = await supabase
           .from("push_subscriptions")
           .select("id")
-          .eq("fcm_token", fcm_token)
+          .eq("onesignal_id", onesignal_id)
           .maybeSingle();
 
         const record = {
           user_id,
-          fcm_token,
+          onesignal_id,
           platform: platform || "android",
           updated_at: new Date().toISOString()
         };
@@ -85,23 +84,23 @@ export default async function handler(req, res) {
             .insert(record);
         }
 
-        console.log("[FCM] Token salvato per user_id:", user_id);
+        console.log("[OneSignal] ID salvato per user_id:", user_id);
         return res.status(200).json({ success: true, platform: "android" });
       }
 
-      return res.status(400).json({ error: "Missing either endpoint+keys or fcm_token" });
+      return res.status(400).json({ error: "Missing endpoint+keys or onesignal_id" });
     }
 
     if (req.method === "DELETE") {
-      const { endpoint, fcm_token } = req.body;
+      const { endpoint, onesignal_id } = req.body;
 
-      if (fcm_token) {
+      if (onesignal_id) {
         await supabase
           .from("push_subscriptions")
           .delete()
-          .eq("fcm_token", fcm_token);
+          .eq("onesignal_id", onesignal_id);
 
-        console.log("[FCM] Token eliminato:", fcm_token.substring(0, 30) + "...");
+        console.log("[OneSignal] ID eliminato");
         return res.status(200).json({ success: true });
       }
 
@@ -115,7 +114,7 @@ export default async function handler(req, res) {
         return res.status(200).json({ success: true });
       }
 
-      return res.status(400).json({ error: "Missing either endpoint or fcm_token" });
+      return res.status(400).json({ error: "Missing endpoint or onesignal_id" });
     }
 
     return res.status(405).json({ error: "Method not allowed" });

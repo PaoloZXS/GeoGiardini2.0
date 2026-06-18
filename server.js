@@ -27,33 +27,38 @@ webpush.setVapidDetails(
   vapidPrivateKey
 );
 
-// ── Firebase Admin SDK (inizializzazione lazy) ──
-let firebaseInitialized = false;
-let firebaseAdmin = null;
+// ── OneSignal ──
+const onesignalAppId = process.env.VITE_ONESIGNAL_APP_ID || "";
+const onesignalApiKey = process.env.ONESIGNAL_REST_API_KEY || "";
 
-function getFirebaseAdmin() {
-  if (firebaseInitialized) return firebaseAdmin;
-  try {
-    const serviceAccountBase64 = process.env.FIREBASE_SERVICE_ACCOUNT_B64;
-    if (serviceAccountBase64) {
-      const serviceAccount = JSON.parse(
-        Buffer.from(serviceAccountBase64, "base64").toString("utf-8")
-      );
-      firebaseAdmin = require("firebase-admin");
-      if (!firebaseAdmin.apps.length) {
-        firebaseAdmin.initializeApp({
-          credential: firebaseAdmin.credential.cert(serviceAccount)
-        });
-      }
-      firebaseInitialized = true;
-      console.log("[FCM] Firebase Admin inizializzato");
-    } else {
-      console.log("[FCM] FIREBASE_SERVICE_ACCOUNT_B64 non configurato, FCM disabilitato");
-    }
-  } catch (err) {
-    console.error("[FCM] Errore inizializzazione Firebase:", err);
+async function sendOneSignalNotification(userIds, title, body, url) {
+  if (!onesignalAppId || !onesignalApiKey) {
+    console.log("[OneSignal] Non configurato");
+    return 0;
   }
-  return firebaseAdmin;
+  try {
+    const res = await fetch("https://api.onesignal.com/notifications", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Basic ${onesignalApiKey}`
+      },
+      body: JSON.stringify({
+        app_id: onesignalAppId,
+        contents: { en: body },
+        headings: { en: title },
+        include_external_user_ids: userIds,
+        url: url || "/",
+        channel_for_external_user_ids: "push"
+      })
+    });
+    const result = await res.json();
+    console.log("[OneSignal] Risultato:", result);
+    return result.recipients || 0;
+  } catch (err) {
+    console.error("[OneSignal] Errore:", err);
+    return 0;
+  }
 }
 
 // Endpoint VAPID public key
@@ -272,28 +277,11 @@ app.post("/api/push-send", async (req, res) => {
       sent += webResults.filter((r) => r.status === "fulfilled").length;
     }
 
-    // ── Invia via FCM ──
-    const admin = getFirebaseAdmin();
-    if (fcmTokens.length > 0 && admin) {
-      const fcmResults = await Promise.allSettled(
-        fcmTokens.map((token) => {
-          return admin.messaging().send({
-            token,
-            notification: { title, body },
-            data: { url: url || "/", click_action: "FLUTTER_NOTIFICATION_CLICK" }
-          }).catch(async (err) => {
-            console.error("[FCM] Errore invio a token:", token.substring(0, 30) + "...", err.code);
-            if (err.code === "messaging/registration-token-not-registered" || err.code === "messaging/invalid-argument") {
-              await supabase.from("push_subscriptions").delete().eq("fcm_token", token);
-            }
-            throw err;
-          });
-        })
-      );
-      sent += fcmResults.filter((r) => r.status === "fulfilled").length;
-    }
+    // ── Invia via OneSignal (Android) ──
+    const oneSignalSent = await sendOneSignalNotification(userIdsArray, title, body, url);
+    sent += oneSignalSent;
 
-    res.json({ sent, total: webSubs.length + fcmTokens.length });
+    res.json({ sent, total: webSubs.length + (oneSignalSent > 0 ? userIdsArray.length : 0), onesignal: oneSignalSent });
   } catch (error) {
     console.error("Error:", error);
     res.status(500).json({ error: error.message });

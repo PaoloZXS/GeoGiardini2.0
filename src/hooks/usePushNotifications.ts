@@ -5,9 +5,7 @@ import {
   getVapidPublicKey,
   urlBase64ToUint8Array,
   savePushSubscription,
-  deletePushSubscription,
-  saveFcmToken,
-  deleteFcmToken
+  deletePushSubscription
 } from "../utils/pushNotifications";
 
 /**
@@ -21,138 +19,167 @@ function getUserId(): string | null {
   return window.localStorage.getItem("userId");
 }
 
+/**
+ * OneSignal App ID - preso dalle variabili d'ambiente di Vite.
+ * Definito in .env o su Vercel.
+ */
+function getOneSignalAppId(): string {
+  return (import.meta as any).env?.VITE_ONESIGNAL_APP_ID || "";
+}
+
+// ── Sottoscrizione Web Push (PC / Browser PWA) ──
+async function subscribeWeb(
+  userId: string,
+  groupName: string,
+  setIsSubscribed: (v: boolean) => void,
+  setError: (v: string | null) => void,
+  setPermission: (v: string) => void
+): Promise<boolean> {
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+    setError("Il browser non supporta le notifiche push.");
+    return false;
+  }
+
+  let perm = Notification.permission;
+  if (perm === "default") {
+    perm = await Notification.requestPermission();
+  }
+  setPermission(perm);
+  if (perm !== "granted") {
+    setError("Permesso notifiche negato.");
+    return false;
+  }
+
+  const reg = await navigator.serviceWorker.ready;
+  const vapidKey = await getVapidPublicKey();
+  if (!vapidKey) {
+    setError("Chiave VAPID non configurata.");
+    return false;
+  }
+
+  const existingSub = await reg.pushManager.getSubscription();
+  if (existingSub) {
+    await existingSub.unsubscribe();
+  }
+
+  const key = urlBase64ToUint8Array(vapidKey);
+  const subscription = await reg.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: key as BufferSource
+  });
+
+  const saved = await savePushSubscription(userId, groupName, subscription);
+  if (!saved) throw new Error("Salvataggio subscription fallito.");
+
+  setIsSubscribed(true);
+  return true;
+}
+
+async function unsubscribeWeb(
+  setIsSubscribed: (v: boolean) => void,
+  setError: (v: string | null) => void
+): Promise<boolean> {
+  if (!("serviceWorker" in navigator)) return false;
+
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    if (sub) {
+      await deletePushSubscription(sub.endpoint);
+      await sub.unsubscribe();
+    }
+    setIsSubscribed(false);
+    return true;
+  } catch (err) {
+    setError("Errore disattivazione notifiche.");
+    return false;
+  }
+}
+
+// ── OneSignal per Android nativo ──
+async function subscribeNative(
+  userId: string,
+  groupName: string,
+  setIsSubscribed: (v: boolean) => void,
+  setError: (v: string | null) => void,
+  setPermission: (v: string) => void
+): Promise<boolean> {
+  try {
+    const { OneSignal } = await import("@onesignal/capacitor-plugin");
+    const appId = getOneSignalAppId();
+
+    if (!appId) {
+      setError("OneSignal non configurato (manca VITE_ONESIGNAL_APP_ID).");
+      return false;
+    }
+
+    // Inizializza OneSignal
+    await OneSignal.initialize(appId);
+
+    // Collega l'utente
+    await OneSignal.setExternalUserId(userId);
+
+    // Imposta tag per il gruppo (admin/giardiniere/cliente)
+    await OneSignal.User.addTag("group", groupName);
+    await OneSignal.User.addTag("username", window.localStorage.getItem("loginUsername") || "");
+
+    // Attiva le notifiche
+    await OneSignal.disablePush(false);
+
+    // Ottieni lo stato per confermare
+    const state = await OneSignal.getDeviceState();
+    const subscribed = state?.isPushEnabled || false;
+
+    setIsSubscribed(subscribed);
+    setPermission(subscribed ? "granted" : "denied");
+
+    if (subscribed) {
+      // Salva user_id e onesignal_id sul server
+      const onesignalId = state?.userId || "";
+      await fetch("/api/push-subscriptions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: userId,
+          group_name: groupName,
+          onesignal_id: onesignalId,
+          platform: "android"
+        })
+      }).catch(() => {});
+    }
+
+    return subscribed;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Errore attivazione OneSignal.";
+    console.error("[OneSignal] Errore:", err);
+    setError(msg);
+    return false;
+  }
+}
+
+async function unsubscribeNative(
+  setIsSubscribed: (v: boolean) => void,
+  setError: (v: string | null) => void
+): Promise<boolean> {
+  try {
+    const { OneSignal } = await import("@onesignal/capacitor-plugin");
+    await OneSignal.disablePush(true);
+    await OneSignal.setExternalUserId("");
+    setIsSubscribed(false);
+    return true;
+  } catch (err) {
+    setError("Errore disattivazione notifiche.");
+    return false;
+  }
+}
+
 export function usePushNotifications() {
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [permission, setPermission] = useState("default");
   const [error, setError] = useState<string | null>(null);
-  const [fcmToken, setFcmToken] = useState<string | null>(null);
 
-  // ── Sottoscrizione Web Push (PC / Browser PWA) ──
-  const subscribeWeb = useCallback(async (userId: string, groupName: string): Promise<boolean> => {
-    // 1) Verifica supporto browser
-    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
-      const msg = "Il browser non supporta le notifiche push.";
-      console.warn("[Push]", msg);
-      setError(msg);
-      return false;
-    }
-
-    // 2) Richiedi permesso
-    let perm = Notification.permission;
-    if (perm === "default") {
-      perm = await Notification.requestPermission();
-    }
-    setPermission(perm);
-    if (perm !== "granted") {
-      setError("Permesso notifiche negato.");
-      return false;
-    }
-
-    // 3) Service worker
-    const reg = await navigator.serviceWorker.ready;
-
-    // 4) Chiave VAPID
-    const vapidKey = await getVapidPublicKey();
-    if (!vapidKey) {
-      setError("Chiave VAPID non configurata.");
-      return false;
-    }
-
-    // 5) Rimuovi subscription precedente
-    const existingSub = await reg.pushManager.getSubscription();
-    if (existingSub) {
-      await existingSub.unsubscribe();
-    }
-
-    // 6) Crea nuova
-    const key = urlBase64ToUint8Array(vapidKey);
-    const subscription = await reg.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: key as BufferSource
-    });
-
-    console.log("[Push] Sottoscrizione Web Push creata:", subscription.endpoint);
-
-    // 7) Salva sul server
-    const saved = await savePushSubscription(userId, groupName, subscription);
-    if (!saved) throw new Error("Salvataggio subscription fallito.");
-
-    console.log("[Push] Sottoscrizione Web salvata per gruppo:", groupName);
-    setIsSubscribed(true);
-    return true;
-  }, []);
-
-  // ── Sottoscrizione FCM (Android nativo / Capacitor) ──
-  const subscribeNative = useCallback(async (userId: string, groupName: string): Promise<boolean> => {
-    try {
-      // Import dinamico del plugin Capacitor (solo in ambiente nativo)
-      const { PushNotifications } = await import("@capacitor/push-notifications");
-
-      // Richiedi permessi
-      const permResult = await PushNotifications.requestPermissions();
-      if (permResult.receive !== "granted") {
-        setError("Permesso notifiche negato sul dispositivo.");
-        return false;
-      }
-
-      // Ascolta errori di registrazione FCM
-      PushNotifications.addListener("registrationError", (err) => {
-        console.error("[FCM] Errore registrazione:", err);
-        setError("Errore registrazione FCM: " + (err.error || err.message || "sconosciuto"));
-      });
-
-      // Registra il dispositivo a FCM
-      await PushNotifications.register();
-
-      // Ascolta il token FCM
-      const handle = await PushNotifications.addListener(
-        "registration",
-        (token) => {
-          // Quando arriva il token, rimuovi il listener e salva
-          handle.remove();
-
-          console.log("[FCM] Token ricevuto:", token.value);
-          setFcmToken(token.value);
-
-          // Salva token sul server (fire-and-forget)
-          saveFcmToken(userId, groupName, token.value).then((saved) => {
-            if (saved) {
-              setIsSubscribed(true);
-              console.log("[FCM] Token salvato per gruppo:", groupName);
-            } else {
-              setError("Salvataggio token FCM fallito.");
-            }
-          });
-        }
-      );
-
-      // Timeout sicurezza: se dopo 30s non arriva token, fallisce
-      return new Promise<boolean>((resolve) => {
-        setTimeout(() => {
-          handle.remove();
-          setError("Registrazione FCM scaduta. Verifica che Google Play Services sia aggiornato sul telefono e che il progetto Firebase abbia Cloud Messaging API attivo.");
-          resolve(false);
-        }, 30000);
-
-        // Quando il token arriva, il listener chiama handle.remove()
-        // che risolve la promise. Intercettiamo remove per risolvere.
-        const originalRemove = handle.remove.bind(handle);
-        handle.remove = (): Promise<void> => {
-          originalRemove();
-          resolve(true);
-          return Promise.resolve();
-        };
-      });
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Errore registrazione FCM.";
-      console.error("[FCM] Errore:", err);
-      setError(msg);
-      return false;
-    }
-  }, []);
-
-  // ── Subscribe unificato ──
+  // ── Subscribe ──
   const subscribe = useCallback(async (): Promise<boolean> => {
     setError(null);
 
@@ -164,86 +191,57 @@ export function usePushNotifications() {
     }
 
     if (isNativePlatform()) {
-      return subscribeNative(userId, groupName);
+      return subscribeNative(userId, groupName, setIsSubscribed, setError, setPermission);
     } else {
-      return subscribeWeb(userId, groupName);
+      return subscribeWeb(userId, groupName, setIsSubscribed, setError, setPermission);
     }
-  }, [subscribeWeb, subscribeNative]);
+  }, []);
 
-  // ── Unsubscribe unificato ──
+  // ── Unsubscribe ──
   const unsubscribe = useCallback(async (): Promise<boolean> => {
     setError(null);
 
     if (isNativePlatform()) {
-      // Android: elimina token FCM dal server
-      try {
-        if (fcmToken) {
-          await deleteFcmToken(fcmToken);
-        }
-        // Disinstalla dal device
-        const { PushNotifications } = await import("@capacitor/push-notifications");
-        PushNotifications.unregister();
-        setFcmToken(null);
-        setIsSubscribed(false);
-        console.log("[FCM] Disiscrizione avvenuta.");
-        return true;
-      } catch (err) {
-        console.error("[FCM] Errore disiscrizione:", err);
-        setError("Errore disattivazione notifiche.");
-        return false;
-      }
+      return unsubscribeNative(setIsSubscribed, setError);
     } else {
-      // Web: rimuovi subscription Web Push
-      if (!("serviceWorker" in navigator)) return false;
-
-      try {
-        const reg = await navigator.serviceWorker.ready;
-        const sub = await reg.pushManager.getSubscription();
-        if (sub) {
-          await deletePushSubscription(sub.endpoint);
-          await sub.unsubscribe();
-          console.log("[Push] Sottoscrizione Web rimossa.");
-        }
-        setIsSubscribed(false);
-        return true;
-      } catch (err) {
-        console.error("[Push] Unsubscribe failed:", err);
-        setError("Errore disattivazione notifiche.");
-        return false;
-      }
+      return unsubscribeWeb(setIsSubscribed, setError);
     }
-  }, [fcmToken]);
+  }, []);
 
-  // ── Controllo stato iniziale ──
+  // ── Stato iniziale ──
   useEffect(() => {
-    const checkSubscription = async () => {
+    const check = async () => {
       if (isNativePlatform()) {
-        // Android: verifica se c'è già un token (da localStorage)
+        try {
+          const { OneSignal } = await import("@onesignal/capacitor-plugin");
+          const appId = getOneSignalAppId();
+          if (appId) {
+            await OneSignal.initialize(appId);
+            const state = await OneSignal.getDeviceState();
+            setIsSubscribed(state?.isPushEnabled || false);
+          }
+        } catch {
+          setIsSubscribed(false);
+        }
         setIsLoading(false);
       } else {
-        // Web: verifica subscription esistente
         if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
           setIsLoading(false);
           return;
         }
-
         setPermission(Notification.permission);
-
         try {
           const reg = await navigator.serviceWorker.ready;
           const sub = await reg.pushManager.getSubscription();
           setIsSubscribed(!!sub);
-          console.log("[Push] Stato sottoscrizione Web:", !!sub);
-        } catch (err) {
-          console.error("[Push] Errore controllo:", err);
+        } catch {
           setIsSubscribed(false);
         } finally {
           setIsLoading(false);
         }
       }
     };
-
-    checkSubscription();
+    check();
   }, []);
 
   return { isSubscribed, isLoading, permission, subscribe, unsubscribe, error };

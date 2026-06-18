@@ -188,55 +188,8 @@ export function urlBase64ToUint8Array(base64String: string): Uint8Array {
 }
 
 // ──────────────────────────────────────────────────
-//  FUNZIONI FCM (per app nativa Android / Capacitor)
+//  FUNZIONI OneSignal (per app nativa Android / Capacitor)
+//  Nota: la registrazione/disiscrizione è gestita
+//  direttamente dal plugin OneSignal lato client.
+//  Le funzioni qui sono solo per compatibilità.
 // ──────────────────────────────────────────────────
-
-/**
- * Salva un token FCM (Android nativo) sul server.
- */
-export async function saveFcmToken(
-  userId: string,
-  groupName: string,
-  fcmToken: string
-): Promise<boolean> {
-  try {
-    const baseUrl = getApiBaseUrl();
-    const res = await fetch(`${baseUrl}/api/push-subscriptions`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        user_id: userId,
-        group_name: groupName,
-        fcm_token: fcmToken,
-        platform: "android"
-      })
-    });
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      console.error("[FCM] Errore salvataggio token:", errData.error || res.statusText);
-      return false;
-    }
-    return true;
-  } catch (err) {
-    console.error("[FCM] Errore salvataggio token:", err);
-    return false;
-  }
-}
-
-/**
- * Elimina un token FCM dal server.
- */
-export async function deleteFcmToken(fcmToken: string): Promise<boolean> {
-  try {
-    const baseUrl = getApiBaseUrl();
-    const res = await fetch(`${baseUrl}/api/push-subscriptions`, {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ fcm_token: fcmToken })
-    });
-    return res.ok;
-  } catch (err) {
-    console.error("[FCM] Errore cancellazione token:", err);
-    return false;
-  }
-}

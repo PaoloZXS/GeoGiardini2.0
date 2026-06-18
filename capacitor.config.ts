@@ -6,14 +6,6 @@ const config: CapacitorConfig = {
   webDir: 'dist',
   server: {
     androidScheme: 'https',
-    // In produzione usa l'URL live, in dev usa localhost
-    // (commenta la riga sotto per sviluppo locale)
-    // url: 'https://geogiardini.it',
-  },
-  plugins: {
-    PushNotifications: {
-      presentationOptions: ['badge', 'sound', 'alert']
-    }
   }
 };
 
