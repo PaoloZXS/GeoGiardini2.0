@@ -116,7 +116,7 @@ async function subscribeNative(
     }
 
     // Inizializza OneSignal
-    await OneSignal.initialize({ appId });
+    await OneSignal.initialize(appId);
 
     // Collega l'utente al nostro sistema
     await OneSignal.login({ externalId: userId });
@@ -222,7 +222,7 @@ export function usePushNotifications() {
           const OneSignal = mod.default;
           const appId = getOneSignalAppId();
           if (appId) {
-            await OneSignal.initialize({ appId });
+            await OneSignal.initialize(appId);
             const { optedIn } = await OneSignal.getPushSubscriptionOptedIn();
             setIsSubscribed(optedIn);
           }
