@@ -1,4 +1,5 @@
 // src/utils/pushNotifications.ts
+import { Capacitor } from "@capacitor/core";
 
 const VAPID_PLACEHOLDER = "INSERISCI_VAPID_PUBLIC_KEY";
 
@@ -6,7 +7,7 @@ const VAPID_PLACEHOLDER = "INSERISCI_VAPID_PUBLIC_KEY";
  * Determina se l'app è in esecuzione in ambiente nativo (Capacitor/Android).
  */
 export function isNativePlatform(): boolean {
-  return !!(window as any).Capacitor?.isNative;
+  return Capacitor.isNative;
 }
 
 /**
