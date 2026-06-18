@@ -171,19 +171,8 @@ async function subscribeNative(
         break;
       }
     }
-      await fetch("/api/push-subscriptions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_id: userId,
-          group_name: groupName,
-          onesignal_id: onesignalId,
-          platform: "android"
-        })
-      }).catch(() => {});
-    }
 
-    return optedIn;
+    return true;
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Errore attivazione OneSignal.";
     console.error("[OneSignal] Errore:", err);
