@@ -2,14 +2,11 @@
 
 const VAPID_PLACEHOLDER = "INSERISCI_VAPID_PUBLIC_KEY";
 
-interface SendPushOptions {
-  title: string;
-  body: string;
-  excludeUserId?: string;
-  url?: string;
-  includeAdmins?: boolean;
-  includeOtherGardeners?: boolean;
-  recipientIds?: string[];
+/**
+ * Determina se l'app è in esecuzione in ambiente nativo (Capacitor/Android).
+ */
+export function isNativePlatform(): boolean {
+  return !!(window as any).Capacitor?.isNative;
 }
 
 /**
@@ -19,6 +16,16 @@ interface SendPushOptions {
  */
 export function getApiBaseUrl(): string {
   return "";
+}
+
+interface SendPushOptions {
+  title: string;
+  body: string;
+  excludeUserId?: string;
+  url?: string;
+  includeAdmins?: boolean;
+  includeOtherGardeners?: boolean;
+  recipientIds?: string[];
 }
 
 /**
@@ -164,4 +171,58 @@ export function urlBase64ToUint8Array(base64String: string): Uint8Array {
     outputArray[i] = rawData.charCodeAt(i);
   }
   return outputArray;
+}
+
+// ──────────────────────────────────────────────────
+//  FUNZIONI FCM (per app nativa Android / Capacitor)
+// ──────────────────────────────────────────────────
+
+/**
+ * Salva un token FCM (Android nativo) sul server.
+ */
+export async function saveFcmToken(
+  userId: string,
+  groupName: string,
+  fcmToken: string
+): Promise<boolean> {
+  try {
+    const baseUrl = getApiBaseUrl();
+    const res = await fetch(`${baseUrl}/api/push-subscriptions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_id: userId,
+        group_name: groupName,
+        fcm_token: fcmToken,
+        platform: "android"
+      })
+    });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      console.error("[FCM] Errore salvataggio token:", errData.error || res.statusText);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error("[FCM] Errore salvataggio token:", err);
+    return false;
+  }
+}
+
+/**
+ * Elimina un token FCM dal server.
+ */
+export async function deleteFcmToken(fcmToken: string): Promise<boolean> {
+  try {
+    const baseUrl = getApiBaseUrl();
+    const res = await fetch(`${baseUrl}/api/push-subscriptions`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fcm_token: fcmToken })
+    });
+    return res.ok;
+  } catch (err) {
+    console.error("[FCM] Errore cancellazione token:", err);
+    return false;
+  }
 }

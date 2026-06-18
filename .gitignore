@@ -4,3 +4,10 @@ node_modules
 dist
 .env
 repomix-output.xml
+
+# Capacitor (Android)
+android/app/build
+android/.gradle
+android/build
+android/local.properties
+android/captured_inputs

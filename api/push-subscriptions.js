@@ -20,54 +20,102 @@ export default async function handler(req, res) {
 
   try {
     if (req.method === "POST") {
-      const { user_id, group_name, endpoint, keys } = req.body;
-      if (!user_id || !endpoint || !keys) {
+      const { user_id, group_name, endpoint, keys, fcm_token, platform } = req.body;
+      if (!user_id) {
         return res
           .status(400)
-          .json({ error: "Missing required fields: user_id, endpoint, keys" });
+          .json({ error: "Missing required field: user_id" });
       }
 
-      // Upsert per endpoint (univoco per dispositivo), non per user_id,
-      // così lo stesso utente può ricevere notifiche su più dispositivi
-      const { data: existing } = await supabase
-        .from("push_subscriptions")
-        .select("id")
-        .eq("endpoint", endpoint)
-        .maybeSingle();
-
-      const record = {
-        user_id,
-        endpoint,
-        keys,
-        updated_at: new Date().toISOString()
-      };
-
-      if (existing) {
-        await supabase
+      // ── Sottoscrizione Web Push (VAPID) ──
+      if (endpoint && keys) {
+        const { data: existing } = await supabase
           .from("push_subscriptions")
-          .update(record)
-          .eq("id", existing.id);
-      } else {
-        await supabase
-          .from("push_subscriptions")
-          .insert(record);
+          .select("id")
+          .eq("endpoint", endpoint)
+          .maybeSingle();
+
+        const record = {
+          user_id,
+          endpoint,
+          keys,
+          platform: "web",
+          updated_at: new Date().toISOString()
+        };
+
+        if (existing) {
+          await supabase
+            .from("push_subscriptions")
+            .update(record)
+            .eq("id", existing.id);
+        } else {
+          await supabase
+            .from("push_subscriptions")
+            .insert(record);
+        }
+
+        console.log("[Push] Web subscription salvata per user_id:", user_id);
+        return res.status(200).json({ success: true, platform: "web" });
       }
 
-      return res.status(200).json({ success: true });
+      // ── Sottoscrizione Android nativa (FCM) ──
+      if (fcm_token) {
+        // Upsert per fcm_token
+        const { data: existing } = await supabase
+          .from("push_subscriptions")
+          .select("id")
+          .eq("fcm_token", fcm_token)
+          .maybeSingle();
+
+        const record = {
+          user_id,
+          fcm_token,
+          platform: platform || "android",
+          updated_at: new Date().toISOString()
+        };
+
+        if (existing) {
+          await supabase
+            .from("push_subscriptions")
+            .update(record)
+            .eq("id", existing.id);
+        } else {
+          await supabase
+            .from("push_subscriptions")
+            .insert(record);
+        }
+
+        console.log("[FCM] Token salvato per user_id:", user_id);
+        return res.status(200).json({ success: true, platform: "android" });
+      }
+
+      return res.status(400).json({ error: "Missing either endpoint+keys or fcm_token" });
     }
 
     if (req.method === "DELETE") {
-      const { endpoint } = req.body;
-      if (!endpoint) {
-        return res.status(400).json({ error: "Missing endpoint" });
+      const { endpoint, fcm_token } = req.body;
+
+      if (fcm_token) {
+        await supabase
+          .from("push_subscriptions")
+          .delete()
+          .eq("fcm_token", fcm_token);
+
+        console.log("[FCM] Token eliminato:", fcm_token.substring(0, 30) + "...");
+        return res.status(200).json({ success: true });
       }
 
-      await supabase
-        .from("push_subscriptions")
-        .delete()
-        .eq("endpoint", endpoint);
+      if (endpoint) {
+        await supabase
+          .from("push_subscriptions")
+          .delete()
+          .eq("endpoint", endpoint);
 
-      return res.status(200).json({ success: true });
+        console.log("[Push] Web subscription eliminata per endpoint:", endpoint.substring(0, 50) + "...");
+        return res.status(200).json({ success: true });
+      }
+
+      return res.status(400).json({ error: "Missing either endpoint or fcm_token" });
     }
 
     return res.status(405).json({ error: "Method not allowed" });

@@ -12,6 +12,36 @@ webpush.setVapidDetails(
   vapidPrivateKey
 );
 
+// ── Firebase Admin SDK (inizializzazione lazy) ──
+let firebaseInitialized = false;
+let firebaseAdmin: any = null;
+
+function getFirebaseAdmin() {
+  if (firebaseInitialized) return firebaseAdmin;
+  try {
+    const serviceAccountBase64 = process.env.FIREBASE_SERVICE_ACCOUNT_B64;
+    if (serviceAccountBase64) {
+      const serviceAccount = JSON.parse(
+        Buffer.from(serviceAccountBase64, "base64").toString("utf-8")
+      );
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      firebaseAdmin = require("firebase-admin");
+      if (!firebaseAdmin.apps.length) {
+        firebaseAdmin.initializeApp({
+          credential: firebaseAdmin.credential.cert(serviceAccount)
+        });
+      }
+      firebaseInitialized = true;
+      console.log("[FCM] Firebase Admin inizializzato");
+    } else {
+      console.log("[FCM] FIREBASE_SERVICE_ACCOUNT_B64 non configurato, FCM disabilitato");
+    }
+  } catch (err) {
+    console.error("[FCM] Errore inizializzazione Firebase:", err);
+  }
+  return firebaseAdmin;
+}
+
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -25,13 +55,8 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  if (
-    !supabaseUrl ||
-    !supabaseServiceKey ||
-    !vapidPublicKey ||
-    !vapidPrivateKey
-  ) {
-    return res.status(500).json({ error: "Push notifications not configured" });
+  if (!supabaseUrl || !supabaseServiceKey) {
+    return res.status(500).json({ error: "Supabase not configured" });
   }
 
   try {
@@ -58,7 +83,6 @@ export default async function handler(req, res) {
 
     // 1) Se includeAdmins, recupera tutti gli admin (clienti + hardcoded)
     if (includeAdmins) {
-      // Admin dalla tabella clienti
       const { data: admins } = await supabase
         .from("clienti")
         .select("id")
@@ -66,7 +90,6 @@ export default async function handler(req, res) {
       if (admins) {
         admins.forEach((a) => targetUserIds.add(String(a.id)));
       }
-      // Admin hardcoded (Angelo=1, Giulio=2) — non presenti in clienti
       targetUserIds.add("1");
       targetUserIds.add("2");
     }
@@ -92,60 +115,81 @@ export default async function handler(req, res) {
       targetUserIds.delete(String(excludeUserId));
     }
 
-    // Se nessun destinatario, esci
     if (targetUserIds.size === 0) {
       return res
         .status(200)
         .json({ sent: 0, total: 0, message: "No recipients" });
     }
 
-    // Recupera le subscription filtrate per i destinatari
+    // Recupera TUTTE le subscription (sia web che android) per i destinatari
     const userIdsArray = Array.from(targetUserIds);
-    let query = supabase
+    const { data: subscriptions, error } = await supabase
       .from("push_subscriptions")
-      .select("endpoint, keys, user_id")
+      .select("endpoint, keys, fcm_token, platform")
       .in("user_id", userIdsArray);
 
-    const { data: subscriptions, error } = await query;
     if (error) throw error;
     if (!subscriptions || subscriptions.length === 0) {
       return res.status(200).json({ sent: 0, total: 0 });
     }
 
+    // Separa web subscription e token FCM
+    const webSubs = subscriptions.filter((s) => s.platform === "web" && s.endpoint && s.keys);
+    const fcmTokens = subscriptions
+      .filter((s) => (s.platform === "android" || s.fcm_token) && s.fcm_token)
+      .map((s) => s.fcm_token);
+
+    console.log(`[Push] Web: ${webSubs.length}, FCM: ${fcmTokens.length}`);
+
     const payload = JSON.stringify({ title, body, url: url || "/" });
-
     let sent = 0;
-    const errors = [];
-    const results = await Promise.allSettled(
-      subscriptions.map((sub) => {
-        const pushSub = {
-          endpoint: sub.endpoint,
-          keys: sub.keys
-        };
-        return webpush.sendNotification(pushSub, payload).catch(async (err) => {
-          console.error("[Push] Errore invio a", sub.endpoint?.substring(0, 60) + "...", ":", err.statusCode, err.message);
-          // Se subscription non più valida (410 Gone), elimina
-          if (err.statusCode === 410) {
-            console.log("[Push] Subscription 410 GONE, elimino:", sub.endpoint?.substring(0, 60) + "...");
-            await supabase
-              .from("push_subscriptions")
-              .delete()
-              .eq("endpoint", sub.endpoint);
-          }
-          errors.push({
-            endpoint: sub.endpoint?.substring(0, 60) + "...",
-            statusCode: err.statusCode,
-            message: err.message
+    const errors: any[] = [];
+
+    // ── Invia via Web Push ──
+    if (webSubs.length > 0 && vapidPublicKey && vapidPrivateKey) {
+      const webResults = await Promise.allSettled(
+        webSubs.map((sub) => {
+          const pushSub = { endpoint: sub.endpoint, keys: sub.keys };
+          return webpush.sendNotification(pushSub, payload).catch(async (err) => {
+            console.error("[Push] Errore invio web a", sub.endpoint?.substring(0, 60) + "...", ":", err.statusCode, err.message);
+            if (err.statusCode === 410) {
+              await supabase.from("push_subscriptions").delete().eq("endpoint", sub.endpoint);
+            }
+            errors.push({ endpoint: sub.endpoint?.substring(0, 60) + "...", type: "web", statusCode: err.statusCode, message: err.message });
+            throw err;
           });
-          throw err;
-        });
-      })
-    );
+        })
+      );
+      sent += webResults.filter((r) => r.status === "fulfilled").length;
+    }
 
-    sent = results.filter((r) => r.status === "fulfilled").length;
-    console.log("[Push] Risultato:", { sent, total: subscriptions.length, errors });
+    // ── Invia via FCM ──
+    const admin = getFirebaseAdmin();
+    if (fcmTokens.length > 0 && admin) {
+      const fcmResults = await Promise.allSettled(
+        fcmTokens.map((token) => {
+          return admin.messaging().send({
+            token,
+            notification: { title, body },
+            data: { url: url || "/", click_action: "FLUTTER_NOTIFICATION_CLICK" }
+          }).catch((err) => {
+            console.error("[FCM] Errore invio a token:", token.substring(0, 30) + "...", ":", err.code, err.message);
+            // Se token non valido, elimina
+            if (err.code === "messaging/registration-token-not-registered" || err.code === "messaging/invalid-argument") {
+              supabase.from("push_subscriptions").delete().eq("fcm_token", token);
+            }
+            errors.push({ token: token.substring(0, 30) + "...", type: "fcm", code: err.code, message: err.message });
+            throw err;
+          });
+        })
+      );
+      sent += fcmResults.filter((r) => r.status === "fulfilled").length;
+    }
 
-    return res.status(200).json({ sent, total: subscriptions.length, errors: errors.length > 0 ? errors : undefined });
+    const total = webSubs.length + fcmTokens.length;
+    console.log("[Push] Risultato:", { sent, total, errors: errors.length });
+
+    return res.status(200).json({ sent, total, errors: errors.length > 0 ? errors : undefined });
   } catch (error) {
     console.error("Push send error:", error);
     return res.status(500).json({ error: error.message });

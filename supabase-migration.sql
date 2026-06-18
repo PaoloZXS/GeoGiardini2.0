@@ -74,3 +74,18 @@ CREATE INDEX IF NOT EXISTS idx_push_subscriptions_group_name ON push_subscriptio
 -- Aggiungi group_name se la tabella esiste già (migrazione)
 ALTER TABLE push_subscriptions ADD COLUMN IF NOT EXISTS group_name TEXT NOT NULL DEFAULT 'contatto';
 ALTER TABLE push_subscriptions ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+
+-- ============================================
+-- AGGIUNTE PER FCM (Android nativo / Capacitor)
+-- ============================================
+
+-- Rendi endpoint opzionale (per FCM) e aggiungi fcm_token + platform
+ALTER TABLE push_subscriptions ALTER COLUMN endpoint DROP NOT NULL;
+ALTER TABLE push_subscriptions ALTER COLUMN keys DROP NOT NULL;
+ALTER TABLE push_subscriptions ALTER COLUMN keys SET DEFAULT NULL;
+ALTER TABLE push_subscriptions ADD COLUMN IF NOT EXISTS fcm_token TEXT;
+ALTER TABLE push_subscriptions ADD COLUMN IF NOT EXISTS platform TEXT NOT NULL DEFAULT 'web';
+
+-- Indice per lookup FCM
+CREATE INDEX IF NOT EXISTS idx_push_subscriptions_fcm_token ON push_subscriptions(fcm_token);
+CREATE INDEX IF NOT EXISTS idx_push_subscriptions_platform ON push_subscriptions(platform);

@@ -1,15 +1,17 @@
 // src/hooks/usePushNotifications.ts
 import { useState, useEffect, useCallback } from "react";
 import {
+  isNativePlatform,
   getVapidPublicKey,
   urlBase64ToUint8Array,
   savePushSubscription,
-  deletePushSubscription
+  deletePushSubscription,
+  saveFcmToken,
+  deleteFcmToken
 } from "../utils/pushNotifications";
 
 /**
  * Restituisce il groupName (ruolo) dell'utente loggato da localStorage.
- * Ispirato dalla logica CosaDaFare che associa una subscription a un gruppo.
  */
 function getUserGroup(): string {
   return window.localStorage.getItem("loginRole") || "contatto";
@@ -24,10 +26,10 @@ export function usePushNotifications() {
   const [isLoading, setIsLoading] = useState(true);
   const [permission, setPermission] = useState("default");
   const [error, setError] = useState<string | null>(null);
+  const [fcmToken, setFcmToken] = useState<string | null>(null);
 
-  const subscribe = useCallback(async (): Promise<boolean> => {
-    setError(null);
-
+  // ── Sottoscrizione Web Push (PC / Browser PWA) ──
+  const subscribeWeb = useCallback(async (userId: string, groupName: string): Promise<boolean> => {
     // 1) Verifica supporto browser
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
       const msg = "Il browser non supporta le notifiche push.";
@@ -36,132 +38,202 @@ export function usePushNotifications() {
       return false;
     }
 
+    // 2) Richiedi permesso
+    let perm = Notification.permission;
+    if (perm === "default") {
+      perm = await Notification.requestPermission();
+    }
+    setPermission(perm);
+    if (perm !== "granted") {
+      setError("Permesso notifiche negato.");
+      return false;
+    }
+
+    // 3) Service worker
+    const reg = await navigator.serviceWorker.ready;
+
+    // 4) Chiave VAPID
+    const vapidKey = await getVapidPublicKey();
+    if (!vapidKey) {
+      setError("Chiave VAPID non configurata.");
+      return false;
+    }
+
+    // 5) Rimuovi subscription precedente
+    const existingSub = await reg.pushManager.getSubscription();
+    if (existingSub) {
+      await existingSub.unsubscribe();
+    }
+
+    // 6) Crea nuova
+    const key = urlBase64ToUint8Array(vapidKey);
+    const subscription = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: key as BufferSource
+    });
+
+    console.log("[Push] Sottoscrizione Web Push creata:", subscription.endpoint);
+
+    // 7) Salva sul server
+    const saved = await savePushSubscription(userId, groupName, subscription);
+    if (!saved) throw new Error("Salvataggio subscription fallito.");
+
+    console.log("[Push] Sottoscrizione Web salvata per gruppo:", groupName);
+    setIsSubscribed(true);
+    return true;
+  }, []);
+
+  // ── Sottoscrizione FCM (Android nativo / Capacitor) ──
+  const subscribeNative = useCallback(async (userId: string, groupName: string): Promise<boolean> => {
     try {
-      // 2) Richiedi permesso notifiche solo se non già concesso
-      // (può essere già stato richiesto nel click di login o del toggle)
-      let perm = Notification.permission;
-      if (perm === "default") {
-        perm = await Notification.requestPermission();
-      }
-      setPermission(perm);
+      // Import dinamico del plugin Capacitor (solo in ambiente nativo)
+      const { PushNotifications } = await import("@capacitor/push-notifications");
 
-      if (perm !== "granted") {
-        const msg = "Permesso notifiche negato.";
-        console.warn("[Push]", msg);
-        setError(msg);
+      // Richiedi permessi
+      const permResult = await PushNotifications.requestPermissions();
+      if (permResult.receive !== "granted") {
+        setError("Permesso notifiche negato sul dispositivo.");
         return false;
       }
 
-      // 3) Ottieni il service worker
-      const reg = await navigator.serviceWorker.ready;
+      // Registra il dispositivo a FCM
+      await PushNotifications.register();
 
-      // 4) Ottieni chiave VAPID (come in CosaDaFare push.js)
-      const vapidKey = await getVapidPublicKey();
-      if (!vapidKey) {
-        const msg = "Chiave VAPID non configurata. Contatta l'amministratore.";
-        console.error("[Push]", msg);
-        setError(msg);
-        return false;
-      }
+      // Ascolta il token FCM
+      const handle = await PushNotifications.addListener(
+        "registration",
+        (token) => {
+          // Quando arriva il token, rimuovi il listener e salva
+          handle.remove();
 
-      // 5) Recupera userId e groupName
-      const userId = getUserId();
-      const groupName = getUserGroup();
+          console.log("[FCM] Token ricevuto:", token.value);
+          setFcmToken(token.value);
 
-      if (!userId) {
-        const msg = "Utente non autenticato. Effettua il login.";
-        console.error("[Push]", msg);
-        setError(msg);
-        return false;
-      }
-
-      // 6) Rimuovi eventuale subscription esistente prima di crearne una nuova
-      //    (sempre fresh, così evitiamo endpoint scaduti/invalidi)
-      const existingSub = await reg.pushManager.getSubscription();
-      if (existingSub) {
-        await existingSub.unsubscribe();
-      }
-
-      // 7) Crea nuova sottoscrizione
-      const key = urlBase64ToUint8Array(vapidKey);
-      const subscription = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: key
-      });
-
-      console.log("[Push] Sottoscrizione creata:", subscription.endpoint);
-
-      // 8) Salva sul server
-      const saved = await savePushSubscription(userId, groupName, subscription);
-      if (!saved) {
-        throw new Error("Salvataggio subscription fallito.");
-      }
-
-      console.log(
-        "[Push] Sottoscrizione salvata con successo per gruppo:",
-        groupName
+          // Salva token sul server (fire-and-forget)
+          saveFcmToken(userId, groupName, token.value).then((saved) => {
+            if (saved) {
+              setIsSubscribed(true);
+              console.log("[FCM] Token salvato per gruppo:", groupName);
+            } else {
+              setError("Salvataggio token FCM fallito.");
+            }
+          });
+        }
       );
-      setIsSubscribed(true);
-      return true;
+
+      // Timeout sicurezza: se dopo 15s non arriva token, fallisce
+      return new Promise<boolean>((resolve) => {
+        setTimeout(() => {
+          handle.remove();
+          setError("Registrazione FCM scaduta. Riprova.");
+          resolve(false);
+        }, 15000);
+
+        // Quando il token arriva, il listener chiama handle.remove()
+        // che risolve la promise. Intercettiamo remove per risolvere.
+        const originalRemove = handle.remove.bind(handle);
+        handle.remove = (): Promise<void> => {
+          originalRemove();
+          resolve(true);
+          return Promise.resolve();
+        };
+      });
     } catch (err) {
-      const msg =
-        err instanceof Error ? err.message : "Errore attivazione notifiche.";
-      console.error("[Push] Errore:", err);
+      const msg = err instanceof Error ? err.message : "Errore registrazione FCM.";
+      console.error("[FCM] Errore:", err);
       setError(msg);
       return false;
     }
   }, []);
 
+  // ── Subscribe unificato ──
+  const subscribe = useCallback(async (): Promise<boolean> => {
+    setError(null);
+
+    const userId = getUserId();
+    const groupName = getUserGroup();
+    if (!userId) {
+      setError("Utente non autenticato. Effettua il login.");
+      return false;
+    }
+
+    if (isNativePlatform()) {
+      return subscribeNative(userId, groupName);
+    } else {
+      return subscribeWeb(userId, groupName);
+    }
+  }, [subscribeWeb, subscribeNative]);
+
+  // ── Unsubscribe unificato ──
   const unsubscribe = useCallback(async (): Promise<boolean> => {
     setError(null);
 
-    if (!("serviceWorker" in navigator)) {
-      return false;
-    }
-
-    try {
-      const reg = await navigator.serviceWorker.ready;
-      const sub = await reg.pushManager.getSubscription();
-
-      if (sub) {
-        // Rimuovi dal server PRIMA (come in CosaDaFare)
-        await deletePushSubscription(sub.endpoint);
-        // Poi dal browser
-        await sub.unsubscribe();
-        console.log("[Push] Sottoscrizione rimossa.");
+    if (isNativePlatform()) {
+      // Android: elimina token FCM dal server
+      try {
+        if (fcmToken) {
+          await deleteFcmToken(fcmToken);
+        }
+        // Disinstalla dal device
+        const { PushNotifications } = await import("@capacitor/push-notifications");
+        PushNotifications.unregister();
+        setFcmToken(null);
+        setIsSubscribed(false);
+        console.log("[FCM] Disiscrizione avvenuta.");
+        return true;
+      } catch (err) {
+        console.error("[FCM] Errore disiscrizione:", err);
+        setError("Errore disattivazione notifiche.");
+        return false;
       }
-
-      setIsSubscribed(false);
-      return true;
-    } catch (err) {
-      const msg =
-        err instanceof Error ? err.message : "Errore disattivazione notifiche.";
-      console.error("[Push] Unsubscribe failed:", err);
-      setError(msg);
-      return false;
-    }
-  }, []);
-
-  // Controlla lo stato della sottoscrizione all'avvio
-  useEffect(() => {
-    const checkSubscription = async () => {
-      if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
-        setIsLoading(false);
-        return;
-      }
-
-      setPermission(Notification.permission);
+    } else {
+      // Web: rimuovi subscription Web Push
+      if (!("serviceWorker" in navigator)) return false;
 
       try {
         const reg = await navigator.serviceWorker.ready;
         const sub = await reg.pushManager.getSubscription();
-        setIsSubscribed(!!sub);
-        console.log("[Push] Stato sottoscrizione:", !!sub);
-      } catch (err) {
-        console.error("[Push] Errore controllo sottoscrizione:", err);
+        if (sub) {
+          await deletePushSubscription(sub.endpoint);
+          await sub.unsubscribe();
+          console.log("[Push] Sottoscrizione Web rimossa.");
+        }
         setIsSubscribed(false);
-      } finally {
+        return true;
+      } catch (err) {
+        console.error("[Push] Unsubscribe failed:", err);
+        setError("Errore disattivazione notifiche.");
+        return false;
+      }
+    }
+  }, [fcmToken]);
+
+  // ── Controllo stato iniziale ──
+  useEffect(() => {
+    const checkSubscription = async () => {
+      if (isNativePlatform()) {
+        // Android: verifica se c'è già un token (da localStorage)
         setIsLoading(false);
+      } else {
+        // Web: verifica subscription esistente
+        if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+          setIsLoading(false);
+          return;
+        }
+
+        setPermission(Notification.permission);
+
+        try {
+          const reg = await navigator.serviceWorker.ready;
+          const sub = await reg.pushManager.getSubscription();
+          setIsSubscribed(!!sub);
+          console.log("[Push] Stato sottoscrizione Web:", !!sub);
+        } catch (err) {
+          console.error("[Push] Errore controllo:", err);
+          setIsSubscribed(false);
+        } finally {
+          setIsLoading(false);
+        }
       }
     };
 
