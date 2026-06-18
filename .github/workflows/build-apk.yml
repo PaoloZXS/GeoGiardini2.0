@@ -25,6 +25,10 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Installa Android SDK 34
+        run: |
+          yes | sdkmanager "platforms;android-34" 2>&1 || true
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
