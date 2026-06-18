@@ -119,14 +119,12 @@ async function subscribeNative(
     await OneSignal.initialize(appId);
 
     // Collega l'utente al nostro sistema
-    await OneSignal.login({ externalId: userId });
+    await OneSignal.login(userId);
 
     // Tag per filtro gruppi
     await OneSignal.addTags({
-      tags: {
-        group: groupName,
-        username: window.localStorage.getItem("loginUsername") || ""
-      }
+      group: groupName,
+      username: window.localStorage.getItem("loginUsername") || ""
     });
 
     // Attiva le notifiche
