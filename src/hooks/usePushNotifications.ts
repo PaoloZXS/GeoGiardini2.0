@@ -20,11 +20,12 @@ function getUserId(): string | null {
 }
 
 /**
- * OneSignal App ID - preso dalle variabili d'ambiente di Vite.
- * Definito in .env o su Vercel.
+ * OneSignal App ID - pubblico (non è un segreto).
+ * Definito qui per non dipendere da variabili d'ambiente Vercel.
  */
+const ONE_SIGNAL_APP_ID = "96a37cd0-a328-4a9c-959e-3b953495515f";
 function getOneSignalAppId(): string {
-  return (import.meta as any).env?.VITE_ONESIGNAL_APP_ID || "";
+  return ONE_SIGNAL_APP_ID;
 }
 
 // ── Sottoscrizione Web Push (PC / Browser PWA) ──
