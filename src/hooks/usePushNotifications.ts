@@ -106,7 +106,8 @@ async function subscribeNative(
   setPermission: (v: string) => void
 ): Promise<boolean> {
   try {
-    const { OneSignal } = await import("@onesignal/capacitor-plugin");
+    const OneSignalModule = await import("@onesignal/capacitor-plugin");
+    const OneSignal = OneSignalModule.default;
     const appId = getOneSignalAppId();
 
     if (!appId) {
@@ -163,7 +164,8 @@ async function unsubscribeNative(
   setError: (v: string | null) => void
 ): Promise<boolean> {
   try {
-    const { OneSignal } = await import("@onesignal/capacitor-plugin");
+    const mod = await import("@onesignal/capacitor-plugin");
+    const OneSignal = mod.default;
     await OneSignal.disablePush(true);
     await OneSignal.setExternalUserId("");
     setIsSubscribed(false);
@@ -214,7 +216,8 @@ export function usePushNotifications() {
     const check = async () => {
       if (isNativePlatform()) {
         try {
-          const { OneSignal } = await import("@onesignal/capacitor-plugin");
+          const mod = await import("@onesignal/capacitor-plugin");
+          const OneSignal = mod.default;
           const appId = getOneSignalAppId();
           if (appId) {
             await OneSignal.initialize(appId);
