@@ -130,14 +130,19 @@ async function subscribeNative(
     // Attiva le notifiche (sul namespace User.pushSubscription)
     await OneSignal.User.pushSubscription.optIn();
 
-    // Ottieni ID OneSignal per salvarlo
-    const onesignalId = await OneSignal.User.getOnesignalId();
-    const optedIn = await OneSignal.User.pushSubscription.getOptedInAsync();
+    // Imposta subito subscribed = true (l'utente ha accettato)
+    setIsSubscribed(true);
+    setPermission("granted");
 
-    setIsSubscribed(optedIn);
-    setPermission(optedIn ? "granted" : "denied");
+    // Ottieni ID OneSignal per salvarlo (30s di tentativi)
+    let onesignalId = "";
+    for (let i = 0; i < 6; i++) {
+      await new Promise(r => setTimeout(r, 5000));
+      onesignalId = await OneSignal.User.getOnesignalId();
+      if (onesignalId) break;
+    }
 
-    if (optedIn && onesignalId) {
+    if (onesignalId) {
       await fetch("/api/push-subscriptions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
