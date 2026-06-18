@@ -121,18 +121,18 @@ async function subscribeNative(
     // Collega l'utente al nostro sistema
     await OneSignal.login(userId);
 
-    // Tag per filtro gruppi
-    await OneSignal.addTags({
+    // Tag per filtro gruppi (sul namespace User)
+    await OneSignal.User.addTags({
       group: groupName,
       username: window.localStorage.getItem("loginUsername") || ""
     });
 
-    // Attiva le notifiche
-    await OneSignal.optInPushSubscription();
+    // Attiva le notifiche (sul namespace User.pushSubscription)
+    await OneSignal.User.pushSubscription.optIn();
 
     // Ottieni ID OneSignal per salvarlo
-    const { onesignalId } = await OneSignal.getOnesignalId();
-    const { optedIn } = await OneSignal.getPushSubscriptionOptedIn();
+    const onesignalId = await OneSignal.User.getOnesignalId();
+    const optedIn = await OneSignal.User.pushSubscription.getOptedInAsync();
 
     setIsSubscribed(optedIn);
     setPermission(optedIn ? "granted" : "denied");
@@ -166,7 +166,7 @@ async function unsubscribeNative(
   try {
     const mod = await import("@onesignal/capacitor-plugin");
     const OneSignal = mod.default;
-    await OneSignal.optOutPushSubscription();
+    await OneSignal.User.pushSubscription.optOut();
     await OneSignal.logout();
     setIsSubscribed(false);
     return true;
@@ -221,7 +221,7 @@ export function usePushNotifications() {
           const appId = getOneSignalAppId();
           if (appId) {
             await OneSignal.initialize(appId);
-            const { optedIn } = await OneSignal.getPushSubscriptionOptedIn();
+            const optedIn = await OneSignal.User.pushSubscription.getOptedInAsync();
             setIsSubscribed(optedIn);
           }
         } catch {
