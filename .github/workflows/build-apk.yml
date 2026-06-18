@@ -5,7 +5,7 @@ on:
     branches: [main, master]
   pull_request:
     branches: [main, master]
-  workflow_dispatch: # Permette di eseguire manualmente da GitHub
+  workflow_dispatch:
 
 jobs:
   build:
@@ -13,52 +13,48 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 📥 Checkout codice
+      - name: Checkout codice
         uses: actions/checkout@v4
 
-      - name: ☕ Setup Java 17
+      - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
           distribution: "microsoft"
           java-version: "17"
 
-      - name: 🤖 Setup Android SDK
+      - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: 📦 Installa Android SDK 34
-        run: |
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" 2>&1 || true
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "build-tools;34.0.0" 2>&1 || true
-
-      - name: ⚡ Setup Node.js
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "22"
           cache: "npm"
 
-      - name: 📦 Installa dipendenze npm
+      - name: Installa dipendenze npm
         run: npm ci
 
-      - name: 🏗️ Build Vite (frontend)
+      - name: Build Vite (frontend)
         run: npm run build
 
-      - name: 🔄 Sincronizza Capacitor
+      - name: Sincronizza Capacitor
         run: npx cap sync
 
-      - name: � Diagnostica Gradle
+      - name: Diagnostica
         run: |
-          cd android
+          chmod +x android/gradlew
+          echo "=== Android SDK ==="
           echo "ANDROID_HOME=$ANDROID_HOME"
-          ls -la $ANDROID_HOME/platforms/ 2>&1 || echo "No platforms dir"
-          ls -la $ANDROID_HOME/build-tools/ 2>&1 || echo "No build-tools dir"
-          ./gradlew --version
+          ls -la $ANDROID_HOME/platforms/ 2>&1 || echo "Nessuna piattaforma"
+          echo "=== Gradle version ==="
+          android/gradlew --version
 
-      - name: 📱 Build APK Android
+      - name: Build APK Android
         run: |
           cd android
           ./gradlew assembleDebug 2>&1
 
-      - name: 📤 Carica APK come artifact
+      - name: Carica APK come artifact
         uses: actions/upload-artifact@v4
         with:
           name: GeoGiardini-apk-debug
@@ -66,8 +62,7 @@ jobs:
           retention-days: 15
           if-no-files-found: error
 
-      - name: ℹ️ Riepilogo
+      - name: Riepilogo
         run: |
-          echo "✅ APK buildato con successo!"
-          echo "Scarica l'APK da: Actions → Build APK Android → Artifacts"
+          echo "APK build completato!"
           ls -lh android/app/build/outputs/apk/debug/
