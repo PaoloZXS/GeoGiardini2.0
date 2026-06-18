@@ -1,13 +1,26 @@
 // src/utils/pushNotifications.ts
-import { Capacitor } from "@capacitor/core";
 
 const VAPID_PLACEHOLDER = "INSERISCI_VAPID_PUBLIC_KEY";
 
 /**
  * Determina se l'app è in esecuzione in ambiente nativo (Capacitor/Android).
+ * Usa un check runtime che non può essere ottimizzato da Vite.
+ * Su web: nessuna delle due proprietà esiste → false
+ * Su Android nativo: Capacitor setta androidBridge → true
  */
 export function isNativePlatform(): boolean {
-  return Capacitor.isNative;
+  try {
+    return typeof window !== "undefined" && (
+      // Capacitor bridge su Android
+      !!(window as any).androidBridge ||
+      // Capacitor plugin headers presenti
+      !!(window as any).Capacitor?.isNative ||
+      // Plugin disponibile
+      !!(window as any).Capacitor?.Plugins?.PushNotifications
+    );
+  } catch {
+    return false;
+  }
 }
 
 /**
