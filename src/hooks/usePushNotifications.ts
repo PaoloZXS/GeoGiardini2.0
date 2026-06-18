@@ -96,6 +96,12 @@ export function usePushNotifications() {
         return false;
       }
 
+      // Ascolta errori di registrazione FCM
+      PushNotifications.addListener("registrationError", (err) => {
+        console.error("[FCM] Errore registrazione:", err);
+        setError("Errore registrazione FCM: " + (err.error || err.message || "sconosciuto"));
+      });
+
       // Registra il dispositivo a FCM
       await PushNotifications.register();
 
@@ -121,13 +127,13 @@ export function usePushNotifications() {
         }
       );
 
-      // Timeout sicurezza: se dopo 15s non arriva token, fallisce
+      // Timeout sicurezza: se dopo 30s non arriva token, fallisce
       return new Promise<boolean>((resolve) => {
         setTimeout(() => {
           handle.remove();
-          setError("Registrazione FCM scaduta. Riprova.");
+          setError("Registrazione FCM scaduta. Verifica che Google Play Services sia aggiornato sul telefono e che il progetto Firebase abbia Cloud Messaging API attivo.");
           resolve(false);
-        }, 15000);
+        }, 30000);
 
         // Quando il token arriva, il listener chiama handle.remove()
         // che risolve la promise. Intercettiamo remove per risolvere.
