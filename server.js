@@ -27,40 +27,6 @@ webpush.setVapidDetails(
   vapidPrivateKey
 );
 
-// ── OneSignal ──
-const onesignalAppId = process.env.VITE_ONESIGNAL_APP_ID || "";
-const onesignalApiKey = process.env.ONESIGNAL_REST_API_KEY || "";
-
-async function sendOneSignalNotification(userIds, title, body, url) {
-  if (!onesignalAppId || !onesignalApiKey) {
-    console.log("[OneSignal] Non configurato");
-    return 0;
-  }
-  try {
-    const res = await fetch("https://api.onesignal.com/notifications", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Basic ${onesignalApiKey}`
-      },
-      body: JSON.stringify({
-        app_id: onesignalAppId,
-        contents: { en: body },
-        headings: { en: title },
-        include_external_user_ids: userIds,
-        url: url || "/",
-        channel_for_external_user_ids: "push"
-      })
-    });
-    const result = await res.json();
-    console.log("[OneSignal] Risultato:", result);
-    return result.recipients || 0;
-  } catch (err) {
-    console.error("[OneSignal] Errore:", err);
-    return 0;
-  }
-}
-
 // Endpoint VAPID public key
 app.get("/api/vapid-public-key", (req, res) => {
   console.log("📢 Leggo VITE_VAPID_PUBLIC_KEY dal .env");
@@ -261,27 +227,19 @@ app.post("/api/push-send", async (req, res) => {
     const payload = JSON.stringify({ title, body, url: url || "/" });
     let sent = 0;
 
-    // ── Invia via Web Push ──
-    if (webSubs.length > 0) {
-      const webResults = await Promise.allSettled(
-        webSubs.map((sub) => {
-          const pushSub = { endpoint: sub.endpoint, keys: sub.keys };
-          return webpush.sendNotification(pushSub, payload).catch(async (err) => {
-            if (err.statusCode === 410) {
-              await supabase.from("push_subscriptions").delete().eq("endpoint", sub.endpoint);
-            }
-            throw err;
-          });
-        })
-      );
-      sent += webResults.filter((r) => r.status === "fulfilled").length;
-    }
-
-    // ── Invia via OneSignal (Android) ──
-    const oneSignalSent = await sendOneSignalNotification(userIdsArray, title, body, url);
-    sent += oneSignalSent;
-
-    res.json({ sent, total: webSubs.length + (oneSignalSent > 0 ? userIdsArray.length : 0), onesignal: oneSignalSent });
+    const results = await Promise.allSettled(
+      webSubs.map((sub) => {
+        const pushSub = { endpoint: sub.endpoint, keys: sub.keys };
+        return webpush.sendNotification(pushSub, payload).catch(async (err) => {
+          if (err.statusCode === 410) {
+            await supabase.from("push_subscriptions").delete().eq("endpoint", sub.endpoint);
+          }
+          throw err;
+        });
+      })
+    );
+    sent = results.filter((r) => r.status === "fulfilled").length;
+    res.json({ sent, total: webSubs.length });
   } catch (error) {
     console.error("Error:", error);
     res.status(500).json({ error: error.message });

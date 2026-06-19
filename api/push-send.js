@@ -12,42 +12,6 @@ webpush.setVapidDetails(
   vapidPrivateKey
 );
 
-// ── OneSignal ──
-const onesignalAppId = process.env.VITE_ONESIGNAL_APP_ID || "";
-const onesignalApiKey = process.env.ONESIGNAL_REST_API_KEY || "";
-
-async function sendOneSignalNotification(userIds, title, body, url) {
-  if (!onesignalAppId || !onesignalApiKey) {
-    console.log("[OneSignal] Non configurato");
-    return 0;
-  }
-
-  try {
-    const res = await fetch("https://api.onesignal.com/notifications", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Basic ${onesignalApiKey}`
-      },
-      body: JSON.stringify({
-        app_id: onesignalAppId,
-        contents: { en: body },
-        headings: { en: title },
-        include_external_user_ids: userIds,
-        url: url || "/",
-        channel_for_external_user_ids: "push"
-      })
-    });
-
-    const result = await res.json();
-    console.log("[OneSignal] Risultato:", result);
-    return result.recipients || 0;
-  } catch (err) {
-    console.error("[OneSignal] Errore:", err);
-    return 0;
-  }
-}
-
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -125,45 +89,38 @@ export default async function handler(req, res) {
 
     const userIdsArray = Array.from(targetUserIds);
 
-    // Recupera subscription per invio web push
     const { data: subscriptions, error } = await supabase
       .from("push_subscriptions")
-      .select("endpoint, keys, platform")
-      .in("user_id", userIdsArray)
-      .eq("platform", "web");
+      .select("endpoint, keys")
+      .in("user_id", userIdsArray);
 
     if (error) throw error;
 
-    const webSubs = (subscriptions || []).filter((s) => s.endpoint && s.keys);
+    if (!subscriptions || subscriptions.length === 0) {
+      return res.status(200).json({ sent: 0, total: 0 });
+    }
+
     const payload = JSON.stringify({ title, body, url: url || "/" });
     let sent = 0;
     const errors = [];
 
-    // ── Invia via Web Push (PC/browser) ──
-    if (webSubs.length > 0 && vapidPublicKey && vapidPrivateKey) {
-      const webResults = await Promise.allSettled(
-        webSubs.map((sub) => {
-          const pushSub = { endpoint: sub.endpoint, keys: sub.keys };
-          return webpush.sendNotification(pushSub, payload).catch(async (err) => {
-            if (err.statusCode === 410) {
-              await supabase.from("push_subscriptions").delete().eq("endpoint", sub.endpoint);
-            }
-            errors.push({ endpoint: sub.endpoint?.substring(0, 60) + "...", type: "web", statusCode: err.statusCode });
-            throw err;
-          });
-        })
-      );
-      sent += webResults.filter((r) => r.status === "fulfilled").length;
-    }
+    const results = await Promise.allSettled(
+      subscriptions.map((sub) => {
+        const pushSub = { endpoint: sub.endpoint, keys: sub.keys };
+        return webpush.sendNotification(pushSub, payload).catch(async (err) => {
+          if (err.statusCode === 410) {
+            await supabase.from("push_subscriptions").delete().eq("endpoint", sub.endpoint);
+          }
+          errors.push({ endpoint: sub.endpoint?.substring(0, 60) + "...", statusCode: err.statusCode });
+          throw err;
+        });
+      })
+    );
 
-    // ── Invia via OneSignal (Android) ──
-    const oneSignalSent = await sendOneSignalNotification(userIdsArray, title, body, url);
-    sent += oneSignalSent;
+    sent = results.filter((r) => r.status === "fulfilled").length;
+    console.log("[Push] Risultato:", { sent, total: subscriptions.length, errors });
 
-    const total = webSubs.length + (oneSignalSent > 0 ? userIdsArray.length : 0);
-    console.log("[Push] Risultato:", { sent, web: webSubs.length, onesignal: oneSignalSent });
-
-    return res.status(200).json({ sent, total, onesignal: oneSignalSent });
+    return res.status(200).json({ sent, total: subscriptions.length, errors: errors.length > 0 ? errors : undefined });
   } catch (error) {
     console.error("Push send error:", error);
     return res.status(500).json({ error: error.message });

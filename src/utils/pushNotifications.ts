@@ -3,27 +3,6 @@
 const VAPID_PLACEHOLDER = "INSERISCI_VAPID_PUBLIC_KEY";
 
 /**
- * Determina se l'app è in esecuzione in ambiente nativo (Capacitor/Android).
- * Usa un check runtime che non può essere ottimizzato da Vite.
- * Su web: nessuna delle due proprietà esiste → false
- * Su Android nativo: Capacitor setta androidBridge → true
- */
-export function isNativePlatform(): boolean {
-  try {
-    return typeof window !== "undefined" && (
-      // Capacitor bridge su Android
-      !!(window as any).androidBridge ||
-      // Capacitor plugin headers presenti
-      !!(window as any).Capacitor?.isNative ||
-      // Plugin disponibile
-      !!(window as any).Capacitor?.Plugins?.PushNotifications
-    );
-  } catch {
-    return false;
-  }
-}
-
-/**
  * Determina l'URL base per le API in base all'ambiente.
  * In DEV: usa percorso relativo, il proxy di Vite (vite.config.ts) inoltra a localhost:3000.
  * In PROD: percorso relativo, Vercel gestisce le API.
@@ -187,9 +166,4 @@ export function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return outputArray;
 }
 
-// ──────────────────────────────────────────────────
-//  FUNZIONI OneSignal (per app nativa Android / Capacitor)
-//  Nota: la registrazione/disiscrizione è gestita
-//  direttamente dal plugin OneSignal lato client.
-//  Le funzioni qui sono solo per compatibilità.
-// ──────────────────────────────────────────────────
+

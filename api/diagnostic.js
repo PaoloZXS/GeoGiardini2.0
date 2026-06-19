@@ -14,7 +14,7 @@ export default async function handler(req, res) {
 
   const { data: subs } = await supabase
     .from("push_subscriptions")
-    .select("id, user_id, endpoint, onesignal_id, platform, updated_at")
+    .select("id, user_id, endpoint, updated_at")
     .order("updated_at", { ascending: false });
 
   return res.json({
@@ -22,9 +22,7 @@ export default async function handler(req, res) {
     subscriptions: (subs || []).map(s => ({
       id: s.id,
       user_id: s.user_id,
-      platform: s.platform,
-      endpoint_short: s.endpoint ? s.endpoint.substring(0, 50) : null,
-      onesignal_id: s.onesignal_id || null,
+      endpoint_short: s.endpoint?.substring(0, 50) || null,
       updated_at: s.updated_at
     }))
   });

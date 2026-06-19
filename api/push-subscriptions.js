@@ -20,101 +20,54 @@ export default async function handler(req, res) {
 
   try {
     if (req.method === "POST") {
-      const { user_id, group_name, endpoint, keys, onesignal_id, platform } = req.body;
-      if (!user_id) {
+      const { user_id, group_name, endpoint, keys } = req.body;
+      if (!user_id || !endpoint || !keys) {
         return res
           .status(400)
-          .json({ error: "Missing required field: user_id" });
+          .json({ error: "Missing required fields: user_id, endpoint, keys" });
       }
 
-      // ── Sottoscrizione Web Push (VAPID) ──
-      if (endpoint && keys) {
-        const { data: existing } = await supabase
+      const { data: existing } = await supabase
+        .from("push_subscriptions")
+        .select("id")
+        .eq("endpoint", endpoint)
+        .maybeSingle();
+
+      const record = {
+        user_id,
+        endpoint,
+        keys,
+        updated_at: new Date().toISOString()
+      };
+
+      if (existing) {
+        await supabase
           .from("push_subscriptions")
-          .select("id")
-          .eq("endpoint", endpoint)
-          .maybeSingle();
-
-        const record = {
-          user_id,
-          endpoint,
-          keys,
-          platform: "web",
-          updated_at: new Date().toISOString()
-        };
-
-        if (existing) {
-          await supabase
-            .from("push_subscriptions")
-            .update(record)
-            .eq("id", existing.id);
-        } else {
-          await supabase
-            .from("push_subscriptions")
-            .insert(record);
-        }
-
-        console.log("[Push] Web subscription salvata per user_id:", user_id);
-        return res.status(200).json({ success: true, platform: "web" });
-      }
-
-      // ── Sottoscrizione Android nativa (OneSignal) ──
-      if (onesignal_id) {
-        const { data: existing } = await supabase
+          .update(record)
+          .eq("id", existing.id);
+      } else {
+        await supabase
           .from("push_subscriptions")
-          .select("id")
-          .eq("onesignal_id", onesignal_id)
-          .maybeSingle();
-
-        const record = {
-          user_id,
-          onesignal_id,
-          platform: platform || "android",
-          updated_at: new Date().toISOString()
-        };
-
-        if (existing) {
-          await supabase
-            .from("push_subscriptions")
-            .update(record)
-            .eq("id", existing.id);
-        } else {
-          await supabase
-            .from("push_subscriptions")
-            .insert(record);
-        }
-
-        console.log("[OneSignal] ID salvato per user_id:", user_id);
-        return res.status(200).json({ success: true, platform: "android" });
+          .insert(record);
       }
 
-      return res.status(400).json({ error: "Missing endpoint+keys or onesignal_id" });
+      console.log("[Push] Subscription salvata per user_id:", user_id);
+      return res.status(200).json({ success: true });
     }
 
     if (req.method === "DELETE") {
-      const { endpoint, onesignal_id } = req.body;
-
-      if (onesignal_id) {
-        await supabase
-          .from("push_subscriptions")
-          .delete()
-          .eq("onesignal_id", onesignal_id);
-
-        console.log("[OneSignal] ID eliminato");
-        return res.status(200).json({ success: true });
+      const { endpoint } = req.body;
+      if (!endpoint) {
+        return res.status(400).json({ error: "Missing endpoint" });
       }
 
-      if (endpoint) {
-        await supabase
-          .from("push_subscriptions")
-          .delete()
-          .eq("endpoint", endpoint);
+      await supabase
+        .from("push_subscriptions")
+        .delete()
+        .eq("endpoint", endpoint);
 
-        console.log("[Push] Web subscription eliminata per endpoint:", endpoint.substring(0, 50) + "...");
-        return res.status(200).json({ success: true });
-      }
-
-      return res.status(400).json({ error: "Missing endpoint or onesignal_id" });
+      console.log("[Push] Subscription eliminata:", endpoint.substring(0, 50) + "...");
+      return res.status(200).json({ success: true });
     }
 
     return res.status(405).json({ error: "Method not allowed" });
