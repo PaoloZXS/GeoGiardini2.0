@@ -1245,10 +1245,17 @@ function FullCalendarPage() {
         end: string;
         backgroundColor: string;
         borderColor: string;
+        textColor?: string;
         extendedProps: {
           originalStart: string;
           originalEnd: string;
-          originalTimeLabel: string;
+          originalTimeLabel?: string;
+          activity?: string;
+          giardiniereName?: string;
+          location?: string;
+          stato?: string;
+          privato?: boolean;
+          categoria?: string;
         };
       }> = [];
 
@@ -1391,8 +1398,8 @@ function FullCalendarPage() {
         rawEvents.push({
           id: `ins_${item.id}`,
           title: eventTitle,
-          start: buildIsoDateTime(startDate, "08:00"),
-          end: buildIsoDateTime(endDate, "17:00"),
+          start: buildIsoDateTime(startDate, "08:00")!,
+          end: buildIsoDateTime(endDate, "17:00")!,
           backgroundColor: eventBgColor,
           borderColor: eventBgColor,
           textColor: "#ffffff",
@@ -1835,7 +1842,7 @@ function FullCalendarPage() {
                 });
               }}
               eventContent={(arg) => {
-                const fmtDate = (d) =>
+                const fmtDate = (d: Date | null) =>
                   d
                     ? d.toLocaleDateString("it-IT", {
                         day: "2-digit",

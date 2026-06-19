@@ -134,21 +134,28 @@ async function subscribeNative(
     setIsSubscribed(true);
     setPermission("granted");
 
+    // Usa una flag per evitare salvataggi duplicati
+    let onesignalSaved = false;
+    const saveOneSignalId = async (oid: string) => {
+      if (onesignalSaved) return;
+      onesignalSaved = true;
+      await fetch("/api/push-subscriptions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: userId,
+          group_name: groupName,
+          onesignal_id: oid,
+          platform: "android"
+        })
+      }).catch(() => {});
+    };
+
     // Ascolta il cambiamento utente per ottenere l'ID OneSignal
-    const unsubscribeUser = OneSignal.User.addEventListener("change", async (state: any) => {
+    OneSignal.User.addEventListener("change", async (state: any) => {
       const oid = state?.current?.onesignalId;
       if (oid) {
-        unsubscribeUser();
-        await fetch("/api/push-subscriptions", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            user_id: userId,
-            group_name: groupName,
-            onesignal_id: oid,
-            platform: "android"
-          })
-        }).catch(() => {});
+        await saveOneSignalId(oid);
       }
     });
 
@@ -157,17 +164,7 @@ async function subscribeNative(
       await new Promise(r => setTimeout(r, 5000));
       const oid = await OneSignal.User.getOnesignalId();
       if (oid) {
-        unsubscribeUser();
-        await fetch("/api/push-subscriptions", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            user_id: userId,
-            group_name: groupName,
-            onesignal_id: oid,
-            platform: "android"
-          })
-        }).catch(() => {});
+        await saveOneSignalId(oid);
         break;
       }
     }

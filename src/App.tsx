@@ -186,7 +186,7 @@ function App() {
           path="/admin/calendar"
           element={
             authenticatedRole === "admin" ? (
-              <FullCalendarPage onBack={() => { window.location.hash = "#/admin"; }} />
+              <FullCalendarPage />
             ) : (
               <Navigate to="/" replace />
             )

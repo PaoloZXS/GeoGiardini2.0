@@ -595,7 +595,7 @@ export default function GiardinierePage({ onLogout }: GiardinierePageProps) {
           height={420}
           eventClick={handleEventClick}
           eventContent={(arg) => {
-            const fmtDate = (d) =>
+            const fmtDate = (d: Date | null) =>
               d
                 ? d.toLocaleDateString("it-IT", {
                     day: "2-digit",
