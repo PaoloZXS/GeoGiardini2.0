@@ -1955,7 +1955,7 @@ function ReportModal({ onClose }: { onClose: () => void }) {
         </div>
 
         {/* Filtri */}
-        <div className="grid grid-cols-2 gap-3 mb-4 p-4 bg-[#f2f4f2] rounded-xl items-start">
+        <div className="grid grid-cols-2 gap-3 mb-4 p-4 bg-[#f2f4f2] rounded-xl items-start" style={{ marginTop: "30px" }}>
           <select
             className="w-full h-10 px-3 rounded-lg border border-[#c2c9bb] bg-white text-xs font-bold"
             value={filtroCategoria}
@@ -2030,48 +2030,42 @@ function ReportModal({ onClose }: { onClose: () => void }) {
               style={{ color: filtroDataA ? "black" : "#9ca3af" }}
             />
           </div>
-          <button
-            onClick={handleSearch}
-            className="h-10 rounded-lg bg-[#154212] text-white text-xs font-bold hover:bg-[#154212]/90 transition"
-          >
-            Cerca
-          </button>
-          <button
-            onClick={resetFilters}
-            className="h-10 rounded-lg border border-[#c2c9bb] bg-white text-xs font-bold text-black hover:bg-[#eceeec] transition"
-          >
-            Pulisci
-          </button>
-        </div>
-
-        {/* Ricerca avanzata */}
-        <div className="mb-4">
-          <button
-            type="button"
-            onClick={() => setShowAvanzata(!showAvanzata)}
-            className="text-xs font-bold text-[#2563eb] hover:underline flex items-center gap-1"
-          >
-            <span className="material-symbols-outlined text-base">
-              {showAvanzata ? "expand_less" : "expand_more"}
-            </span>
-            Ricerca avanzata
-          </button>
-          {showAvanzata && (
-            <textarea
-              className="w-full mt-2 p-3 rounded-lg border border-[#c2c9bb] bg-white text-xs font-bold resize-none placeholder:text-[#9ca3af]"
-              rows={3}
-              placeholder='Scrivi una frase: es. "ROSE, Villa Cristina, maggio 2026" - il sistema analizza automaticamente Soggetto, Località, Contatto e Date.'
-              value={ricercaAvanzata}
-              onChange={(e) => setRicercaAvanzata(e.target.value)}
-            />
-          )}
+          <div className="col-span-2 flex justify-center gap-8">
+            <div className="flex flex-col items-center">
+              <button
+                onClick={handleSearch}
+                className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-[#154212] text-white transition hover:bg-[#154212]/90"
+                title="Cerca"
+              >
+                <span className="material-symbols-outlined text-xl">search</span>
+              </button>
+              <span className="mt-1 text-[0.65rem] font-semibold text-black">
+                Cerca
+              </span>
+            </div>
+            <div className="flex flex-col items-center">
+              <button
+                onClick={resetFilters}
+                className="inline-flex h-11 w-11 items-center justify-center rounded-full text-3xl leading-none transition focus:outline-none focus:ring-2 focus:ring-[#154212]"
+                style={{ backgroundColor: "#f5e0b7" }}
+                title="Pulisci campi"
+              >
+                <span className="material-symbols-outlined text-[22px] leading-none text-black">
+                  cleaning_services
+                </span>
+              </button>
+              <span className="mt-1 text-[0.65rem] font-semibold text-black">
+                Pulisci
+              </span>
+            </div>
+          </div>
         </div>
 
         {/* Risultati */}
         {loading ? (
           <div className="text-center py-8 text-[#72796e]">Caricamento...</div>
         ) : !hasSearched ? (
-          <div className="text-center py-8 text-white font-bold">
+          <div className="text-center py-8 text-black font-bold">
             Usa i filtri per affinare la ricerca
           </div>
         ) : results.length === 0 ? (
@@ -2145,7 +2139,7 @@ function ReportModal({ onClose }: { onClose: () => void }) {
             >
               <span className="material-symbols-outlined text-xl">close</span>
             </button>
-            <span className="mt-1 text-[0.65rem] font-semibold text-white">
+            <span className="mt-1 text-[0.65rem] font-semibold text-black">
               Chiudi
             </span>
           </div>
@@ -2176,7 +2170,7 @@ function ReportModal({ onClose }: { onClose: () => void }) {
               >
                 <span className="material-symbols-outlined text-xl">close</span>
               </button>
-              <span className="mt-1 text-[0.65rem] font-semibold text-white">
+              <span className="mt-1 text-[0.65rem] font-semibold text-black">
                 Chiudi
               </span>
             </div>
@@ -2876,12 +2870,14 @@ function NotificheModal({
                 Clicca sulla card per visualizzare l'attività
               </p>
               <div className="overflow-y-auto rounded-xl border border-[#c2c9bb] bg-white p-2 space-y-2">
-              {notificheNonLette.map((notifica) => (
+              {notificheNonLette.map((notifica, idx) => (
                 <button
                   key={notifica.id}
                   type="button"
                   onClick={() => handleCardClick(notifica)}
-                  className="w-full text-left rounded-xl border border-[#c2c9bb] bg-white p-3 hover:bg-[#eceeec] transition cursor-pointer shadow-sm"
+                  className={`w-full text-left rounded-xl border border-[#c2c9bb] p-3 hover:bg-[#d4e6c5] transition cursor-pointer shadow-sm ${
+                    idx % 2 === 0 ? "bg-white" : "bg-[#dcfce7]"
+                  }`}
                 >
                   <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "8px" }}>
                     {/* Colonna sinistra */}
