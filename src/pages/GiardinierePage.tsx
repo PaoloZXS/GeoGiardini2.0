@@ -4,7 +4,6 @@ import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import itLocale from "@fullcalendar/core/locales/it";
-import PushNotificationToggle from "../components/PushNotificationToggle";
 import { sendPushNotification } from "../utils/pushNotifications";
 
 interface GiardinierePageProps {
@@ -12,12 +11,15 @@ interface GiardinierePageProps {
 }
 
 const formatCalendarRange = (start: Date, end: Date) => {
+  // FullCalendar end date è esclusiva, sottraiamo 1 giorno
+  const adjustedEnd = new Date(end);
+  adjustedEnd.setDate(adjustedEnd.getDate() - 1);
   const startDay = start.getDate();
   const startMonth = start.toLocaleDateString("it-IT", { month: "long" });
   const startYear = start.getFullYear();
-  const endDay = end.getDate();
-  const endMonth = end.toLocaleDateString("it-IT", { month: "long" });
-  const endYear = end.getFullYear();
+  const endDay = adjustedEnd.getDate();
+  const endMonth = adjustedEnd.toLocaleDateString("it-IT", { month: "long" });
+  const endYear = adjustedEnd.getFullYear();
   if (startYear === endYear) {
     return `${startDay} ${startMonth} – ${endDay} ${endMonth}\n${startYear}`;
   }
@@ -281,17 +283,10 @@ export default function GiardinierePage({ onLogout }: GiardinierePageProps) {
           .insert({ attivita_id: selectedEvent.id, foto_url: fotoUrl });
       }
 
-      // Inserisce notifica per l'admin (solo se non esiste già una notifica non letta)
-      const { count: notificaCount } = await supabase
+      // Inserisce notifica per l'admin (sempre, per ogni modifica)
+      await supabase
         .from("notifiche_attivita")
-        .select("*", { count: "exact", head: true })
-        .eq("attivita_id", selectedEvent.id)
-        .eq("letta", false);
-      if (!notificaCount || notificaCount === 0) {
-        await supabase
-          .from("notifiche_attivita")
-          .insert({ attivita_id: selectedEvent.id });
-      }
+        .insert({ attivita_id: selectedEvent.id, letta: false });
 
       setSelectedEvent(null);
       loadEventi();
@@ -525,12 +520,38 @@ export default function GiardinierePage({ onLogout }: GiardinierePageProps) {
             fontSize: "0.85rem",
             fontWeight: 600,
             fontStyle: "italic",
-            alignSelf: "flex-start",
-            paddingLeft: "90px"
+            textAlign: "center"
           }}
         >
           {localStorage.getItem("loginUsername") || "Giardiniere"} — Operatore
         </p>
+      </div>
+
+      {/* Barra sopra il calendario: titolo data */}
+      <div
+        style={{
+          width: "100%",
+          maxWidth: "900px",
+          marginLeft: "auto",
+          marginRight: "auto",
+          display: "flex",
+          justifyContent: "center",
+          padding: "0 4px 0 4px"
+        }}
+      >
+        <h2
+          style={{
+            margin: 0,
+            fontWeight: 700,
+            fontStyle: "italic",
+            color: "#000000",
+            whiteSpace: "nowrap",
+            lineHeight: 1.2,
+            fontSize: "1.1rem"
+          }}
+        >
+          {(calendarTitle || "Caricamento...").replace(/\s*\n\s*/g, " ").trim()}
+        </h2>
       </div>
 
       {/* Calendario */}
@@ -542,7 +563,7 @@ export default function GiardinierePage({ onLogout }: GiardinierePageProps) {
           maxWidth: "900px",
           minHeight: "420px",
           maxHeight: "520px",
-          margin: "40px auto 12px",
+          margin: "1px auto 12px",
           padding: 0,
           border: "1px solid rgba(15, 23, 42, 0.18)",
           overflow: "hidden",
@@ -629,29 +650,7 @@ export default function GiardinierePage({ onLogout }: GiardinierePageProps) {
         />
       </div>
 
-      {/* Titolo data */}
-      <div
-        style={{
-          width: "100%",
-          maxWidth: "900px",
-          margin: "0 auto 8px",
-          textAlign: "center"
-        }}
-      >
-        <h2
-          className="fc-toolbar-title"
-          style={{
-            margin: 0,
-            fontWeight: 700,
-            fontStyle: "italic",
-            color: "#000000",
-            whiteSpace: "nowrap",
-            lineHeight: 1.2
-          }}
-        >
-          {(calendarTitle || "Caricamento...").replace(/\s*\n\s*/g, " ").trim()}
-        </h2>
-      </div>
+
 
       {/* Barra navigazione */}
       <div
@@ -854,7 +853,7 @@ export default function GiardinierePage({ onLogout }: GiardinierePageProps) {
         </span>
       </div>
 
-      {/* Pulsanti Logout e Notifiche Push */}
+      {/* Pulsante Logout */}
       <div
         style={{
           position: "fixed",
@@ -867,7 +866,6 @@ export default function GiardinierePage({ onLogout }: GiardinierePageProps) {
           gap: "16px"
         }}
       >
-        <PushNotificationToggle />
         <div
           style={{
             display: "flex",

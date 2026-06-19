@@ -60,15 +60,6 @@ export default function PushNotificationToggle() {
     await subscribe();
   };
 
-  // Messaggio di stato (ispirato a CosaDaFare che mostra testo sotto il pulsante)
-  const statusText = error
-    ? error
-    : isSubscribed
-      ? "Notifiche attive"
-      : isDisabled
-        ? "Notifiche bloccate"
-        : "Clicca per attivare le notifiche";
-
   return (
     <div
       style={{
@@ -119,20 +110,6 @@ export default function PushNotificationToggle() {
       >
         {isSubscribed ? "Notifiche ON" : isDisabled ? "Bloccate" : "Notifiche"}
       </span>
-      {/* Status text sotto il label, come in CosaDaFare push.js updatePushButtonState */}
-      {statusText && (
-        <span
-          style={{
-            fontSize: "0.6rem",
-            color: error ? "#dc2626" : "#4b5563",
-            textAlign: "center",
-            maxWidth: "120px",
-            lineHeight: "1.2"
-          }}
-        >
-          {statusText}
-        </span>
-      )}
     </div>
   );
 }

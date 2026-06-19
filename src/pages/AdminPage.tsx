@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../supabaseClient";
 import InserisciAttivitaModal from "../components/InserisciAttivitaModal";
-import PushNotificationToggle from "../components/PushNotificationToggle";
 import { sendPushNotification } from "../utils/pushNotifications";
 
 interface AdminPageProps {
@@ -2707,6 +2706,7 @@ function NotificheModal({
   const [loading, setLoading] = useState(true);
   const [editItem, setEditItem] = useState<any | null>(null);
   const [editingNotifica, setEditingNotifica] = useState<any | null>(null);
+  const [notificaFiltro, setNotificaFiltro] = useState<"tutti" | "admin" | "giardiniere">("tutti");
 
   const fetchList = async () => {
     setLoading(true);
@@ -2732,7 +2732,23 @@ function NotificheModal({
   }, []);
 
   // Filtra solo quelle non lette per la visualizzazione
-  const notificheNonLette = list.filter((n) => n.letta !== true);
+  const ADMINS = ["Angelo", "Giulio"];
+  const notificheNonLette = list.filter((n) => {
+    if (n.letta === true) return false;
+    if (notificaFiltro === "tutti") return true;
+    const createdBy = n.inserimenti_attivita?.created_by || "";
+    const isAdmin = ADMINS.includes(createdBy);
+    if (notificaFiltro === "admin") return isAdmin;
+    if (notificaFiltro === "giardiniere") return !isAdmin && !!createdBy;
+    return true;
+  });
+
+  // Conteggi per filtro
+  const conteggi = {
+    tutti: list.filter((n) => n.letta !== true).length,
+    admin: list.filter((n) => n.letta !== true && ADMINS.includes(n.inserimenti_attivita?.created_by || "")).length,
+    giardiniere: list.filter((n) => n.letta !== true && !ADMINS.includes(n.inserimenti_attivita?.created_by || "") && !!n.inserimenti_attivita?.created_by).length
+  };
 
   const formatDate = (d: string) => {
     if (!d) return "-";
@@ -2747,6 +2763,16 @@ function NotificheModal({
     // Non marca come letta: salva la notifica e apre il modale
     setEditingNotifica(notifica);
     setEditItem(notifica.inserimenti_attivita);
+  };
+
+  const handleMarkAsRead = async (e: React.MouseEvent, notifica: any) => {
+    e.stopPropagation();
+    await supabase
+      .from("notifiche_attivita")
+      .update({ letta: true })
+      .eq("id", notifica.id);
+    setList((prev) => prev.filter((n) => n.id !== notifica.id));
+    onNotified?.();
   };
 
   const handleSaveSuccess = async () => {
@@ -2845,7 +2871,11 @@ function NotificheModal({
               Nessuna notifica presente.
             </div>
           ) : (
-            <div className="overflow-y-auto rounded-xl border border-[#c2c9bb] bg-white p-2 space-y-2">
+            <>
+              <p className="text-[12px] text-black font-semibold text-center mb-2">
+                Clicca sulla card per visualizzare l'attività
+              </p>
+              <div className="overflow-y-auto rounded-xl border border-[#c2c9bb] bg-white p-2 space-y-2">
               {notificheNonLette.map((notifica) => (
                 <button
                   key={notifica.id}
@@ -2853,7 +2883,7 @@ function NotificheModal({
                   onClick={() => handleCardClick(notifica)}
                   className="w-full text-left rounded-xl border border-[#c2c9bb] bg-white p-3 hover:bg-[#eceeec] transition cursor-pointer shadow-sm"
                 >
-                  <div className="grid grid-cols-2 gap-2">
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "8px" }}>
                     {/* Colonna sinistra */}
                     <div className="text-left">
                       <div className="text-xs font-bold text-gray-500">
@@ -2872,24 +2902,27 @@ function NotificheModal({
                             {" "}
                             —{" "}
                             {notifica.inserimenti_attivita.attivita.descrizione}
-                            {notifica.inserimenti_attivita?.clienti?.nome
-                              ? ` — ${notifica.inserimenti_attivita.clienti.nome}`
-                              : ""}
                           </span>
-                        ) : notifica.inserimenti_attivita?.clienti?.nome ? (
-                          ` — ${notifica.inserimenti_attivita.clienti.nome}`
                         ) : (
                           ""
                         )}
                       </div>
+                      {notifica.inserimenti_attivita?.clienti?.nome && (
+                        <div className="text-xs font-semibold text-[#6b7280] mt-0.5">
+                          {notifica.inserimenti_attivita.clienti.nome}
+                        </div>
+                      )}
                     </div>
                     {/* Colonna destra */}
-                    <div className="text-right">
-                      <div className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-800">
+                    <div className="text-right flex flex-col items-end gap-1">
+                      <div
+                        onClick={(e) => handleMarkAsRead(e, notifica)}
+                        className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-bold text-green-800 cursor-pointer hover:bg-green-200 transition"
+                      >
                         <span className="material-symbols-outlined text-xs">
-                          notifications
+                          check
                         </span>
-                        Notifica
+                        Visto
                       </div>
                       <div className="mt-0.5 text-[10px] text-gray-400 font-semibold">
                         {notifica.created_at
@@ -2909,7 +2942,32 @@ function NotificheModal({
                 </button>
               ))}
             </div>
+            </>
           )}
+          {/* Filtri mittente - sempre visibili */}
+          <div className="flex justify-center gap-3 mt-3">
+            {(["tutti", "admin", "giardiniere"] as const).map((f) => (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setNotificaFiltro(f)}
+                className={`px-4 py-1.5 rounded-full text-xs font-bold transition ${
+                  notificaFiltro === f
+                    ? "bg-[#154212] text-white"
+                    : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                }`}
+              >
+                {f === "tutti" ? "Tutte le notifiche" : f === "admin" ? "Notifiche dagli Admin" : "Notifiche dagli Operatori"}
+                <span className={`ml-1.5 px-1.5 rounded-full text-[10px] ${
+                  notificaFiltro === f
+                    ? "bg-white/30 text-white"
+                    : "bg-gray-300 text-gray-600"
+                }`}>
+                  {conteggi[f]}
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
       </section>
     </div>
@@ -3042,8 +3100,7 @@ export default function AdminPage({ onLogout }: AdminPageProps) {
   return (
     <div className="bg-background text-on-surface h-screen flex flex-col overflow-hidden admin-page-root">
       <header className="w-full shrink-0 bg-transparent dark:bg-transparent flex flex-col px-edge-margin pt-0 h-touch-target-min z-40">
-        <div className="flex items-center justify-between w-full">
-          <div className="flex-1" />
+        <div className="flex justify-center w-full">
           <div className="flex items-center gap-sm">
             <img
               src="/leaf-512.png"
@@ -3067,42 +3124,6 @@ export default function AdminPage({ onLogout }: AdminPageProps) {
             >
               GeoGiardini
             </h1>
-          </div>
-          <div className="flex-1 flex items-center justify-end gap-md">
-            <div style={{ position: "relative", top: "50px" }}>
-              <PushNotificationToggle />
-            </div>
-            <button
-              type="button"
-              onClick={onLogout}
-              className="relative left-[-20px] inline-flex flex-col items-center gap-1 p-0"
-              aria-label="Logout"
-            >
-              <span
-                className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-surface"
-                style={{ position: "relative", top: "50px" }}
-              >
-                <svg
-                  className="w-6 h-6 text-on-surface-variant"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
-                  <path d="M16 17l5-5-5-5" />
-                  <path d="M21 12H9" />
-                </svg>
-              </span>
-              <span
-                className="text-[0.65rem] font-semibold uppercase tracking-[0.02em] text-on-surface-variant"
-                style={{ position: "relative", top: "50px" }}
-              >
-                Logout
-              </span>
-            </button>
           </div>
         </div>
         <div className="flex items-center gap-6 pt-1">
@@ -3135,6 +3156,33 @@ export default function AdminPage({ onLogout }: AdminPageProps) {
               </span>
             )}
           </button>
+          <div style={{ marginLeft: "auto" }}>
+            <button
+              type="button"
+              onClick={onLogout}
+              className="inline-flex flex-col items-center gap-1 p-0"
+              aria-label="Logout"
+            >
+              <span className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-surface">
+                <svg
+                  className="w-6 h-6 text-on-surface-variant"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
+                  <path d="M16 17l5-5-5-5" />
+                  <path d="M21 12H9" />
+                </svg>
+              </span>
+              <span className="text-[0.65rem] font-semibold uppercase tracking-[0.02em] text-on-surface-variant">
+                Logout
+              </span>
+            </button>
+          </div>
         </div>
       </header>
       <div className="admin-page__divider" />
