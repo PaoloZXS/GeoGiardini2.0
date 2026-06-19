@@ -5,14 +5,7 @@ dist
 .env
 repomix-output.xml
 
-# Firebase secrets (root only, NOT android/app/)
+# Firebase secrets
 /google-services.json
 /geogiardini-8faf9-firebase-adminsdk-*.json
 /firebase-base64.txt
-
-# Capacitor (Android)
-android/app/build
-android/.gradle
-android/build
-android/local.properties
-android/captured_inputs
