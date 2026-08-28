@@ -749,7 +749,6 @@ function FullCalendarPage() {
           );
         }
       }
-      setCalendarKey((k) => k + 1);
     } catch (err) {
       console.error("Errore caricamento dati calendario", err);
       setError(
@@ -858,12 +857,12 @@ function FullCalendarPage() {
 
       if (error) {
         console.error("Errore drag appointment", error);
-        return false;
+        return null;
       }
-      return true;
+      return { data: requestBody.data, endDate: requestBody.endDate };
     } catch (error) {
       console.error("Errore drag appointment", error);
-      return false;
+      return null;
     }
   };
 
@@ -902,7 +901,18 @@ function FullCalendarPage() {
         info.revert();
         return;
       }
-      await loadData();
+      // Aggiorna SOLO lo stato locale dell'evento spostato (niente reload completo)
+      setInserimentiAttivita((prev) =>
+        prev.map((it: any) =>
+          it.id?.toString?.()?.trim?.() === insId
+            ? {
+                ...it,
+                data_inizio: formatLocalDate(startDate),
+                data_fine: formatLocalDate(endDate)
+              }
+            : it
+        )
+      );
       return;
     }
 
@@ -927,12 +937,12 @@ function FullCalendarPage() {
       return;
     }
 
-    const success = await updateAppuntamentoFromDrag(
+    const result = await updateAppuntamentoFromDrag(
       appointment,
       info.event.start
     );
 
-    if (!success) {
+    if (!result) {
       setDragWarning(
         "Impossibile aggiornare l'appuntamento. Riprovare più tardi."
       );
@@ -940,7 +950,15 @@ function FullCalendarPage() {
       return;
     }
 
-    await loadData();
+    // Aggiorna SOLO lo stato locale dell'evento spostato (niente reload completo)
+    setAppuntamenti((prev) =>
+      prev.map((a: any) =>
+        a.id?.toString?.()?.trim?.() === appointmentId
+          ? { ...a, data: result.data, end_date: result.endDate }
+          : a
+      )
+    );
+    return;
   };
 
   const resourceColorById = useMemo(
