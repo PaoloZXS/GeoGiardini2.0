@@ -870,6 +870,43 @@ function FullCalendarPage() {
   const handleEventDrop = async (info: any) => {
     setDragWarning(null);
     const rawId = String(info.event.id || "").trim();
+
+    // --- Eventi da inserimenti_attivita (id con prefisso "ins_") ---
+    if (rawId.startsWith("ins_")) {
+      const insId = rawId.replace("ins_", "");
+      const item = inserimentiAttivita.find(
+        (i: any) => i.id?.toString?.()?.trim?.() === insId
+      );
+      if (!item || !info.event.start) {
+        info.revert();
+        return;
+      }
+      const spanDays = getAppointmentSpanDays({
+        data: item.data_inizio,
+        end_date: item.data_fine || item.data_inizio
+      });
+      const startDate = new Date(info.event.start);
+      const endDate = new Date(startDate);
+      endDate.setDate(startDate.getDate() + spanDays - 1);
+
+      const { error } = await supabase
+        .from("inserimenti_attivita")
+        .update({
+          data_inizio: formatLocalDate(startDate),
+          data_fine: formatLocalDate(endDate)
+        })
+        .eq("id", insId);
+      if (error) {
+        console.error("Errore drag attività", error);
+        setDragWarning("Impossibile aggiornare l'attività. Riprovare.");
+        info.revert();
+        return;
+      }
+      await loadData();
+      return;
+    }
+
+    // --- Eventi da appuntamenti ---
     const appointmentId = getAppointmentIdFromEvent(rawId);
     if (!appointmentId) {
       info.revert();
