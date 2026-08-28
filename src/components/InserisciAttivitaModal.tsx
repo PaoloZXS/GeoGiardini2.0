@@ -244,6 +244,12 @@ function InserisciAttivitaModal({
       clearStatus();
       return;
     }
+    if (giardiniereIds.length === 0) {
+      setStatusType("error");
+      setStatusMessage("Seleziona almeno un giardiniere.");
+      clearStatus();
+      return;
+    }
     setIsSaving(true);
     try {
       const payload: any = {
@@ -253,7 +259,7 @@ function InserisciAttivitaModal({
         attivita_id: attivitaId,
         note: note.trim() || null,
         cliente_id: clienteId || null,
-        giardiniere_ids: giardiniereIds.length > 0 ? giardiniereIds : null,
+        giardiniere_ids: giardiniereIds,
         visibile,
         aggiungi_al_planning: aggiungiPlanning,
         stato,
