@@ -165,3 +165,21 @@ create policy "foto public update" on storage.objects
 drop policy if exists "foto public delete" on storage.objects;
 create policy "foto public delete" on storage.objects
   for delete using (bucket_id = 'foto');
+
+-- ---------------------------------------------------------------------------
+-- 13) FIX: tabella legacy "notifiche_esecuzioni" (NON usata dall'app)
+--     I suoi vincoli FK bloccano l'eliminazione di clienti/notifiche a cascata.
+--     Rimuove TUTTI i vincoli di chiave esterna della tabella.
+-- ---------------------------------------------------------------------------
+do $$
+declare r record;
+begin
+  for r in
+    select conname
+    from pg_constraint
+    where conrelid = 'notifiche_esecuzioni'::regclass
+      and contype = 'f'
+  loop
+    execute format('alter table notifiche_esecuzioni drop constraint %I', r.conname);
+  end loop;
+end $$;

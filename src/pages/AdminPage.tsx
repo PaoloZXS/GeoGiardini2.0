@@ -1231,37 +1231,52 @@ function AttivitaModal({ onClose }: { onClose: () => void }) {
       const descTrim = descrizione.trim();
       const notaTrim = nota.trim() || null;
 
-      // Cerca se esiste già attività con stessa categoria+descrizione
-      const esistente = list.find(
-        (x: any) =>
-          (x.categorie?.nome?.toLowerCase() === nomeCat.toLowerCase() ||
-            x.categoria_id === catId) &&
-          x.descrizione.toLowerCase() === descTrim.toLowerCase()
-      );
-
-      if (esistente) {
-        // Aggiorna solo la nota se cambiata
-        if (esistente.nota !== notaTrim) {
-          const { error } = await supabase
-            .from("attivita")
-            .update({ nota: notaTrim })
-            .eq("id", esistente.id);
-          if (error) throw error;
-          setStatusType("success");
-          setStatusMessage("Nota aggiornata.");
-        } else {
-          setStatusType("success");
-          setStatusMessage("Attività già esistente, nessuna modifica.");
-        }
-      } else {
-        const { error } = await supabase.from("attivita").insert({
-          categoria_id: catId,
-          descrizione: descTrim,
-          nota: notaTrim
-        });
+      if (selectedId) {
+        // MODIFICA: aggiorna la riga selezionata (non crearne una nuova)
+        const { error } = await supabase
+          .from("attivita")
+          .update({
+            categoria_id: catId,
+            descrizione: descTrim,
+            nota: notaTrim
+          })
+          .eq("id", selectedId);
         if (error) throw error;
         setStatusType("success");
-        setStatusMessage("Attività salvata.");
+        setStatusMessage("Attività aggiornata.");
+      } else {
+        // NUOVO inserimento: evita duplicati (stessa categoria + descrizione)
+        const esistente = list.find(
+          (x: any) =>
+            (x.categorie?.nome?.toLowerCase() === nomeCat.toLowerCase() ||
+              x.categoria_id === catId) &&
+            x.descrizione.toLowerCase() === descTrim.toLowerCase()
+        );
+
+        if (esistente) {
+          // Aggiorna solo la nota se cambiata
+          if (esistente.nota !== notaTrim) {
+            const { error } = await supabase
+              .from("attivita")
+              .update({ nota: notaTrim })
+              .eq("id", esistente.id);
+            if (error) throw error;
+            setStatusType("success");
+            setStatusMessage("Nota aggiornata.");
+          } else {
+            setStatusType("success");
+            setStatusMessage("Attività già esistente, nessuna modifica.");
+          }
+        } else {
+          const { error } = await supabase.from("attivita").insert({
+            categoria_id: catId,
+            descrizione: descTrim,
+            nota: notaTrim
+          });
+          if (error) throw error;
+          setStatusType("success");
+          setStatusMessage("Attività salvata.");
+        }
       }
       resetForm();
       await fetchData();
