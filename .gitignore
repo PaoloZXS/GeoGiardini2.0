@@ -5,6 +5,9 @@ dist
 .env
 repomix-output.xml
 
+# Note con credenziali (NON committare: repo pubblico)
+Dati GeoGiardini.txt
+
 # Firebase secrets
 /google-services.json
 /geogiardini-8faf9-firebase-adminsdk-*.json
